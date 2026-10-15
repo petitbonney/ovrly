@@ -19,9 +19,9 @@ Small steps; each milestone should be usable on its own.
 
 ## M2: Twitch chat
 
-- [ ] tmi.js connection (channel name in settings, anonymous read)
-- [ ] Triggers: chat message, `!command`
-- [ ] Chat test panel to fire fake events without going live
+- [x] tmi.js connection (channel name in settings, anonymous read)
+- [x] Triggers: chat message, `!command`
+- [x] Chat test panel to fire fake events without going live
 
 ## M3: Actions
 

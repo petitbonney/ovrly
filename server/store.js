@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 
 const root = path.resolve('data')
 // Restrict kinds and ids so a request can't escape ./data.
-const KINDS = ['workflows', 'widgets']
+const KINDS = ['workflows', 'widgets', 'settings']
 const ID = /^[\w-]+$/
 
 function file(kind, id) {

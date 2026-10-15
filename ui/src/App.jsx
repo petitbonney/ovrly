@@ -1,6 +1,7 @@
-// App shell: left lists, center editor, bottom node config, right node library.
+// App shell: left lists, center editor, bottom node config, right node library and chat panels.
 import { useEffect, useState } from 'react'
 import Workflow from './Workflow.jsx'
+import { Twitch, ChatTest } from './Chat.jsx'
 
 function List({ title, kind, selected, onSelect, onAdd, version }) {
   const [items, setItems] = useState([])
@@ -83,6 +84,8 @@ export default function App() {
       )}
       <aside className="right">
         <Library defs={defs} />
+        <Twitch />
+        <ChatTest />
       </aside>
     </div>
   )

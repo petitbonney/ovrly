@@ -3,6 +3,7 @@ import express from 'express'
 import * as store from './store.js'
 import bus from './bus.js'
 import { nodes } from './engine.js'
+import * as twitch from './sources/twitch.js'
 
 const PORT = process.env.PORT || 3000
 const app = express()
@@ -14,6 +15,15 @@ app.get('/api/nodes', (req, res) => res.json(Object.values(nodes).map(({ run, ..
 app.post('/api/emit/:event', (req, res) => {
   bus.emit(req.params.event, req.body)
   res.sendStatus(204)
+})
+
+// Twitch channel setting; saving it reconnects.
+app.get('/api/twitch', (req, res) => res.json(twitch.status))
+app.put('/api/twitch', async (req, res) => {
+  const channel = String(req.body.channel || '').trim().toLowerCase().replace(/^#/, '')
+  await store.save('settings', { id: 'twitch', channel })
+  await twitch.connect(channel)
+  res.json(twitch.status)
 })
 
 app.get('/api/:kind', async (req, res) => res.json(await store.list(req.params.kind)))
@@ -39,4 +49,5 @@ if (process.env.NODE_ENV === 'production') {
   app.use(vite.middlewares)
 }
 
+twitch.connect((await store.get('settings', 'twitch'))?.channel || '')
 app.listen(PORT, () => console.log(`Ovrly on http://localhost:${PORT}`))
