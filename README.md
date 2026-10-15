@@ -17,8 +17,12 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   queue (what follows runs one firing at a time, the next wait in line).
 - **Widget concurrency**: an action sent to a widget that is still playing one (e.g. a second `!spin`) cancels it and
   plays the new one; the cancelled run stops there. Put a queue node before the widget to play them in turn instead.
+- **Show, hide, cancel**: every widget has these actions. "show" and "hide" fade the whole overlay in or out without
+  interrupting what it plays (the alert's own "show" shows a text, and the overlay with it). "cancel" stops its
+  animation (the wheel freezes, an alert fades out) and stops the run waiting on it. Cancelling a workflow (switch off, Stop all) cancels the widget actions it is playing.
 - **Actions**:
   - update a widget overlay (web source)
+  - send an action to any widget instance by id, e.g. cancel a spinning wheel from a `!stop` command (Event Bus)
   - press a key on the broadcaster's machine
   - call an HTTP endpoint
   - control software over WebSocket (e.g. OBS)

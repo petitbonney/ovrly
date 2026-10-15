@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, vars, multiline, hidden, type: 'json' | 'secret' | 'var' | 'keys' | 'action' | 'input' }.
+// { label, hint, unit, options, vars, multiline, hidden, type: 'json' | 'secret' | 'var' | 'keys' | 'widget' | 'action' | 'input' }.
 import { useRef } from 'react'
 import {
   ActionIcon, Autocomplete, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl, Select, Stack, Switch,
@@ -49,13 +49,35 @@ function Field({ name, f, fallback, value, set, values, context }) {
     const hint = type?.inputs?.[values.action || type.actions[0]]
     return hint ? <VarInput {...props} description={hint} vars={context.vars ?? []} value={value} onChange={set} /> : null
   }
+  // A widget instance, searched by name or id (several instances can share a name).
+  if (f.type === 'widget') {
+    return (
+      <Select
+        {...props}
+        searchable
+        placeholder="Search widgets"
+        nothingFoundMessage="No widget with this name or instance ID"
+        data={(context.widgets ?? []).map((w) => ({ value: w.id, label: w.name }))}
+        filter={({ options, search }) => options.filter((o) => `${o.label} ${o.value}`.toLowerCase().includes(search.toLowerCase().trim()))}
+        renderOption={({ option }) => (
+          <div>
+            <Text size="xs">{option.label}</Text>
+            <Text size="xs" c="dimmed" ff="monospace">{option.value}</Text>
+          </div>
+        )}
+        value={value || null}
+        onChange={set}
+      />
+    )
+  }
   const options = f.type === 'action' ? type?.actions ?? [] : f.options
   if (f.type === 'action' && options.length <= 1) return null
   if (options?.length <= 4) {
     return (
       <Stack gap={4}>
         <Text size="xs" fw={500}>{props.label}</Text>
-        <SegmentedControl size="xs" data={options} value={value} onChange={set} style={{ alignSelf: 'start' }} />
+        {/* A widget node with no action set runs its widget's first one. */}
+        <SegmentedControl size="xs" data={options} value={f.type === 'action' ? value || options[0] : value} onChange={set} style={{ alignSelf: 'start' }} />
       </Stack>
     )
   }
@@ -81,7 +103,8 @@ export default function Fields({ defaults, values, onChange, fields = {}, contex
           f={fields[key] ?? {}}
           fallback={defaults[key]}
           value={values[key] ?? defaults[key]}
-          set={(v) => onChange({ ...values, [key]: v })}
+          // Picking another widget clears the action: the new widget may not have it.
+          set={(v) => onChange({ ...values, [key]: v, ...(fields[key]?.type === 'widget' && { action: '' }) })}
           values={values}
           context={context}
         />
