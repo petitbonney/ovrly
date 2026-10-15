@@ -30,7 +30,7 @@ function Test({ widget, type }) {
   )
 }
 
-// children: the node's own settings (action, value), shown above the widget's. onCopy copies the node for pasting.
+// children: the node's own settings (action, value), shown after the instance's id and name. onCopy copies the node for pasting.
 export default function WidgetSettings({ widget, type, onChange, onCopy, children }) {
   const [name, setName] = useState(widget.name)
   const [config, setConfig] = useState(widget.config)
@@ -47,15 +47,15 @@ export default function WidgetSettings({ widget, type, onChange, onCopy, childre
     // Settings on the left scroll; the preview on the right never does, it shrinks to fit the pane's height.
     <Group className="widget-split" align="stretch" gap="xl" wrap="nowrap">
       <Stack className="settings" gap="md" flex="1 1 280px" maw={420}>
-        {children}
         <Group gap={6} wrap="nowrap">
-          <Text size="xs" c="dimmed">Widget ID</Text>
+          <Text size="xs" c="dimmed">Instance ID</Text>
           <Code>{widget.id}</Code>
           <Tooltip label="Copy this node, to paste it into another workflow (same widget)">
             <ActionIcon size="sm" variant="subtle" color="gray" onClick={onCopy}><IconCopy size={16} /></ActionIcon>
           </Tooltip>
         </Group>
-        <TextInput size="xs" label="Widget name" description="Shared by every node that uses this widget" value={name} onChange={(e) => setName(e.target.value)} />
+        <TextInput size="xs" label="Name" description="Shared by every node that uses this widget" value={name} onChange={(e) => setName(e.target.value)} />
+        {children}
         <Fields defaults={type.config} values={config} onChange={setConfig} />
         <Test widget={widget} type={type} />
       </Stack>
