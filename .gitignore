@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output (Vite)
+dist/
+
+# User data: widgets & workflows
+data/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS / editors
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+
+# Claude Code: personal settings only
+.claude/settings.local.json
