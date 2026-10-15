@@ -5,6 +5,8 @@ export default {
   type: 'websocket-send',
   label: 'WebSocket send',
   category: 'action',
+  description: 'Opens a WebSocket, sends one message, then closes.',
+  fields: { url: { label: 'URL' }, message: { vars: true, multiline: true } },
   config: { url: 'ws://localhost:8080', message: '{message}' },
   async run({ config, data }) {
     const ws = new WebSocket(fill(config.url, data))
