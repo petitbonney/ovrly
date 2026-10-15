@@ -1,11 +1,13 @@
 // App shell: left lists, center editor (workflow or widget). While editing a workflow: right node library and chat
 // panels, and bottom config of the selected node; both can be toggled and resized.
 import { useEffect, useState } from 'react'
-import { ActionIcon, AppShell, Button, Center, Modal, NavLink, Stack, Text, useAppShellResize } from '@mantine/core'
+import { ActionIcon, AppShell, Button, Center, Modal, NavLink, Stack, Text, Tooltip, useAppShellResize } from '@mantine/core'
+import { IconPlus } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
 import Widget, { NewWidget } from './Widget.jsx'
 import { Twitch, ChatTest } from './Chat.jsx'
 import Heading from './Heading.jsx'
+import { icons, colors } from './FlowNode.jsx'
 import templates from './templates.js'
 import { importBundle, importFile } from './share.js'
 
@@ -18,7 +20,9 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
   return (
     <Stack gap={0} mb="md">
       <Heading title={title}>
-        <ActionIcon variant="default" size="sm" title={`New ${kind}`} onClick={onAdd}>+</ActionIcon>
+        <Tooltip label={kind === 'widgets' ? 'New widget' : 'New workflow'}>
+          <ActionIcon variant="default" size="sm" onClick={onAdd}><IconPlus size={14} /></ActionIcon>
+        </Tooltip>
       </Heading>
       {items.map((item) => (
         <NavLink
@@ -36,15 +40,20 @@ function Library({ defs }) {
   return ['trigger', 'logic', 'action'].map((category) => (
     <Stack key={category} gap={0} mb="md">
       <Heading title={category} />
-      {defs.filter((d) => d.category === category).map((d) => (
-        <NavLink
-          key={d.type}
-          label={d.label}
-          draggable
-          style={{ cursor: 'grab' }}
-          onDragStart={(e) => e.dataTransfer.setData('application/ovrly', d.type)}
-        />
-      ))}
+      {defs.filter((d) => d.category === category).map((d) => {
+        const Icon = icons[d.type]
+        return (
+          <Tooltip key={d.type} label="Drag onto the graph" position="left" openDelay={500}>
+            <NavLink
+              label={d.label}
+              leftSection={Icon && <Icon size={18} color={colors[category]} />}
+              draggable
+              style={{ cursor: 'grab' }}
+              onDragStart={(e) => e.dataTransfer.setData('application/ovrly', d.type)}
+            />
+          </Tooltip>
+        )
+      })}
     </Stack>
   ))
 }

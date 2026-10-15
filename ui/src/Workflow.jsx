@@ -1,12 +1,14 @@
 // Workflow editor: ReactFlow graph (center) and selected node config (bottom), autosaved.
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ReactFlow, ReactFlowProvider, Background, Controls,
+  ReactFlow, ReactFlowProvider, Background, Controls, MarkerType,
   useNodesState, useEdgesState, addEdge, useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { AppShell, Button, Checkbox, Group, NumberInput, Stack, TextInput } from '@mantine/core'
+import { ActionIcon, AppShell, Checkbox, Group, NumberInput, Stack, TextInput, Tooltip } from '@mantine/core'
+import { IconDownload, IconLayoutBottombar, IconLayoutSidebarRight, IconTrash } from '@tabler/icons-react'
 import Heading from './Heading.jsx'
+import FlowNode from './FlowNode.jsx'
 import { exportItem, download } from './share.js'
 
 // Form generated from a config's defaults; the input kind follows each default value's type.
@@ -27,8 +29,8 @@ export function Fields({ defaults, values, onChange }) {
   )
 }
 
-// Left-to-right graph: inputs on the left side of a node, outputs on the right. Not stored, set on load and drop.
-const sides = { targetPosition: 'left', sourcePosition: 'right' }
+// Every node is drawn by FlowNode ("step"); edges get an arrow like n8n.
+const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '#9a9a9a' } }
 
 function Config({ node, def, onChange }) {
   if (!node || !def) return null
@@ -42,9 +44,12 @@ function Config({ node, def, onChange }) {
 
 function Editor({ workflow, defs, onRename, onDelete, panels, onToggle, onNodeSelect }) {
   const [name, setName] = useState(workflow.name)
-  const [nodes, setNodes, onNodesChange] = useNodesState(workflow.nodes.map((n) => ({ ...n, ...sides })))
+  const [nodes, setNodes, onNodesChange] = useNodesState(workflow.nodes.map((n) => ({ ...n, type: 'step' })))
   const [edges, setEdges, onEdgesChange] = useEdgesState(workflow.edges)
   const { screenToFlowPosition } = useReactFlow()
+  const nodeTypes = useMemo(() => ({
+    step: (props) => <FlowNode {...props} def={defs.find((d) => d.type === props.data.type)} />,
+  }), [defs])
 
   // Debounced autosave; only the fields the engine needs are stored.
   useEffect(() => {
@@ -70,9 +75,7 @@ function Editor({ workflow, defs, onRename, onDelete, panels, onToggle, onNodeSe
     if (!def) return
     setNodes((ns) => ns.concat({
       id: crypto.randomUUID(),
-      ...sides,
-      // Triggers have no input handle.
-      type: def.category === 'trigger' ? 'input' : 'default',
+      type: 'step',
       position: screenToFlowPosition({ x: e.clientX, y: e.clientY }),
       data: { type: def.type, label: def.label, config: {} },
     }))
@@ -93,14 +96,24 @@ function Editor({ workflow, defs, onRename, onDelete, panels, onToggle, onNodeSe
       <AppShell.Main className="editor">
         <Group gap="xs" p="xs" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
           <TextInput flex={1} size="xs" value={name} onChange={(e) => setName(e.target.value)} />
-          <Button size="xs" variant={panels.config ? 'light' : 'default'} onClick={() => onToggle('config')}>Config</Button>
-          <Button size="xs" variant={panels.library ? 'light' : 'default'} onClick={() => onToggle('library')}>Library</Button>
-          <Button size="xs" variant="default" onClick={() => exportItem('workflows', workflow.id).then((b) => download(b, name))}>Export</Button>
-          <Button size="xs" variant="light" color="red" onClick={onDelete}>Delete workflow</Button>
+          <Tooltip label={`${panels.config ? 'Hide' : 'Show'} node settings`}>
+            <ActionIcon size="md" variant={panels.config ? 'light' : 'default'} onClick={() => onToggle('config')}><IconLayoutBottombar size={18} /></ActionIcon>
+          </Tooltip>
+          <Tooltip label={`${panels.library ? 'Hide' : 'Show'} node library`}>
+            <ActionIcon size="md" variant={panels.library ? 'light' : 'default'} onClick={() => onToggle('library')}><IconLayoutSidebarRight size={18} /></ActionIcon>
+          </Tooltip>
+          <Tooltip label="Export as JSON">
+            <ActionIcon size="md" variant="default" onClick={() => exportItem('workflows', workflow.id).then((b) => download(b, name))}><IconDownload size={18} /></ActionIcon>
+          </Tooltip>
+          <Tooltip label="Delete workflow">
+            <ActionIcon size="md" variant="light" color="red" onClick={onDelete}><IconTrash size={18} /></ActionIcon>
+          </Tooltip>
         </Group>
         <ReactFlow
           nodes={nodes}
           edges={edges}
+          nodeTypes={nodeTypes}
+          defaultEdgeOptions={edgeOptions}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -109,7 +122,7 @@ function Editor({ workflow, defs, onRename, onDelete, panels, onToggle, onNodeSe
           colorMode="dark"
           fitView
         >
-          <Background />
+          <Background color="#555" gap={20} />
           <Controls />
         </ReactFlow>
       </AppShell.Main>

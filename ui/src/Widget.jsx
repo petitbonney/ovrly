@@ -1,6 +1,7 @@
 // Widget editor: config, test actions and live preview (center), autosaved. Plus the new-widget type picker.
 import { useEffect, useState } from 'react'
-import { Anchor, AppShell, Button, Group, NativeSelect, Stack, Text, TextInput } from '@mantine/core'
+import { ActionIcon, Anchor, AppShell, Button, CopyButton, Group, NativeSelect, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import { IconCheck, IconCopy, IconDownload, IconTrash } from '@tabler/icons-react'
 import { Fields } from './Workflow.jsx'
 import Heading from './Heading.jsx'
 import { exportItem, download, importFile } from './share.js'
@@ -62,12 +63,28 @@ function Editor({ widget, type, onChange, onDelete }) {
     <AppShell.Main className="editor">
       <Group gap="xs" p="xs" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
         <TextInput flex={1} size="xs" value={name} onChange={(e) => setName(e.target.value)} />
-        <Button size="xs" variant="default" onClick={() => exportItem('widgets', widget.id).then((b) => download(b, name))}>Export</Button>
-        <Button size="xs" variant="light" color="red" onClick={onDelete}>Delete widget</Button>
+        <Tooltip label="Export as JSON">
+          <ActionIcon size="md" variant="default" onClick={() => exportItem('widgets', widget.id).then((b) => download(b, name))}><IconDownload size={18} /></ActionIcon>
+        </Tooltip>
+        <Tooltip label="Delete widget">
+          <ActionIcon size="md" variant="light" color="red" onClick={onDelete}><IconTrash size={18} /></ActionIcon>
+        </Tooltip>
       </Group>
       <div style={{ flex: 1, minHeight: 0, padding: 'var(--mantine-spacing-sm)', overflow: 'auto' }}>
         <Heading title={type.label} />
-        <Text size="sm" mb="md">OBS browser source: <Anchor href={url} target="_blank">{url}</Anchor></Text>
+        <Group gap={6} mb="md">
+          <Text size="sm">OBS browser source:</Text>
+          <Tooltip label="Open in a new tab"><Anchor size="sm" href={url} target="_blank">{url}</Anchor></Tooltip>
+          <CopyButton value={url}>
+            {({ copied, copy }) => (
+              <Tooltip label={copied ? 'Copied' : 'Copy link'}>
+                <ActionIcon size="sm" variant="subtle" color={copied ? 'teal' : 'gray'} onClick={copy}>
+                  {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                </ActionIcon>
+              </Tooltip>
+            )}
+          </CopyButton>
+        </Group>
         <Fields defaults={type.config} values={config} onChange={setConfig} />
         <Test widget={widget} type={type} />
         <iframe className="preview" src={url} title="Preview" />

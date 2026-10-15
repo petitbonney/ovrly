@@ -1,4 +1,17 @@
-/* The few styles Mantine doesn't cover: full-height editors and the widget preview. */
+/* The few styles Mantine doesn't cover: full-height editors, the widget preview, graph nodes. */
 .editor { height: 100dvh; display: flex; flex-direction: column; }
 .editor .react-flow { flex: 1; height: auto; min-height: 0; }
 .preview { width: 100%; height: 520px; border: 1px dashed #444; border-radius: 4px; background: #333 repeating-conic-gradient(#3a3a3a 0 25%, #333 0 50%) 0 0 / 20px 20px; }
+
+/* n8n-style graph nodes (FlowNode.jsx) */
+.flow-node { position: relative; width: 90px; height: 90px; display: grid; place-items: center; background: #414244; border: 2px solid #9a9a9a; border-radius: 8px; }
+.flow-node.trigger { border-radius: 45px 8px 8px 45px; }
+.flow-node.selected { border-color: #fff; box-shadow: 0 0 0 4px #ffffff22; }
+.flow-node .bolt { position: absolute; left: -26px; color: var(--mantine-color-orange-5); }
+.flow-node .caption { position: absolute; top: 100%; margin-top: 8px; width: 160px; text-align: center; pointer-events: none; }
+.flow-node .label { font-size: 13px; font-weight: 600; color: #eee; }
+.flow-node .sub { font-size: 11px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flow-node .react-flow__handle { background: #9a9a9a; border: 0; }
+.flow-node .react-flow__handle.in { width: 8px; height: 22px; border-radius: 2px; left: -5px; }
+.flow-node .react-flow__handle.out { width: 14px; height: 14px; right: -8px; }
+.react-flow { --xy-edge-stroke: #9a9a9a; --xy-edge-stroke-width: 2; --xy-background-color: #2d2e2e; }
