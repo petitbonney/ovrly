@@ -2,9 +2,9 @@
 // Nodes with several outputs (if/else, switch) get one labelled handle each. Widget nodes show their widget.
 import { Handle } from '@xyflow/react'
 import {
-  IconArrowMerge, IconArrowsSplit, IconBell, IconBolt, IconBox, IconChartBar, IconChartPie, IconCoin,
-  IconDeviceGamepad2, IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard,
-  IconLayoutDashboard, IconMessage, IconMessageCode, IconMovie, IconNotes, IconPlugConnected, IconWebhook, IconWorld,
+  IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconChartBar, IconCoin, IconDeviceGamepad2,
+  IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconMessage,
+  IconMessageCode, IconMovie, IconNotes, IconPlugConnected, IconWebhook, IconWheel, IconWorld,
 } from '@tabler/icons-react'
 
 export const icons = {
@@ -16,7 +16,7 @@ export const icons = {
   filter: IconFilter,
   'if-else': IconGitBranch,
   switch: IconArrowsSplit,
-  'wait-all': IconArrowMerge,
+  'wait-all': IconArrowsJoin2,
   'http-request': IconWorld,
   'key-press': IconKeyboard,
   log: IconNotes,
@@ -30,7 +30,7 @@ export const widgetIcons = {
   alerts: IconBell,
   poll: IconChartBar,
   bets: IconCoin,
-  wheel: IconChartPie,
+  wheel: IconWheel,
   'twitch-plays': IconDeviceGamepad2,
 }
 

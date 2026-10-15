@@ -1,6 +1,6 @@
 // App shell: left workflow list and Twitch connection, center workflow editor. While editing a workflow: right library
 // (node and widget types to drag onto the graph) and bottom settings of the selected node; both toggle and resize.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ActionIcon, AppShell, Button, Center, Modal, NavLink, Stack, Text, Tooltip, useAppShellResize } from '@mantine/core'
 import { IconPlus } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
@@ -59,7 +59,7 @@ function Library({ defs, types }) {
         </Stack>
       ))}
       <Stack gap={0} mb="md">
-        <Heading title="Widgets" />
+        <Heading title="Widget" />
         {types.map((t) => {
           const Icon = widgetIcons[t.type]
           return (
@@ -119,13 +119,20 @@ export default function App() {
   }, [version])
 
   const [modal, setModal] = useState(false)
-  // Panels the user toggled on/off, and whether the workflow editor has a node selected.
-  const [panels, setPanels] = useState({ library: true, config: true })
+  // Panels the user toggled on/off.
+  const [panels, setPanels] = useState({ library: true })
   const togglePanel = (key) => setPanels((p) => ({ ...p, [key]: !p[key] }))
-  const [nodeSelected, setNodeSelected] = useState(false)
+  // Workflow id -> id of its selected node, whose settings show in the bottom pane; kept when switching workflows.
+  const [openNodes, setOpenNodes] = useState({})
   const resize = useAppShellResize({ aside: { min: 160, max: 480 }, footer: { min: 80, max: 600 } })
   const editing = selected?.kind === 'workflows'
   const showAside = editing && panels.library
+  // Panes don't slide when switching workflows: they just show the new workflow's state.
+  const shown = useRef(selected?.id)
+  const switched = shown.current !== selected?.id
+  useEffect(() => {
+    shown.current = selected?.id
+  })
 
   // Called by the editors after a save (id) or a delete (null).
   const onItemChange = (id) => {
@@ -144,9 +151,10 @@ export default function App() {
     <AppShell
       layout="alt"
       resize={resize}
+      transitionDuration={switched ? 0 : undefined}
       navbar={{ width: 220, breakpoint: 0 }}
       aside={{ width: 220, breakpoint: 0, collapsed: { desktop: !showAside, mobile: !showAside } }}
-      footer={{ height: 200, collapsed: !(editing && nodeSelected && panels.config) }}
+      footer={{ height: 200, collapsed: !(editing && openNodes[selected.id]) }}
     >
       <AppShell.Navbar p="sm">
         <AppShell.Section grow style={{ overflow: 'auto' }}>
@@ -167,7 +175,8 @@ export default function App() {
           onWidgetChange={() => setVersion((v) => v + 1)}
           panels={panels}
           onToggle={togglePanel}
-          onNodeSelect={setNodeSelected}
+          openNode={openNodes[selected.id]}
+          onNodeSelect={(nodeId) => setOpenNodes((o) => ({ ...o, [selected.id]: nodeId }))}
         />
       ) : (
         <AppShell.Main className="editor"><Center flex={1} c="dimmed">Select or create a workflow</Center></AppShell.Main>

@@ -1,14 +1,14 @@
-// Widget instance settings, shown in a widget node's settings pane: name, OBS link, settings, test and live preview.
+// Widget instance settings, shown in a widget node's settings pane: id, name, OBS link, settings, test and preview.
 // Autosaved; the instance itself is created when its widget is dropped onto the graph.
 import { useEffect, useState } from 'react'
-import { ActionIcon, Anchor, Box, Button, CopyButton, Group, SegmentedControl, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import { ActionIcon, Anchor, Box, Button, Code, CopyButton, Group, SegmentedControl, Stack, Text, TextInput, Tooltip } from '@mantine/core'
 import { IconCheck, IconCopy } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import Heading from './Heading.jsx'
 
 const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
-// Fires one widget action by hand, like a widget node would.
+// Fires one widget action by hand, like a widget node would. The value box only shows for actions that take one.
 function Test({ widget, type }) {
   const [action, setAction] = useState(type.actions[0])
   const [value, setValue] = useState('')
@@ -22,7 +22,7 @@ function Test({ widget, type }) {
       <Heading title="Test" />
       <Group gap="xs">
         {type.actions.length > 1 && <SegmentedControl size="xs" data={type.actions} value={action} onChange={setAction} />}
-        <TextInput size="xs" w={120} placeholder="value" value={value} onChange={(e) => setValue(e.target.value)} />
+        {type.inputs?.[action] && <TextInput size="xs" w={120} placeholder="value" value={value} onChange={(e) => setValue(e.target.value)} />}
         <TextInput size="xs" w={100} placeholder="user" value={user} onChange={(e) => setUser(e.target.value)} />
         <Button size="xs" variant="default" type="submit">Send</Button>
       </Group>
@@ -30,20 +30,15 @@ function Test({ widget, type }) {
   )
 }
 
-// children: the node's own settings (action, value), shown above the widget's.
-export default function WidgetSettings({ widget, type, onChange, children }) {
+// children: the node's own settings (action, value), shown above the widget's. onCopy copies the node for pasting.
+export default function WidgetSettings({ widget, type, onChange, onCopy, children }) {
   const [name, setName] = useState(widget.name)
   const [config, setConfig] = useState(widget.config)
-  const [error, setError] = useState(null)
 
-  // Debounced autosave; the server pushes the new config to open overlays and refuses a name already in use.
+  // Debounced autosave; the server pushes the new config to open overlays.
   useEffect(() => {
     if (name === widget.name && config === widget.config) return
-    const timer = setTimeout(async () => {
-      const res = await fetch(`/api/widgets/${widget.id}`, json('PUT', { name, type: widget.type, config }))
-      setError(res.ok ? null : (await res.json()).error)
-      if (res.ok) onChange()
-    }, 500)
+    const timer = setTimeout(() => fetch(`/api/widgets/${widget.id}`, json('PUT', { name, type: widget.type, config })).then(onChange), 500)
     return () => clearTimeout(timer)
   }, [name, config])
 
@@ -53,7 +48,14 @@ export default function WidgetSettings({ widget, type, onChange, children }) {
     <Group align="start" gap="xl">
       <Stack gap="md" flex="1 1 280px" maw={420}>
         {children}
-        <TextInput size="xs" label="Widget name" description="Shared by every node that uses this widget" value={name} error={error} onChange={(e) => setName(e.target.value)} />
+        <Group gap={6} wrap="nowrap">
+          <Text size="xs" c="dimmed">Widget ID</Text>
+          <Code>{widget.id}</Code>
+          <Tooltip label="Copy this node, to paste it into another workflow (same widget)">
+            <ActionIcon size="sm" variant="subtle" color="gray" onClick={onCopy}><IconCopy size={16} /></ActionIcon>
+          </Tooltip>
+        </Group>
+        <TextInput size="xs" label="Widget name" description="Shared by every node that uses this widget" value={name} onChange={(e) => setName(e.target.value)} />
         <Fields defaults={type.config} values={config} onChange={setConfig} />
         <Test widget={widget} type={type} />
       </Stack>
