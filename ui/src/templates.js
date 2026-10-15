@@ -1,6 +1,6 @@
 // Starter templates: import bundles (see share.js) with a name and a description.
 
-// A "chat !command → widget action" workflow plus the widget it drives.
+// A "chat !command → Fire Widget" workflow plus the widget node (and instance) it drives, linked by their diamonds.
 function command(name, description, command, widget, action, value) {
   return {
     name,
@@ -10,9 +10,13 @@ function command(name, description, command, widget, action, value) {
       name,
       nodes: [
         { id: 'trigger', type: 'step', position: { x: 0, y: 0 }, data: { type: 'chat-command', label: 'Chat !command', config: { command } } },
-        { id: 'action', type: 'step', position: { x: 220, y: 0 }, data: { type: 'widget-update', label: 'Widget update', config: { widget: 'w', action, value } } },
+        { id: 'action', type: 'step', position: { x: 240, y: 0 }, data: { type: 'fire-widget', label: 'Fire Widget', config: { action, value } } },
+        { id: 'widget', type: 'step', position: { x: 240, y: 200 }, data: { type: 'widget', label: 'Widget', config: { widget: 'w' } } },
       ],
-      edges: [{ id: 'e', source: 'trigger', target: 'action' }],
+      edges: [
+        { id: 'e', source: 'trigger', target: 'action' },
+        { id: 'link', source: 'widget', sourceHandle: 'widget', target: 'action', targetHandle: 'widget' },
+      ],
     }],
   }
 }

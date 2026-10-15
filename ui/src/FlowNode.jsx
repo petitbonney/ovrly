@@ -1,11 +1,15 @@
 // n8n-style graph node: icon box with the label underneath; triggers get a rounded left side and a bolt.
-// Nodes with several outputs (if/else, switch) get one labelled handle each. Widget nodes show their widget.
+// Nodes with several outputs (if/else, switch) get one labelled handle each. Widget nodes are circles with a diamond
+// connector on top, linked to the diamond input under Fire Widget nodes (diamonds only connect to diamonds).
 import { Handle } from '@xyflow/react'
 import {
   IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconChartBar, IconClockPause, IconCoin, IconDeviceGamepad2,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
   IconMessageCode, IconMovie, IconNotes, IconPlugConnected, IconWebhook, IconWheel, IconWorld,
 } from '@tabler/icons-react'
+
+// If/else branches left to right, like the graph.
+const IconIfElse = ({ style, ...props }) => <IconGitBranch {...props} style={{ ...style, transform: 'rotate(90deg)' }} />
 
 export const icons = {
   'chat-command': IconMessageCode,
@@ -14,7 +18,7 @@ export const icons = {
   manual: IconHandClick,
   delay: IconHourglass,
   filter: IconFilter,
-  'if-else': IconGitBranch,
+  'if-else': IconIfElse,
   switch: IconArrowsSplit,
   'wait-all': IconArrowsJoin2,
   cooldown: IconClockPause,
@@ -25,8 +29,8 @@ export const icons = {
   'obs-scene': IconMovie,
   'obs-source': IconEye,
   'websocket-send': IconPlugConnected,
-  'event-bus': IconBroadcast,
-  'widget-update': IconLayoutDashboard,
+  'fire-widget': IconBroadcast,
+  widget: IconLayoutDashboard,
 }
 
 export const widgetIcons = {
@@ -44,19 +48,27 @@ export const colors = {
   widget: 'var(--mantine-color-teal-4)',
 }
 
-// widget: the widget a widget node points to (undefined if it was deleted).
+// widget: a widget node's instance, or the one linked to a Fire Widget node (undefined if none, or deleted).
 export default function FlowNode({ data, selected, def, widget }) {
-  const isWidget = data.type === 'widget-update'
-  const Icon = (isWidget ? widgetIcons[widget?.type] : icons[data.type]) ?? IconBox
+  if (data.type === 'widget') {
+    const Icon = widgetIcons[widget?.type] ?? IconBox
+    return (
+      <div className={`flow-node widget${selected ? ' selected' : ''}`}>
+        <Handle id="widget" type="source" position="top" className="diamond" />
+        <Icon size={40} stroke={1.5} color={colors.widget} />
+        <div className="caption"><div className="label">{widget?.name ?? 'Missing widget'}</div></div>
+      </div>
+    )
+  }
+  const Icon = icons[data.type] ?? IconBox
   const trigger = def?.category === 'trigger'
-  // Subtitle like n8n's "mode: Rules": the node's first setting. An Event Bus node shows its widget and action.
+  // Subtitle like n8n's "mode: Rules": the node's first setting. A Fire Widget node shows its widget and action.
   const [key, value] = Object.entries({ ...def?.config, ...data.config })[0] ?? []
-  const sub = isWidget ? data.config.action
-    : data.type === 'event-bus' ? widget && [widget.name, data.config.action].filter(Boolean).join(': ')
+  const sub = def?.widgetInput ? [widget?.name ?? 'no widget', data.config.action].filter(Boolean).join(': ')
     : key && value !== '' && `${key}: ${value}`
   const outputs = def?.outputs ?? []
   return (
-    <div className={`flow-node${trigger ? ' trigger' : ''}${selected ? ' selected' : ''}`} style={{ height: Math.max(90, outputs.length * 24) }}>
+    <div className={`flow-node${trigger ? ' trigger' : ''}${def?.widgetInput ? ' fires' : ''}${selected ? ' selected' : ''}`} style={{ height: Math.max(90, outputs.length * 24) }}>
       {trigger && <IconBolt className="bolt" size={18} fill="currentColor" />}
       {!trigger && <Handle type="target" position="left" className="in" />}
       <Icon size={40} stroke={1.5} color={colors[def?.category]} />
@@ -65,8 +77,9 @@ export default function FlowNode({ data, selected, def, widget }) {
           <span className="port">{o}</span>
         </Handle>
       )) : <Handle type="source" position="right" className="out" />}
+      {def?.widgetInput && <Handle id="widget" type="target" position="bottom" className="diamond" />}
       <div className="caption">
-        <div className="label">{isWidget ? widget?.name ?? 'Missing widget' : data.label}</div>
+        <div className="label">{data.label}</div>
         {sub && <div className="sub">{sub}</div>}
       </div>
     </div>

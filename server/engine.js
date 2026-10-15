@@ -24,6 +24,13 @@ const active = {}
 // Workflow id -> abort controllers of its firings in progress, for cancel().
 const runs = {}
 
+// Widget links join a widget node's diamond (sourceHandle "widget") to a Fire Widget node's diamond input
+// (targetHandle "widget"). They carry no data: they say which widget instance the node drives.
+function linkedWidget(workflow, node) {
+  const link = workflow.edges.find((e) => e.target === node.id && e.targetHandle === 'widget')
+  return workflow.nodes.find((n) => n.id === link?.source)?.data.config.widget
+}
+
 // Runs one node, then the nodes connected to its outputs. A null result stops the branch.
 // `run` is the state of one trigger firing: its abort signal and the data waiting at "wait for all" (join) nodes.
 async function walk(workflow, node, data, run) {
@@ -33,7 +40,7 @@ async function walk(workflow, node, data, run) {
   if (def.join) {
     const arrived = (run.joins[node.id] ??= [])
     arrived.push(data)
-    if (arrived.length < workflow.edges.filter((e) => e.target === node.id).length) return status('waiting')
+    if (arrived.length < workflow.edges.filter((e) => e.target === node.id && e.targetHandle !== 'widget').length) return status('waiting')
     data = Object.assign({}, ...arrived)
   }
   // `id` keys a node's memory across firings (cooldown).
@@ -78,7 +85,7 @@ async function step(workflow, node, data, run, { def, config, id, status }) {
   }
   let out
   try {
-    out = await def.run({ config, data, id, signal: run.signal })
+    out = await def.run({ config, data, id, signal: run.signal, widget: linkedWidget(workflow, node) })
   } catch (err) {
     if (run.signal.aborted) return end('stopped') // e.g. an HTTP request cut short by cancel()
     end('error', { error: err.message })
@@ -88,7 +95,7 @@ async function step(workflow, node, data, run, { def, config, id, status }) {
   if (trigger) run.start()
   end('done')
   // Nodes with several outputs (if/else, switch) return { [output]: data }; only those outputs continue.
-  const next = workflow.edges.filter((e) => e.source === node.id && (!def.outputs || e.sourceHandle in out))
+  const next = workflow.edges.filter((e) => e.source === node.id && e.sourceHandle !== 'widget' && (!def.outputs || e.sourceHandle in out))
   await Promise.all(next.map((e) => {
     const target = workflow.nodes.find((n) => n.id === e.target)
     if (target) activity.emit('activity', { workflow: workflow.id, edge: e.id, target: e.target })
