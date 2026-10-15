@@ -42,12 +42,23 @@ app.put('/api/twitch', async (req, res) => {
 
 // Widget types for the UI (metadata plus action names, no functions).
 app.get('/api/widget-types', (req, res) =>
-  res.json(Object.values(widgets.types).map(({ actions, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
+  res.json(Object.values(widgets.types).map(({ actions, output, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
 // Run a widget action by hand, e.g. POST /api/widgets/<id>/action { action: 'vote', value: '1', user }.
 app.post('/api/widgets/:id/action', async (req, res) => {
   const widget = await store.get('widgets', req.params.id)
   widget ? res.json(widgets.update(widget, req.body).state) : res.sendStatus(404)
 })
+
+// A widget instance lives as long as a workflow node refers to it (pasted nodes can share one across workflows).
+// After a workflow is saved or deleted, the widgets it referred to and no workflow uses anymore are deleted.
+const widgetRefs = (workflow) => workflow?.nodes.filter((n) => n.data.type === 'widget-update').map((n) => n.data.config.widget) ?? []
+async function dropUnusedWidgets(refs) {
+  const used = new Set((await store.list('workflows')).flatMap(widgetRefs))
+  for (const w of await store.list('widgets')) {
+    const referred = refs.includes(w.id) || refs.includes(w.name)
+    if (referred && !used.has(w.id) && !used.has(w.name)) await store.remove('widgets', w.id)
+  }
+}
 
 app.get('/api/:kind', async (req, res) => res.json(await store.list(req.params.kind)))
 app.get('/api/:kind/:id', async (req, res) => {
@@ -56,12 +67,16 @@ app.get('/api/:kind/:id', async (req, res) => {
 })
 app.post('/api/:kind', async (req, res) => res.json(await store.save(req.params.kind, req.body)))
 app.put('/api/:kind/:id', async (req, res) => {
+  const old = req.params.kind === 'workflows' && await store.get('workflows', req.params.id)
   const item = await store.save(req.params.kind, { ...req.body, id: req.params.id })
   if (req.params.kind === 'widgets') widgets.push(item) // live config changes on the overlay
+  if (old) await dropUnusedWidgets(widgetRefs(old))
   res.json(item)
 })
 app.delete('/api/:kind/:id', async (req, res) => {
+  const old = req.params.kind === 'workflows' && await store.get('workflows', req.params.id)
   await store.remove(req.params.kind, req.params.id)
+  if (old) await dropUnusedWidgets(widgetRefs(old))
   res.sendStatus(204)
 })
 // Store errors are bad kinds/ids; Express 5 forwards rejected promises here.

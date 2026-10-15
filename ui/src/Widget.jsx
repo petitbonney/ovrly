@@ -1,30 +1,14 @@
-// Widget editor: config, test actions and live preview (center), autosaved. Plus the new-widget type picker.
+// Widget instance settings, shown in a widget node's settings pane: id, name, OBS link, settings, test and preview.
+// Autosaved; the instance itself is created when its widget is dropped onto the graph.
 import { useEffect, useState } from 'react'
-import { ActionIcon, Anchor, AppShell, Button, CopyButton, Group, NativeSelect, Stack, Text, TextInput, Tooltip } from '@mantine/core'
-import { IconCheck, IconCopy, IconDownload, IconTrash } from '@tabler/icons-react'
-import { Fields } from './Workflow.jsx'
+import { ActionIcon, Anchor, Box, Button, Code, CopyButton, Group, SegmentedControl, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import { IconCheck, IconCopy } from '@tabler/icons-react'
+import Fields from './Fields.jsx'
 import Heading from './Heading.jsx'
-import { exportItem, download, importFile } from './share.js'
 
 const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
-export function NewWidget({ types, onCreate }) {
-  const create = async (type) => {
-    const res = await fetch('/api/widgets', json('POST', { name: type.label, type: type.type, config: {} }))
-    onCreate({ kind: 'widgets', id: (await res.json()).id })
-  }
-  return (
-    <AppShell.Main className="editor" style={{ justifyContent: 'center', alignItems: 'center' }}>
-      <Stack gap="xs" w={240}>
-        <Heading title="New widget" />
-        {types.map((t) => <Button key={t.type} variant="default" onClick={() => create(t)}>{t.label}</Button>)}
-        <Button variant="default" onClick={() => importFile().then(onCreate, (err) => alert(`Import failed: ${err.message}`))}>Import JSON…</Button>
-      </Stack>
-    </AppShell.Main>
-  )
-}
-
-// Fires one widget action by hand, like the widget-update node would.
+// Fires one widget action by hand, like a widget node would. The value box only shows for actions that take one.
 function Test({ widget, type }) {
   const [action, setAction] = useState(type.actions[0])
   const [value, setValue] = useState('')
@@ -36,45 +20,49 @@ function Test({ widget, type }) {
   return (
     <form onSubmit={send}>
       <Heading title="Test" />
-      <Group gap="xs" mb="md">
-        <NativeSelect size="xs" data={type.actions} value={action} onChange={(e) => setAction(e.target.value)} />
-        <TextInput size="xs" placeholder="value" value={value} onChange={(e) => setValue(e.target.value)} />
-        <TextInput size="xs" placeholder="user" value={user} onChange={(e) => setUser(e.target.value)} />
+      <Group gap="xs">
+        {type.actions.length > 1 && <SegmentedControl size="xs" data={type.actions} value={action} onChange={setAction} />}
+        {type.inputs?.[action] && <TextInput size="xs" w={120} placeholder="value" value={value} onChange={(e) => setValue(e.target.value)} />}
+        <TextInput size="xs" w={100} placeholder="user" value={user} onChange={(e) => setUser(e.target.value)} />
         <Button size="xs" variant="default" type="submit">Send</Button>
       </Group>
     </form>
   )
 }
 
-function Editor({ widget, type, onChange, onDelete }) {
+// children: the node's own settings (action, value), shown above the widget's. onCopy copies the node for pasting.
+export default function WidgetSettings({ widget, type, onChange, onCopy, children }) {
   const [name, setName] = useState(widget.name)
   const [config, setConfig] = useState(widget.config)
 
   // Debounced autosave; the server pushes the new config to open overlays.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetch(`/api/widgets/${widget.id}`, json('PUT', { name, type: widget.type, config })).then(onChange)
-    }, 500)
+    if (name === widget.name && config === widget.config) return
+    const timer = setTimeout(() => fetch(`/api/widgets/${widget.id}`, json('PUT', { name, type: widget.type, config })).then(onChange), 500)
     return () => clearTimeout(timer)
   }, [name, config])
 
   const url = `${location.origin}/w/${widget.id}`
   return (
-    <AppShell.Main className="editor">
-      <Group gap="xs" p="xs" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
-        <TextInput flex={1} size="xs" value={name} onChange={(e) => setName(e.target.value)} />
-        <Tooltip label="Export as JSON">
-          <ActionIcon size="md" variant="default" onClick={() => exportItem('widgets', widget.id).then((b) => download(b, name))}><IconDownload size={18} /></ActionIcon>
-        </Tooltip>
-        <Tooltip label="Delete widget">
-          <ActionIcon size="md" variant="light" color="red" onClick={onDelete}><IconTrash size={18} /></ActionIcon>
-        </Tooltip>
-      </Group>
-      <div style={{ flex: 1, minHeight: 0, padding: 'var(--mantine-spacing-sm)', overflow: 'auto' }}>
-        <Heading title={type.label} />
-        <Group gap={6} mb="md">
-          <Text size="sm">OBS browser source:</Text>
-          <Tooltip label="Open in a new tab"><Anchor size="sm" href={url} target="_blank">{url}</Anchor></Tooltip>
+    // The preview sits beside the settings, or below them when the pane is narrow.
+    <Group align="start" gap="xl">
+      <Stack gap="md" flex="1 1 280px" maw={420}>
+        {children}
+        <Group gap={6} wrap="nowrap">
+          <Text size="xs" c="dimmed">Widget ID</Text>
+          <Code>{widget.id}</Code>
+          <Tooltip label="Copy this node, to paste it into another workflow (same widget)">
+            <ActionIcon size="sm" variant="subtle" color="gray" onClick={onCopy}><IconCopy size={16} /></ActionIcon>
+          </Tooltip>
+        </Group>
+        <TextInput size="xs" label="Widget name" description="Shared by every node that uses this widget" value={name} onChange={(e) => setName(e.target.value)} />
+        <Fields defaults={type.config} values={config} onChange={setConfig} />
+        <Test widget={widget} type={type} />
+      </Stack>
+      <Box flex="1 1 320px" miw={0}>
+        <Group gap={6} mb="xs" wrap="nowrap">
+          <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>OBS browser source:</Text>
+          <Tooltip label="Open in a new tab"><Anchor size="xs" href={url} target="_blank" truncate>{url}</Anchor></Tooltip>
           <CopyButton value={url}>
             {({ copied, copy }) => (
               <Tooltip label={copied ? 'Copied' : 'Copy link'}>
@@ -85,26 +73,8 @@ function Editor({ widget, type, onChange, onDelete }) {
             )}
           </CopyButton>
         </Group>
-        <Fields defaults={type.config} values={config} onChange={setConfig} />
-        <Test widget={widget} type={type} />
         <iframe className="preview" src={url} title="Preview" />
-      </div>
-    </AppShell.Main>
+      </Box>
+    </Group>
   )
-}
-
-export default function Widget({ id, types, onChange }) {
-  const [widget, setWidget] = useState(null)
-  useEffect(() => {
-    fetch(`/api/widgets/${id}`).then((r) => r.json()).then(setWidget)
-  }, [id])
-
-  const onDelete = async () => {
-    await fetch(`/api/widgets/${id}`, { method: 'DELETE' })
-    onChange(null)
-  }
-
-  const type = types.find((t) => t.type === widget?.type)
-  if (!widget || !type) return null
-  return <Editor widget={widget} type={type} onChange={() => onChange(id)} onDelete={onDelete} />
 }

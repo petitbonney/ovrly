@@ -8,6 +8,13 @@ export default {
   type: 'switch',
   label: 'Switch',
   category: 'logic',
+  description: 'Sends data to the first case equal to the value, else to "else".',
+  fields: {
+    value: { vars: true },
+    case1: { label: 'Case 1' },
+    case2: { label: 'Case 2' },
+    case3: { label: 'Case 3' },
+  },
   outputs: [...cases, 'else'],
   config: { value: '{args}', case1: '', case2: '', case3: '' },
   run({ config, data }) {

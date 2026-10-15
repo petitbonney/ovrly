@@ -29,27 +29,29 @@ pnpm dev
 
 Open http://localhost:3000.
 
-To show a widget in OBS, add a **Browser Source** pointing to `http://localhost:3000/w/<widget-id>`.
+To show a widget in OBS, select its node and copy the browser-source link from the settings pane (`http://localhost:3000/w/<widget-id>`), then add an OBS **Browser Source** with it.
 
 ## UI
 
 ```
 ┌──────────┬──────────────────────────────┬───────────┐
-│ Widgets +│                              │  Nodes    │
-│  - alert │   Node graph (workflow)      │  library  │
-│  - poll  │        or                    │ (drag &   │
-│Workflows+│   Widget config (widget)     │   drop)   │
-│  - !spin │                              │           │
-│          ├──────────────────────────────┤           │
-│          │  Node config (selected node) │           │
+│Workflows+│ ↶↷ name ▶ 💬 │ ⤓ 🗑 │ ◫      │ Triggers  │
+│  - !spin │                              │ Logic     │
+│  - poll  │   Node graph (workflow)      │ Actions   │
+│          │                              │ Widgets   │
+│          ├──────────────────────────────┤ (drag &   │
+│ Twitch ● │  Settings of the selected    │   drop)   │
+│ channel  │  node                        │           │
 └──────────┴──────────────────────────────┴───────────┘
 ```
 
-- **Left**: widget and workflow lists. **+** opens the library or the template picker.
-- **Center**: the node graph of the selected workflow, or the settings of the selected widget.
-- **Right**: the node library (workflow only). Drag a node onto the graph.
-- **Bottom**: settings of the selected node (workflow only).
-- **Config** / **Library** in the workflow toolbar show or hide those panes; drag their edge to resize them.
+- **Left**: workflow list (**+** opens the template picker), and the Twitch channel with its connection status.
+- **Center**: the node graph of the selected workflow. The toolbar has undo/redo, the name, run manual triggers (▶) and send a test chat message, then export and delete, then show/hide the library.
+- **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance (one node = one instance), set up from its node's settings: name, OBS link, settings, test and live preview. Deleting the node deletes the instance.
+- **Copy/paste**: Ctrl/⌘+C and Ctrl/⌘+V copy the selected nodes, also into another workflow. Pasted widget nodes share the same instance (once per workflow); it is deleted once no workflow uses it anymore. Each instance has its own id, shown in its node's settings with a button that copies the node.
+- **Undo/redo**: Ctrl/⌘+Z and Ctrl/⌘+Shift+Z (or Ctrl+Y), or the toolbar arrows. Undoing a widget node's deletion brings its instance back too.
+- **Bottom**: settings of the selected node (workflow only; each workflow remembers which node was open, and the graph stays centered as the pane opens), with pickers for options and a **{ }** menu to insert data from previous nodes, e.g. `{user}`.
+- Drag the edge of the right and bottom panes to resize them.
 
 ## How it works
 
@@ -111,6 +113,8 @@ export default {
 }
 ```
 
+Optional metadata makes the settings pane friendlier: `description`, `adds` (the data keys the node adds, offered as `{key}` in later nodes) and `fields` (per-setting hints such as `{ options: [...] }`, `{ vars: true }` for `{key}` placeholders, or `{ type: 'json' }`; see `ui/src/Fields.jsx`).
+
 A node with several outputs declares them, e.g. `outputs: ['true', 'false']`, and returns `{ [output]: data }` to pick which ones continue. A trigger sets `event` to the bus event it listens to.
 
 ## Writing a widget
@@ -131,7 +135,7 @@ export default {
 }
 ```
 
-The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs actions with the **Widget update** node (widget name, action, value). The node waits until the page has finished playing the action before the next nodes run: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays.
+The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs a widget's actions with a widget node (drag the widget type from the library, then pick the action). `inputs` lists the actions that take a value and describes it, e.g. `{ show: 'Text to show' }`; other actions get no Value field. A widget type can also give data back to the workflow: `output(state, config)` returns e.g. `{ winner: 'Red' }`, merged into the data for the next nodes, and `adds: ['winner']` lists those keys for the `{ }` menu. The wheel outputs `winner`, bets `winner` and `winners`, the poll `leader` and `votes`. The node waits until the page has finished playing the action before the next nodes run: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays.
 
 ## Import / export
 

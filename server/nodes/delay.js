@@ -3,6 +3,8 @@ export default {
   type: 'delay',
   label: 'Delay',
   category: 'logic',
+  description: 'Waits before passing data on.',
+  fields: { ms: { label: 'Delay', unit: 'ms' } },
   config: { ms: 1000 },
   async run({ config, data }) {
     await new Promise((resolve) => setTimeout(resolve, config.ms))

@@ -1,10 +1,10 @@
 // n8n-style graph node: icon box with the label underneath; triggers get a rounded left side and a bolt.
-// Nodes with several outputs (if/else, switch) get one labelled handle each.
+// Nodes with several outputs (if/else, switch) get one labelled handle each. Widget nodes show their widget.
 import { Handle } from '@xyflow/react'
 import {
-  IconArrowMerge, IconArrowsSplit, IconBolt, IconBox, IconEye, IconFilter, IconGitBranch, IconHandClick,
-  IconHourglass, IconKeyboard, IconLayoutDashboard, IconMessage, IconMessageCode, IconMovie, IconNotes,
-  IconPlugConnected, IconWebhook, IconWorld,
+  IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconChartBar, IconCoin, IconDeviceGamepad2,
+  IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconMessage,
+  IconMessageCode, IconMovie, IconNotes, IconPlugConnected, IconWebhook, IconWheel, IconWorld,
 } from '@tabler/icons-react'
 
 export const icons = {
@@ -16,7 +16,7 @@ export const icons = {
   filter: IconFilter,
   'if-else': IconGitBranch,
   switch: IconArrowsSplit,
-  'wait-all': IconArrowMerge,
+  'wait-all': IconArrowsJoin2,
   'http-request': IconWorld,
   'key-press': IconKeyboard,
   log: IconNotes,
@@ -26,10 +26,25 @@ export const icons = {
   'widget-update': IconLayoutDashboard,
 }
 
-export const colors = { trigger: 'var(--mantine-color-orange-5)', logic: 'var(--mantine-color-blue-4)', action: 'var(--mantine-color-grape-4)' }
+export const widgetIcons = {
+  alerts: IconBell,
+  poll: IconChartBar,
+  bets: IconCoin,
+  wheel: IconWheel,
+  'twitch-plays': IconDeviceGamepad2,
+}
 
-export default function FlowNode({ data, selected, def }) {
-  const Icon = icons[data.type] ?? IconBox
+export const colors = {
+  trigger: 'var(--mantine-color-orange-5)',
+  logic: 'var(--mantine-color-blue-4)',
+  action: 'var(--mantine-color-grape-4)',
+  widget: 'var(--mantine-color-teal-4)',
+}
+
+// widget: the widget a widget node points to (undefined if it was deleted).
+export default function FlowNode({ data, selected, def, widget }) {
+  const isWidget = data.type === 'widget-update'
+  const Icon = (isWidget ? widgetIcons[widget?.type] : icons[data.type]) ?? IconBox
   const trigger = def?.category === 'trigger'
   // Subtitle like n8n's "mode: Rules": the node's first setting.
   const [key, value] = Object.entries({ ...def?.config, ...data.config })[0] ?? []
@@ -45,8 +60,8 @@ export default function FlowNode({ data, selected, def }) {
         </Handle>
       )) : <Handle type="source" position="right" className="out" />}
       <div className="caption">
-        <div className="label">{data.label}</div>
-        {key && value !== '' && <div className="sub">{key}: {String(value)}</div>}
+        <div className="label">{isWidget ? widget?.name ?? 'Missing widget' : data.label}</div>
+        {isWidget ? <div className="sub">{data.config.action}</div> : key && value !== '' && <div className="sub">{key}: {String(value)}</div>}
       </div>
     </div>
   )

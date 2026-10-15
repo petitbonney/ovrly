@@ -2,10 +2,9 @@
 const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 const get = (path) => fetch(path).then((r) => r.json())
 
-// Bundles one item; a workflow takes along the widgets its widget-update nodes point to (by id or name).
-export async function exportItem(kind, id) {
-  const item = await get(`/api/${kind}/${id}`)
-  if (kind === 'widgets') return { widgets: [item], workflows: [] }
+// Bundles a workflow with the widget instances its widget nodes point to (by id or name).
+export async function exportWorkflow(id) {
+  const item = await get(`/api/workflows/${id}`)
   const refs = item.nodes.map((n) => n.data.config?.widget).filter(Boolean)
   const widgets = (await get('/api/widgets')).filter((w) => refs.includes(w.id) || refs.includes(w.name))
   return { widgets, workflows: [item] }

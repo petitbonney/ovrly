@@ -29,6 +29,7 @@ export function push(widget, run) {
 
 // Applies one action, e.g. { action: 'vote', value: '2', user: 'bob' }, then pushes the new state.
 // `done` resolves once a page has finished playing it: right away if no page is open, after 60s if none answers.
+// `output` is what the widget type's output(state, config) gives back to the workflow, e.g. { winner: 'Red' }.
 export function update(widget, { action, value = '', user = '' }) {
   const def = types[widget.type]
   const fn = def.actions[action]
@@ -41,7 +42,7 @@ export function update(widget, { action, value = '', user = '' }) {
     setTimeout(() => finish(run), 60_000)
   }) : Promise.resolve()
   push(widget, run)
-  return { state: states[widget.id], done }
+  return { state: states[widget.id], done, output: def.output?.(states[widget.id], config) ?? {} }
 }
 
 // Called by POST /w/:id/done when a page has finished playing an action.
