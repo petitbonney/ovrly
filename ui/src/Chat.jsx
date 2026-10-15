@@ -1,6 +1,6 @@
 // Chat panels: Twitch channel setting and a test form that fires fake chat messages.
 import { useEffect, useState } from 'react'
-import { Button, ColorSwatch, Stack, TextInput } from '@mantine/core'
+import { Button, ColorSwatch, Stack, TextInput, Tooltip } from '@mantine/core'
 import Heading from './Heading.jsx'
 
 const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -24,7 +24,9 @@ export function Twitch() {
   return (
     <form onSubmit={save}>
       <Heading title="Twitch">
-        <ColorSwatch size={8} withShadow={false} color={status.connected ? 'var(--mantine-color-green-7)' : 'var(--mantine-color-red-8)'} title={status.connected ? 'Connected' : 'Disconnected'} />
+        <Tooltip label={status.connected ? `Connected to #${status.channel}` : 'Disconnected'}>
+          <ColorSwatch size={8} withShadow={false} color={status.connected ? 'var(--mantine-color-green-7)' : 'var(--mantine-color-red-8)'} />
+        </Tooltip>
       </Heading>
       <Stack gap="xs" mb="md">
         <TextInput size="xs" placeholder="channel" value={channel} onChange={(e) => setChannel(e.target.value)} />

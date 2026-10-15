@@ -13,6 +13,7 @@
     "@mantine/core": "^9.7.2",
     "@mantine/hooks": "^9.7.2",
     "@nut-tree-fork/nut-js": "^4.2.6",
+    "@tabler/icons-react": "^3.49.0",
     "@xyflow/react": "^12.12.0",
     "express": "^5.3.0",
     "react": "^19.3.0",
