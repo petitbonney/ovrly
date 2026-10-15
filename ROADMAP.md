@@ -39,9 +39,9 @@ Small steps; each milestone should be usable on its own.
 
 ## M5: Templates & sharing
 
-- [ ] "New workflow" modal: blank or from a template
-- [ ] Starter templates (e.g. `!spin` → wheel, chat poll)
-- [ ] Import/export of workflows and widgets as JSON
+- [x] "New workflow" modal: blank or from a template
+- [x] Starter templates (e.g. `!spin` → wheel, chat poll)
+- [x] Import/export of workflows and widgets as JSON
 
 ## Later
 
