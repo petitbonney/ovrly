@@ -48,6 +48,12 @@ Small steps; each milestone should be usable on its own.
 - [x] Triggers: API call (`/hooks/<path>`), manual (Run button)
 - [x] Logic: if/else, switch, wait for all (multi-output nodes and joins in the engine)
 
+## M7: Editor polish
+
+- [x] Settings pane with option pickers, key picker, JSON editor and `{key}` insertion from upstream nodes
+- [x] Widgets in the library: drag a widget onto the graph, edit it in a dialog; unique widget names
+- [x] Twitch connection in the sidebar, chat test in the workflow toolbar
+
 ## Later
 
 - Twitch EventSub (follows, subs, bits, redeems; needs OAuth)

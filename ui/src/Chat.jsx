@@ -1,6 +1,7 @@
-// Chat panels: Twitch channel setting and a test form that fires fake chat messages.
+// Chat: Twitch channel setting (sidebar) and a toolbar popover that fires fake chat messages.
 import { useEffect, useState } from 'react'
-import { Button, ColorSwatch, Stack, TextInput, Tooltip } from '@mantine/core'
+import { ActionIcon, Button, ColorSwatch, Popover, Stack, TextInput, Tooltip } from '@mantine/core'
+import { IconMessagePlus } from '@tabler/icons-react'
 import Heading from './Heading.jsx'
 
 const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -28,7 +29,7 @@ export function Twitch() {
           <ColorSwatch size={8} withShadow={false} color={status.connected ? 'var(--mantine-color-green-7)' : 'var(--mantine-color-red-8)'} />
         </Tooltip>
       </Heading>
-      <Stack gap="xs" mb="md">
+      <Stack gap="xs">
         <TextInput size="xs" placeholder="channel" value={channel} onChange={(e) => setChannel(e.target.value)} />
         <Button size="xs" variant="default" type="submit">Connect</Button>
       </Stack>
@@ -46,13 +47,21 @@ export function ChatTest() {
   }
 
   return (
-    <form onSubmit={send}>
-      <Heading title="Chat test" />
-      <Stack gap="xs" mb="md">
-        <TextInput size="xs" placeholder="user" value={user} onChange={(e) => setUser(e.target.value)} />
-        <TextInput size="xs" placeholder="message" value={message} onChange={(e) => setMessage(e.target.value)} />
-        <Button size="xs" variant="default" type="submit">Send</Button>
-      </Stack>
-    </form>
+    <Popover position="bottom-end" withArrow>
+      <Popover.Target>
+        <Tooltip label="Send a test chat message">
+          <ActionIcon size="md" variant="default"><IconMessagePlus size={18} /></ActionIcon>
+        </Tooltip>
+      </Popover.Target>
+      <Popover.Dropdown>
+        <form onSubmit={send}>
+          <Stack gap="xs" w={220}>
+            <TextInput size="xs" label="User" value={user} onChange={(e) => setUser(e.target.value)} />
+            <TextInput size="xs" label="Message" value={message} onChange={(e) => setMessage(e.target.value)} data-autofocus />
+            <Button size="xs" type="submit">Send</Button>
+          </Stack>
+        </form>
+      </Popover.Dropdown>
+    </Popover>
   )
 }

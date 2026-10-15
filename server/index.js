@@ -49,6 +49,14 @@ app.post('/api/widgets/:id/action', async (req, res) => {
   widget ? res.json(widgets.update(widget, req.body).state) : res.sendStatus(404)
 })
 
+// Widget names are unique, since workflows may refer to a widget by name. New widgets get a free one ("Alerts 2").
+const nameTaken = async (name, id) => (await store.list('widgets')).some((w) => w.name === name && w.id !== id)
+app.post('/api/widgets', async (req, res) => {
+  let name = req.body.name
+  for (let n = 2; await nameTaken(name); n++) name = `${req.body.name} ${n}`
+  res.json(await store.save('widgets', { ...req.body, name }))
+})
+
 app.get('/api/:kind', async (req, res) => res.json(await store.list(req.params.kind)))
 app.get('/api/:kind/:id', async (req, res) => {
   const item = await store.get(req.params.kind, req.params.id)
@@ -56,6 +64,9 @@ app.get('/api/:kind/:id', async (req, res) => {
 })
 app.post('/api/:kind', async (req, res) => res.json(await store.save(req.params.kind, req.body)))
 app.put('/api/:kind/:id', async (req, res) => {
+  if (req.params.kind === 'widgets' && await nameTaken(req.body.name, req.params.id)) {
+    return res.status(409).json({ error: 'Another widget already has this name' })
+  }
   const item = await store.save(req.params.kind, { ...req.body, id: req.params.id })
   if (req.params.kind === 'widgets') widgets.push(item) // live config changes on the overlay
   res.json(item)

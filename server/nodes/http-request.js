@@ -5,6 +5,13 @@ export default {
   type: 'http-request',
   label: 'HTTP request',
   category: 'action',
+  description: 'Sends an HTTP request.',
+  adds: ['status', 'response'],
+  fields: {
+    method: { options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] },
+    url: { label: 'URL', vars: true },
+    body: { vars: true, multiline: true },
+  },
   config: { method: 'POST', url: 'http://localhost:8080', body: '{"user":"{user}"}' },
   async run({ config, data }) {
     const method = config.method.toUpperCase()

@@ -6,9 +6,11 @@ import * as widgets from '../widgets.js'
 
 export default {
   type: 'widget-update',
-  label: 'Widget update',
-  category: 'action',
-  config: { widget: '', action: 'show', value: '{message}' },
+  label: 'Widget',
+  category: 'widget', // not in the library's node sections: widgets are dragged from their own section
+  description: 'Runs an action on a widget overlay and waits until it has finished playing.',
+  fields: { widget: { type: 'widget' }, action: { type: 'action' }, value: { vars: true } },
+  config: { widget: '', action: '', value: '' },
   async run({ config, data }) {
     const widget = (await store.list('widgets')).find((w) => w.id === config.widget || w.name === config.widget)
     if (!widget) throw new Error(`Widget not found: ${config.widget}`)

@@ -6,6 +6,14 @@ export default {
   type: 'key-press',
   label: 'Key press',
   category: 'action',
+  description: 'Presses a key combo on this machine.',
+  fields: {
+    keys: {
+      type: 'keys',
+      options: Object.keys(Key).filter((k) => isNaN(k)), // the enum also maps numbers back to names
+      hint: 'Pressed together, e.g. LeftControl + F1. macOS needs the Accessibility permission.',
+    },
+  },
   config: { keys: 'Space' },
   async run({ config, data }) {
     const keys = config.keys.split('+').map((name) => {

@@ -35,21 +35,21 @@ To show a widget in OBS, add a **Browser Source** pointing to `http://localhost:
 
 ```
 ┌──────────┬──────────────────────────────┬───────────┐
-│ Widgets +│                              │  Nodes    │
-│  - alert │   Node graph (workflow)      │  library  │
-│  - poll  │        or                    │ (drag &   │
-│Workflows+│   Widget config (widget)     │   drop)   │
-│  - !spin │                              │           │
-│          ├──────────────────────────────┤           │
-│          │  Node config (selected node) │           │
+│Workflows+│ name  ▶ 💬 ⬓ ◫ ⤓ 🗑          │ Triggers  │
+│  - !spin │                              │ Logic     │
+│  - poll  │   Node graph (workflow)      │ Actions   │
+│          │                              │ Widgets + │
+│          ├──────────────────────────────┤ (drag &   │
+│ Twitch ● │  Settings of the selected    │   drop)   │
+│ channel  │  node                        │           │
 └──────────┴──────────────────────────────┴───────────┘
 ```
 
-- **Left**: widget and workflow lists. **+** opens the library or the template picker.
-- **Center**: the node graph of the selected workflow, or the settings of the selected widget.
-- **Right**: the node library (workflow only). Drag a node onto the graph.
-- **Bottom**: settings of the selected node (workflow only).
-- **Config** / **Library** in the workflow toolbar show or hide those panes; drag their edge to resize them.
+- **Left**: workflow list (**+** opens the template picker), and the Twitch channel with its connection status.
+- **Center**: the node graph of the selected workflow. The toolbar runs manual triggers (▶), sends a test chat message, toggles the side panes, exports and deletes.
+- **Right**: the library (workflow only). Drag a node type or a widget onto the graph; click a widget to edit it (settings, test, live preview, OBS link) and **+** to add one. Widget names are unique.
+- **Bottom**: settings of the selected node (workflow only), with pickers for options and a **{ }** menu to insert data from previous nodes, e.g. `{user}`.
+- Drag the edge of the right and bottom panes to resize them.
 
 ## How it works
 
@@ -111,6 +111,8 @@ export default {
 }
 ```
 
+Optional metadata makes the settings pane friendlier: `description`, `adds` (the data keys the node adds, offered as `{key}` in later nodes) and `fields` (per-setting hints such as `{ options: [...] }`, `{ vars: true }` for `{key}` placeholders, or `{ type: 'json' }`; see `ui/src/Fields.jsx`).
+
 A node with several outputs declares them, e.g. `outputs: ['true', 'false']`, and returns `{ [output]: data }` to pick which ones continue. A trigger sets `event` to the bus event it listens to.
 
 ## Writing a widget
@@ -131,7 +133,7 @@ export default {
 }
 ```
 
-The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs actions with the **Widget update** node (widget name, action, value). The node waits until the page has finished playing the action before the next nodes run: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays.
+The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs a widget's actions with a widget node (drag the widget from the library, then pick the action). The node waits until the page has finished playing the action before the next nodes run: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays.
 
 ## Import / export
 
