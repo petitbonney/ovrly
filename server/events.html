@@ -1,0 +1,94 @@
+<!doctype html>
+<!-- Developer view of GET /api/events for browsers: the recent events as a live table, in the app's dark palette. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ovrly · Events</title>
+<style>
+  /* Mantine's dark palette, as in the app. */
+  :root { --body: #242424; --panel: #2e2e2e; --border: #424242; --text: #c9c9c9; --dimmed: #828282; --accent: #1971c2; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--body); color: var(--text); font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  h1 { font-size: 18px; margin: 0; }
+  .muted { color: var(--dimmed); font-size: 12px; }
+  button, a.button { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; text-decoration: none; }
+  button:hover, a.button:hover { background: #3b3b3b; }
+  .spacer { flex: 1; }
+  .wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 6px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--dimmed); font-size: 12px; font-weight: 700; text-transform: uppercase; background: var(--panel); position: sticky; top: 0; }
+  tr:last-child td { border-bottom: 0; }
+  tr:hover td { background: #2b2b2b; }
+  td.time { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--dimmed); }
+  .badge { display: inline-block; padding: 0 8px; border-radius: 10px; font-size: 12px; font-weight: 600; border: 1px solid currentColor; }
+  .chat { color: #ff922b; } .webhook { color: #4dabf7; } .manual { color: #38d9a9; } .other { color: #da77f2; }
+  .data span { margin-right: 12px; } .data b { color: var(--dimmed); font-weight: 400; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  .empty { padding: 24px; text-align: center; color: var(--dimmed); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Recent events</h1>
+  <span class="muted" id="status"></span>
+  <span class="spacer"></span>
+  <button id="pause">Pause</button>
+  <a class="button" href="/api/events?format=json" target="_blank">Raw JSON</a>
+</header>
+<div class="wrap">
+  <table>
+    <thead><tr><th>Time</th><th>Event</th><th>Data</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+<script>
+  // Polls the JSON every 2s; cells are built with textContent, so event data is never parsed as HTML.
+  const rows = document.getElementById('rows')
+  const status = document.getElementById('status')
+  const el = (tag, className, text) => Object.assign(document.createElement(tag), { className, textContent: text ?? '' })
+  let paused = false
+  let last = []
+
+  function render(events) {
+    status.textContent = `${events.length} event${events.length === 1 ? '' : 's'} · newest first · ${paused ? 'paused' : 'live'}`
+    if (!events.length) {
+      const tr = document.createElement('tr')
+      const td = el('td', 'empty', 'No events yet: send a chat message, call an API hook or press Run.')
+      td.colSpan = 3
+      tr.append(td)
+      return rows.replaceChildren(tr)
+    }
+    rows.replaceChildren(...events.map(({ at, event, data }) => {
+      const tr = document.createElement('tr')
+      const time = el('td', 'time', new Date(at).toLocaleTimeString([], { hour12: false }) + '.' + String(new Date(at).getMilliseconds()).padStart(3, '0'))
+      time.title = new Date(at).toLocaleString()
+      const name = document.createElement('td')
+      name.append(el('span', `badge ${['chat', 'webhook', 'manual'].includes(event) ? event : 'other'}`, event))
+      const cell = el('td', 'data')
+      for (const [key, value] of Object.entries(data ?? {})) {
+        const item = document.createElement('span')
+        item.append(el('b', '', `${key}: `), el('code', '', typeof value === 'string' ? value : JSON.stringify(value)))
+        cell.append(item)
+      }
+      tr.append(time, name, cell)
+      return tr
+    }))
+  }
+
+  async function load() {
+    if (!paused) render((last = await fetch('/api/events?format=json').then((r) => r.json())))
+  }
+  document.getElementById('pause').onclick = (e) => {
+    paused = !paused
+    e.target.textContent = paused ? 'Resume' : 'Pause'
+    render(last)
+    load()
+  }
+  load()
+  setInterval(load, 2000)
+</script>
+</body>
+</html>

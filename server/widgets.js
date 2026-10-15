@@ -28,7 +28,9 @@ export function push(widget, run) {
 }
 
 // Applies one action, e.g. { action: 'vote', value: '2', user: 'bob' }, then pushes the new state.
-// `done` resolves once a page has finished playing it: right away if no page is open, after 60s if none answers.
+// `done` resolves once the action has finished playing. If the widget type says how long it plays (playTime), the
+// server waits that long itself: pages may be closed, or hidden and slowed down by the browser. Otherwise it waits for
+// a page to report the end: right away if no page is open, after 60s if none answers.
 // `output` is what the widget type's output(state, config) gives back to the workflow, e.g. { winner: 'Red' }.
 export function update(widget, { action, value = '', user = '' }) {
   const def = types[widget.type]
@@ -37,10 +39,13 @@ export function update(widget, { action, value = '', user = '' }) {
   const { config, state } = snapshot(widget)
   states[widget.id] = fn(state, { value: String(value).trim(), user }, config)
   const run = ++runs
-  const done = clients[widget.id]?.size ? new Promise((resolve) => {
-    waiting.set(run, resolve)
-    setTimeout(() => finish(run), 60_000)
-  }) : Promise.resolve()
+  const ms = def.playTime?.(action, config)
+  const done = ms !== undefined ? new Promise((resolve) => setTimeout(resolve, ms))
+    : clients[widget.id]?.size ? new Promise((resolve) => {
+      waiting.set(run, resolve)
+      setTimeout(() => finish(run), 60_000)
+    })
+    : Promise.resolve()
   push(widget, run)
   return { state: states[widget.id], done, output: def.output?.(states[widget.id], config) ?? {} }
 }

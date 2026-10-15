@@ -4,13 +4,14 @@
 // which can be used once per workflow. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y) undo and redo graph edits.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ReactFlow, ReactFlowProvider, Background, Controls, MarkerType,
+  ReactFlow, ReactFlowProvider, Background, Controls, ControlButton, MarkerType,
   useNodesState, useEdgesState, addEdge, useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ActionIcon, AppShell, Divider, Group, Notification, Text, TextInput, Tooltip } from '@mantine/core'
+import { ActionIcon, AppShell, Button, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip } from '@mantine/core'
 import {
-  IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconPlayerPlay, IconTrash,
+  IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconPlayerPlay,
+  IconTrash,
 } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import WidgetSettings from './Widget.jsx'
@@ -52,6 +53,8 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
 
 // Every node is drawn by FlowNode ("step"); edges get an arrow like n8n.
 const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '#9a9a9a' } }
+// Fitting the graph (on open and with the fit view button) never zooms past 100%, so a small graph isn't blown up.
+const fitOptions = { maxZoom: 1, padding: 0.3 }
 
 // Settings of the selected node: title, description, then a form built from the node type's fields.
 // A widget node also shows its widget instance's settings and preview.
@@ -72,6 +75,10 @@ function Config({ node, def, context, onChange, onWidgetChange, onCopy }) {
         {def.type !== 'widget-update' ? fields
           : widget && type ? <WidgetSettings key={widget.id} widget={widget} type={type} onChange={onWidgetChange} onCopy={onCopy}>{fields}</WidgetSettings>
           : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>}
+        {def.event === 'chat' && (
+          // A !command trigger's test message starts with its command.
+          <Stack mt="md"><ChatTest key={node.id} message={def.type === 'chat-command' ? `${node.data.config.command ?? def.config.command} ` : 'hello'} /></Stack>
+        )}
       </div>
     </AppShell.Footer>
   )
@@ -87,10 +94,43 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   const { screenToFlowPosition, getViewport, setViewport } = useReactFlow()
 
   // Short feedback message (copy, paste) shown over the graph for a few seconds.
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  // Locked graph: nodes can't be moved, linked or deleted, but can still be clicked to open their settings.
+  const [locked, setLocked] = useState(false)
+  // Live run feedback from the engine (/api/activity): node id -> running | done | stopped | error | waiting, and
+  // edge id -> its target node while data travels on it. Only for display: not saved, not part of undo.
+  const [live, setLive] = useState({ nodes: {}, edges: {} })
+  useEffect(() => {
+    const timers = []
+    // Finished states stay visible a moment, unless the node started again meanwhile.
+    const fade = (node, state, ms) => timers.push(setTimeout(() => setLive((l) => {
+      if (l.nodes[node] !== state) return l
+      const nodes = { ...l.nodes }
+      delete nodes[node]
+      const edges = Object.fromEntries(Object.entries(l.edges).filter(([, target]) => target !== node))
+      return { nodes, edges }
+    }), ms))
+    const source = new EventSource('/api/activity')
+    source.onmessage = (e) => {
+      const a = JSON.parse(e.data)
+      if (a.workflow !== workflow.id) return
+      if (a.edge) return setLive((l) => ({ ...l, edges: { ...l.edges, [a.edge]: a.target } }))
+      setLive((l) => ({ ...l, nodes: { ...l.nodes, [a.node]: a.state } }))
+      if (a.state === 'error') notify(`${nodes.find((n) => n.id === a.node)?.data.label ?? 'A node'} failed: ${a.error}`, 'red')
+      if (a.state !== 'running' && a.state !== 'waiting') fade(a.node, a.state, a.state === 'error' ? 4000 : 1500)
+    }
+    return () => {
+      source.close()
+      timers.forEach(clearTimeout)
+    }
+  }, [])
+  const shownNodes = nodes.map((n) => (live.nodes[n.id] ? { ...n, className: `run-${live.nodes[n.id]}` } : n))
+  const shownEdges = edges.map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow' } : e))
+
   const [toast, setToast] = useState(null)
   const toastTimer = useRef()
-  const notify = (message) => {
-    setToast(message)
+  const notify = (message, color = 'teal') => {
+    setToast({ message, color })
     clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToast(null), 3000)
   }
@@ -264,40 +304,56 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
               <IconPlayerPlay size={18} />
             </ActionIcon>
           </Tooltip>
-          <ChatTest />
           <Divider orientation="vertical" />
           <Tooltip label="Export as JSON">
             <ActionIcon size="md" variant="default" onClick={() => exportWorkflow(workflow.id).then((b) => download(b, name))}><IconDownload size={18} /></ActionIcon>
           </Tooltip>
           <Tooltip label="Delete workflow">
-            <ActionIcon size="md" variant="light" color="red" onClick={onDelete}><IconTrash size={18} /></ActionIcon>
+            <ActionIcon size="md" variant="light" color="red" onClick={() => setConfirmDelete(true)}><IconTrash size={18} /></ActionIcon>
           </Tooltip>
           <Divider orientation="vertical" />
           <Tooltip label={`${panels.library ? 'Hide' : 'Show'} node library`}>
             <ActionIcon size="md" variant={panels.library ? 'light' : 'default'} onClick={() => onToggle('library')}><IconLayoutSidebarRight size={18} /></ActionIcon>
           </Tooltip>
         </Group>
+        <Modal opened={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete workflow?" size="sm">
+          <Text size="sm" mb="lg">
+            "{name}" will be deleted, with the widgets no other workflow uses. This can't be undone.
+          </Text>
+          <Group justify="end" gap="xs">
+            <Button variant="default" onClick={() => setConfirmDelete(false)} data-autofocus>Cancel</Button>
+            <Button color="red" onClick={onDelete}>Delete</Button>
+          </Group>
+        </Modal>
         {toast && (
-          <Notification withCloseButton={false} className="toast" color="teal">{toast}</Notification>
+          <Notification withCloseButton={false} className="toast" color={toast.color}>{toast.message}</Notification>
         )}
         <ReactFlow
           ref={flowRef}
-          nodes={nodes}
-          edges={edges}
+          nodes={shownNodes}
+          edges={shownEdges}
           nodeTypes={nodeTypes}
           defaultEdgeOptions={edgeOptions}
           selectNodesOnDrag={false} // moving a node must not open its settings; a click does
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          nodesDraggable={!locked}
+          nodesConnectable={!locked}
+          deleteKeyCode={locked ? null : 'Backspace'}
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
           colorMode="dark"
           fitView
-          fitViewOptions={{ maxZoom: 1, padding: 0.3 }} // a small graph is not blown up to fill the canvas
+          fitViewOptions={fitOptions}
+          proOptions={{ hideAttribution: true }}
         >
           <Background color="#555" gap={20} />
-          <Controls />
+          <Controls position="top-left" fitViewOptions={fitOptions} showInteractive={false}>
+            <ControlButton onClick={() => setLocked((l) => !l)} title={locked ? 'Unlock the graph' : 'Lock node positions'}>
+              {locked ? <IconLock /> : <IconLockOpen />}
+            </ControlButton>
+          </Controls>
         </ReactFlow>
       </AppShell.Main>
       <Config

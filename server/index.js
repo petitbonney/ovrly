@@ -1,8 +1,8 @@
 // Server entry: REST API over the store, widget pages, plus the UI (Vite in dev, ./dist in production).
 import express from 'express'
 import * as store from './store.js'
-import bus from './bus.js'
-import { nodes, fire } from './engine.js'
+import bus, { recent, record } from './bus.js'
+import { nodes, fire, activity } from './engine.js'
 import * as twitch from './sources/twitch.js'
 import * as widgets from './widgets.js'
 
@@ -18,10 +18,24 @@ app.post('/api/emit/:event', (req, res) => {
   res.sendStatus(204)
 })
 
+// Developer view: the recent events (chat, API calls, manual runs…), newest first. Browsers get a live table
+// (events.html), anything else the JSON; ?format=json forces JSON.
+// Live run feedback for the workflow editor: an SSE stream of the engine's node and link activity.
+app.get('/api/activity', (req, res) => {
+  res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }).flushHeaders()
+  const send = (a) => res.write(`data: ${JSON.stringify(a)}\n\n`)
+  activity.on('activity', send)
+  req.on('close', () => activity.off('activity', send))
+})
+app.get('/api/events', (req, res) => {
+  if (req.query.format !== 'json' && req.accepts(['json', 'html']) === 'html') return res.sendFile('server/events.html', { root: '.' })
+  res.type('json').send(JSON.stringify(recent, null, 2))
+})
 // Runs a workflow's manual triggers now (the Run button in the editor).
 app.post('/api/workflows/:id/run', async (req, res) => {
   const workflow = await store.get('workflows', req.params.id).catch(() => null)
   if (!workflow) return res.sendStatus(404)
+  record('manual', { workflow: workflow.id }) // not on the bus: it targets this workflow only
   fire(workflow, 'manual', {})
   res.sendStatus(204)
 })
@@ -42,7 +56,7 @@ app.put('/api/twitch', async (req, res) => {
 
 // Widget types for the UI (metadata plus action names, no functions).
 app.get('/api/widget-types', (req, res) =>
-  res.json(Object.values(widgets.types).map(({ actions, output, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
+  res.json(Object.values(widgets.types).map(({ actions, output, playTime, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
 // Run a widget action by hand, e.g. POST /api/widgets/<id>/action { action: 'vote', value: '1', user }.
 app.post('/api/widgets/:id/action', async (req, res) => {
   const widget = await store.get('widgets', req.params.id)
@@ -67,8 +81,9 @@ app.get('/api/:kind/:id', async (req, res) => {
 })
 app.post('/api/:kind', async (req, res) => res.json(await store.save(req.params.kind, req.body)))
 app.put('/api/:kind/:id', async (req, res) => {
+  // Workflow updates are merged, so the editor's autosave keeps fields it doesn't send (e.g. enabled).
   const old = req.params.kind === 'workflows' && await store.get('workflows', req.params.id)
-  const item = await store.save(req.params.kind, { ...req.body, id: req.params.id })
+  const item = await store.save(req.params.kind, { ...old, ...req.body, id: req.params.id })
   if (req.params.kind === 'widgets') widgets.push(item) // live config changes on the overlay
   if (old) await dropUnusedWidgets(widgetRefs(old))
   res.json(item)

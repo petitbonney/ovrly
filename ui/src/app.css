@@ -20,3 +20,12 @@
 .flow-node .react-flow__handle.out { width: 14px; height: 14px; right: -8px; }
 .flow-node .port { position: absolute; left: 18px; top: -2px; font-size: 10px; color: #999; pointer-events: none; }
 .react-flow { --xy-edge-stroke: #9a9a9a; --xy-edge-stroke-width: 2; --xy-background-color: #2d2e2e; }
+
+/* Live run feedback (Workflow.jsx): running pulses blue, done flashes green, stopped dims, error turns red. */
+.run-running .flow-node { border-color: var(--mantine-color-blue-4); animation: run-pulse 1s ease-in-out infinite; }
+.run-waiting .flow-node { border-color: var(--mantine-color-yellow-5); border-style: dashed; }
+.run-done .flow-node { border-color: var(--mantine-color-green-5); box-shadow: 0 0 0 4px rgba(64, 192, 87, 0.25); }
+.run-stopped .flow-node { opacity: 0.5; }
+.run-error .flow-node { border-color: var(--mantine-color-red-6); box-shadow: 0 0 0 4px rgba(250, 82, 82, 0.3); }
+.react-flow__edge.run-flow path { stroke: var(--mantine-color-blue-4); }
+@keyframes run-pulse { 50% { box-shadow: 0 0 0 6px rgba(77, 171, 247, 0.35); } }
