@@ -1,7 +1,7 @@
-// Chat: Twitch channel setting (sidebar) and a toolbar popover that fires fake chat messages.
+// Chat: Twitch channel setting (sidebar) and a test form, in chat triggers' settings, that fires fake chat messages.
 import { useEffect, useState } from 'react'
-import { ActionIcon, Button, ColorSwatch, Popover, Stack, TextInput, Tooltip } from '@mantine/core'
-import { IconMessagePlus } from '@tabler/icons-react'
+import { Button, ColorSwatch, Group, Stack, TextInput, Tooltip } from '@mantine/core'
+import { IconCheck, IconSend } from '@tabler/icons-react'
 import Heading from './Heading.jsx'
 
 const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -37,31 +37,29 @@ export function Twitch() {
   )
 }
 
-export function ChatTest() {
+// Test form in a chat trigger's settings: fires a fake chat message, as if someone typed it on Twitch.
+export function ChatTest({ message: initial }) {
   const [user, setUser] = useState('tester')
-  const [message, setMessage] = useState('!spin')
+  const [message, setMessage] = useState(initial)
+  const [sent, setSent] = useState(false)
 
-  const send = (e) => {
+  const send = async (e) => {
     e.preventDefault()
-    fetch('/api/emit/chat', json('POST', { user, message, channel: 'test' }))
+    await fetch('/api/emit/chat', json('POST', { user, message, channel: 'test' }))
+    setSent(true)
+    setTimeout(() => setSent(false), 1500)
   }
 
   return (
-    <Popover position="bottom-end" withArrow>
-      <Popover.Target>
-        <Tooltip label="Send a test chat message">
-          <ActionIcon size="md" variant="default"><IconMessagePlus size={18} /></ActionIcon>
-        </Tooltip>
-      </Popover.Target>
-      <Popover.Dropdown>
-        <form onSubmit={send}>
-          <Stack gap="xs" w={220}>
-            <TextInput size="xs" label="User" value={user} onChange={(e) => setUser(e.target.value)} />
-            <TextInput size="xs" label="Message" value={message} onChange={(e) => setMessage(e.target.value)} data-autofocus />
-            <Button size="xs" type="submit">Send</Button>
-          </Stack>
-        </form>
-      </Popover.Dropdown>
-    </Popover>
+    <form onSubmit={send}>
+      <Heading title="Test" />
+      <Group gap="xs">
+        <TextInput size="xs" w={110} placeholder="user" value={user} onChange={(e) => setUser(e.target.value)} />
+        <TextInput size="xs" w={200} placeholder="message" value={message} onChange={(e) => setMessage(e.target.value)} />
+        <Button size="xs" variant="default" type="submit" leftSection={sent ? <IconCheck size={14} /> : <IconSend size={14} />}>
+          {sent ? 'Sent' : 'Send chat message'}
+        </Button>
+      </Group>
+    </form>
   )
 }

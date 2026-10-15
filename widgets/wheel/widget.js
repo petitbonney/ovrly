@@ -9,6 +9,7 @@ export default {
   adds: ['winner'],
   output: (state, config) => ({ winner: list(config.options)[state.winner] ?? '' }),
   inputs: {}, // no action takes a value
+  playTime: (action, config) => config.duration * 1000, // ms a spin lasts; the workflow waits for it
   actions: {
     spin: (state, input, config) => ({ winner: Math.floor(Math.random() * list(config.options).length), at: Date.now() }),
   },

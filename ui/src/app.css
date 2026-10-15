@@ -3,9 +3,17 @@
 .editor .react-flow { flex: 1; height: auto; min-height: 0; }
 /* Resizable panes scroll inside this wrapper: a scrolling pane would clip and scroll away its resize handle. */
 .pane { height: 100%; overflow: auto; padding: var(--mantine-spacing-sm); }
+/* Widget node settings: the settings column scrolls, the preview fills the space left (Widget.jsx). */
+.pane.split { display: flex; flex-direction: column; overflow: hidden; }
+.widget-split { flex: 1; min-height: 0; }
+.widget-split .settings { overflow: auto; padding-right: var(--mantine-spacing-xs); }
+.preview-fit { flex: 1; min-height: 0; }
+.preview-fit .preview { display: block; height: 100%; aspect-ratio: auto; }
 /* Copy/paste feedback over the graph. */
 .toast { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 10; }
-.preview { width: 100%; aspect-ratio: 16 / 9; border: 1px dashed #444; border-radius: 4px; background: #333 repeating-conic-gradient(#3a3a3a 0 25%, #333 0 50%) 0 0 / 20px 20px; }
+/* Classic "transparent PNG" checkerboard behind the overlay. color-scheme light matches the overlay page's, otherwise the
+   browser paints an opaque canvas over it in dark mode. */
+.preview { width: 100%; aspect-ratio: 16 / 9; border: 1px solid #444; border-radius: 4px; color-scheme: light; background: #fff repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
 
 /* n8n-style graph nodes (FlowNode.jsx) */
 .flow-node { position: relative; width: 90px; height: 90px; display: grid; place-items: center; background: #414244; border: 2px solid #9a9a9a; border-radius: 8px; }
@@ -20,3 +28,12 @@
 .flow-node .react-flow__handle.out { width: 14px; height: 14px; right: -8px; }
 .flow-node .port { position: absolute; left: 18px; top: -2px; font-size: 10px; color: #999; pointer-events: none; }
 .react-flow { --xy-edge-stroke: #9a9a9a; --xy-edge-stroke-width: 2; --xy-background-color: #2d2e2e; }
+
+/* Live run feedback (Workflow.jsx): running pulses blue, done flashes green, stopped dims, error turns red. */
+.run-running .flow-node { border-color: var(--mantine-color-blue-4); animation: run-pulse 1s ease-in-out infinite; }
+.run-waiting .flow-node { border-color: var(--mantine-color-yellow-5); border-style: dashed; }
+.run-done .flow-node { border-color: var(--mantine-color-green-5); box-shadow: 0 0 0 4px rgba(64, 192, 87, 0.25); }
+.run-stopped .flow-node { opacity: 0.5; }
+.run-error .flow-node { border-color: var(--mantine-color-red-6); box-shadow: 0 0 0 4px rgba(250, 82, 82, 0.3); }
+.react-flow__edge.run-flow path { stroke: var(--mantine-color-blue-4); }
+@keyframes run-pulse { 50% { box-shadow: 0 0 0 6px rgba(77, 171, 247, 0.35); } }

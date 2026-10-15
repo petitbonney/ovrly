@@ -1,5 +1,7 @@
-// Action: sends an HTTP request ({key} placeholders filled from data). Adds { status, response }.
+// Action: sends an HTTP request ({key} placeholders filled from data). Adds { status, response }. Each request is
+// recorded as an `http-request` event (GET /api/events).
 import { fill } from '../template.js'
+import { record } from '../bus.js'
 
 export default {
   type: 'http-request',
@@ -16,11 +18,14 @@ export default {
   async run({ config, data }) {
     const method = config.method.toUpperCase()
     const hasBody = !['GET', 'HEAD'].includes(method)
-    const res = await fetch(fill(config.url, data), {
-      method,
-      headers: hasBody ? { 'Content-Type': 'application/json' } : {},
-      body: hasBody ? fill(config.body, data) : undefined,
+    const url = fill(config.url, data)
+    const body = hasBody ? fill(config.body, data) : undefined
+    const headers = hasBody ? { 'Content-Type': 'application/json' } : {}
+    const res = await fetch(url, { method, headers, body }).catch((err) => {
+      record('http', 'http-request', { method, url, error: err.message })
+      throw err
     })
+    record('http', 'http-request', { method, url, ...(body && { body }), status: res.status })
     return { ...data, status: res.status, response: await res.text() }
   },
 }

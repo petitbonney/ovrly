@@ -1,6 +1,7 @@
-// Twitch chat source: anonymous tmi.js connection that publishes `chat` events on the bus.
+// Twitch chat source: anonymous tmi.js connection that publishes `chat` events on the bus. Connecting and
+// disconnecting are recorded as `twitch` events.
 import tmi from 'tmi.js'
-import bus from '../bus.js'
+import bus, { record } from '../bus.js'
 
 let client = null
 export const status = { channel: '', connected: false }
@@ -13,8 +14,14 @@ export async function connect(channel) {
   if (!channel) return
 
   client = new tmi.Client({ channels: [channel], connection: { reconnect: true, secure: true } })
-  client.on('connected', () => (status.connected = true))
-  client.on('disconnected', () => (status.connected = false))
+  client.on('connected', () => {
+    status.connected = true
+    record('websocket', 'twitch', { channel, connected: true })
+  })
+  client.on('disconnected', (reason) => {
+    status.connected = false
+    record('websocket', 'twitch', { channel, connected: false, reason })
+  })
   client.on('message', (chan, tags, message) => {
     bus.emit('chat', { user: tags['display-name'] || tags.username, message, channel: chan.slice(1) })
   })

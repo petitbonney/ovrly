@@ -1,7 +1,7 @@
 // Widget instance settings, shown in a widget node's settings pane: id, name, OBS link, settings, test and preview.
 // Autosaved; the instance itself is created when its widget is dropped onto the graph.
 import { useEffect, useState } from 'react'
-import { ActionIcon, Anchor, Box, Button, Code, CopyButton, Group, SegmentedControl, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import { ActionIcon, Anchor, Button, Code, CopyButton, Group, SegmentedControl, Stack, Text, TextInput, Tooltip } from '@mantine/core'
 import { IconCheck, IconCopy } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import Heading from './Heading.jsx'
@@ -44,9 +44,9 @@ export default function WidgetSettings({ widget, type, onChange, onCopy, childre
 
   const url = `${location.origin}/w/${widget.id}`
   return (
-    // The preview sits beside the settings, or below them when the pane is narrow.
-    <Group align="start" gap="xl">
-      <Stack gap="md" flex="1 1 280px" maw={420}>
+    // Settings on the left scroll; the preview on the right never does, it shrinks to fit the pane's height.
+    <Group className="widget-split" align="stretch" gap="xl" wrap="nowrap">
+      <Stack className="settings" gap="md" flex="1 1 280px" maw={420}>
         {children}
         <Group gap={6} wrap="nowrap">
           <Text size="xs" c="dimmed">Widget ID</Text>
@@ -59,7 +59,7 @@ export default function WidgetSettings({ widget, type, onChange, onCopy, childre
         <Fields defaults={type.config} values={config} onChange={setConfig} />
         <Test widget={widget} type={type} />
       </Stack>
-      <Box flex="1 1 320px" miw={0}>
+      <Stack gap={0} flex="1 1 320px" miw={0}>
         <Group gap={6} mb="xs" wrap="nowrap">
           <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>OBS browser source:</Text>
           <Tooltip label="Open in a new tab"><Anchor size="xs" href={url} target="_blank" truncate>{url}</Anchor></Tooltip>
@@ -73,8 +73,8 @@ export default function WidgetSettings({ widget, type, onChange, onCopy, childre
             )}
           </CopyButton>
         </Group>
-        <iframe className="preview" src={url} title="Preview" />
-      </Box>
+        <div className="preview-fit"><iframe className="preview" src={url} title="Preview" /></div>
+      </Stack>
     </Group>
   )
 }
