@@ -4,10 +4,10 @@ Small steps; each milestone should be usable on its own.
 
 ## M0: Skeleton
 
-- [ ] Single package: Express server + Vite React UI, `pnpm dev` runs both
-- [ ] `store.js`: CRUD on JSON files in `./data`
-- [ ] Event bus (`EventEmitter`)
-- [ ] Three-pane UI shell (left lists, center, right, bottom)
+- [x] Single package: Express server + Vite React UI, `pnpm dev` runs both
+- [x] `store.js`: CRUD on JSON files in `./data`
+- [x] Event bus (`EventEmitter`)
+- [x] Three-pane UI shell (left lists, center, right, bottom)
 
 ## M1: Workflows
 
