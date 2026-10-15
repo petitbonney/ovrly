@@ -24,7 +24,9 @@
   tr:hover td { background: #2b2b2b; }
   td.time { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--dimmed); }
   .badge { display: inline-block; padding: 0 8px; border-radius: 10px; font-size: 12px; font-weight: 600; border: 1px solid currentColor; }
-  .chat { color: #ff922b; } .webhook { color: #4dabf7; } .manual { color: #38d9a9; } .other { color: #da77f2; }
+  /* Channel tags: how each event travelled. */
+  .bus { color: #ff922b; } .http { color: #4dabf7; } .websocket { color: #da77f2; } .sse { color: #38d9a9; } .other { color: #828282; }
+  td.event { font-weight: 600; white-space: nowrap; }
   .data span { margin-right: 12px; } .data b { color: var(--dimmed); font-weight: 400; }
   code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
   .empty { padding: 24px; text-align: center; color: var(--dimmed); }
@@ -40,7 +42,7 @@
 </header>
 <div class="wrap">
   <table>
-    <thead><tr><th>Time</th><th>Event</th><th>Data</th></tr></thead>
+    <thead><tr><th>Time</th><th>Channel</th><th>Event</th><th>Data</th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
 </div>
@@ -57,23 +59,24 @@
     if (!events.length) {
       const tr = document.createElement('tr')
       const td = el('td', 'empty', 'No events yet: send a chat message, call an API hook or press Run.')
-      td.colSpan = 3
+      td.colSpan = 4
       tr.append(td)
       return rows.replaceChildren(tr)
     }
-    rows.replaceChildren(...events.map(({ at, event, data }) => {
+    rows.replaceChildren(...events.map(({ at, channel, event, data }) => {
       const tr = document.createElement('tr')
       const time = el('td', 'time', new Date(at).toLocaleTimeString([], { hour12: false }) + '.' + String(new Date(at).getMilliseconds()).padStart(3, '0'))
       time.title = new Date(at).toLocaleString()
-      const name = document.createElement('td')
-      name.append(el('span', `badge ${['chat', 'webhook', 'manual'].includes(event) ? event : 'other'}`, event))
+      const tag = document.createElement('td')
+      tag.append(el('span', `badge ${['bus', 'http', 'websocket', 'sse'].includes(channel) ? channel : 'other'}`, channel ?? '?'))
+      const name = el('td', 'event', event)
       const cell = el('td', 'data')
       for (const [key, value] of Object.entries(data ?? {})) {
         const item = document.createElement('span')
         item.append(el('b', '', `${key}: `), el('code', '', typeof value === 'string' ? value : JSON.stringify(value)))
         cell.append(item)
       }
-      tr.append(time, name, cell)
+      tr.append(time, tag, name, cell)
       return tr
     }))
   }

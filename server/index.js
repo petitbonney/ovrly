@@ -35,7 +35,7 @@ app.get('/api/events', (req, res) => {
 app.post('/api/workflows/:id/run', async (req, res) => {
   const workflow = await store.get('workflows', req.params.id).catch(() => null)
   if (!workflow) return res.sendStatus(404)
-  record('manual', { workflow: workflow.id }) // not on the bus: it targets this workflow only
+  record('http', 'manual', { workflow: workflow.id }) // not on the bus: it targets this workflow only
   fire(workflow, 'manual', {})
   res.sendStatus(204)
 })

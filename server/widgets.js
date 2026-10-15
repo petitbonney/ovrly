@@ -1,5 +1,7 @@
 // Widget runtime: loads widget types, keeps each widget's live state, and pushes it to /w/:id pages over SSE.
+// Each action is recorded as a `widget` event, and its end (with the output) as `widget-done` (GET /api/events).
 import fs from 'node:fs/promises'
+import { record } from './bus.js'
 
 // Load every widget type from ../widgets/<type>/widget.js, keyed by type.
 const dir = new URL('../widgets/', import.meta.url)
@@ -47,7 +49,11 @@ export function update(widget, { action, value = '', user = '' }) {
     })
     : Promise.resolve()
   push(widget, run)
-  return { state: states[widget.id], done, output: def.output?.(states[widget.id], config) ?? {} }
+  const output = def.output?.(states[widget.id], config) ?? {}
+  const pages = clients[widget.id]?.size ?? 0
+  record('sse', 'widget', { widget: widget.name, action, ...(value !== '' && { value }), ...(user && { user }), pages })
+  done.then(() => record('sse', 'widget-done', { widget: widget.name, action, ...output }))
+  return { state: states[widget.id], done, output }
 }
 
 // Called by POST /w/:id/done when a page has finished playing an action.
