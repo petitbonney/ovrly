@@ -1,13 +1,14 @@
 // Widget editor: config and live preview (center), test actions (bottom), autosaved. Plus the new-widget type picker.
 import { useEffect, useState } from 'react'
 import { Fields } from './Workflow.jsx'
+import { exportItem, download, importFile } from './share.js'
 
 const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
 export function NewWidget({ types, onCreate }) {
   const create = async (type) => {
     const res = await fetch('/api/widgets', json('POST', { name: type.label, type: type.type, config: {} }))
-    onCreate((await res.json()).id)
+    onCreate({ kind: 'widgets', id: (await res.json()).id })
   }
   return (
     <>
@@ -15,6 +16,7 @@ export function NewWidget({ types, onCreate }) {
         <div className="stack">
           <h2>New widget</h2>
           {types.map((t) => <button key={t.type} onClick={() => create(t)}>{t.label}</button>)}
+          <button onClick={() => importFile().then(onCreate, (err) => alert(`Import failed: ${err.message}`))}>Import JSON…</button>
         </div>
       </main>
       <section className="bottom" />
@@ -64,6 +66,7 @@ function Editor({ widget, type, onChange, onDelete }) {
       <main className="center widget">
         <div className="toolbar">
           <input value={name} onChange={(e) => setName(e.target.value)} />
+          <button onClick={() => exportItem('widgets', widget.id).then((b) => download(b, name))}>Export</button>
           <button onClick={onDelete}>Delete widget</button>
         </div>
         <div className="widget-body">

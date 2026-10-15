@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import Workflow from './Workflow.jsx'
 import Widget, { NewWidget } from './Widget.jsx'
 import { Twitch, ChatTest } from './Chat.jsx'
+import templates from './templates.js'
+import { importBundle, importFile } from './share.js'
 
 function List({ title, kind, selected, onSelect, onAdd, version }) {
   const [items, setItems] = useState([])
@@ -43,6 +45,25 @@ function Library({ defs }) {
   ))
 }
 
+// "New workflow" modal: blank, from a template, or imported from a JSON file. Calls onDone with { kind, id }.
+function NewWorkflow({ onDone, onClose }) {
+  const blank = { workflows: [{ name: 'New workflow', nodes: [], edges: [] }] }
+  return (
+    <div className="modal" onClick={onClose}>
+      <div className="stack" onClick={(e) => e.stopPropagation()}>
+        <h2>New workflow <button onClick={onClose}>×</button></h2>
+        <button onClick={() => importBundle(blank).then(onDone)}>Blank</button>
+        {templates.map((t) => (
+          <button key={t.name} onClick={() => importBundle(t).then(onDone)}>
+            <b>{t.name}</b><br /><small>{t.description}</small>
+          </button>
+        ))}
+        <button onClick={() => importFile().then(onDone, (err) => alert(`Import failed: ${err.message}`))}>Import JSON…</button>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [selected, setSelected] = useState(null)
   const [defs, setDefs] = useState([])
@@ -55,24 +76,17 @@ export default function App() {
     fetch('/api/widget-types').then((r) => r.json()).then(setTypes)
   }, [])
 
-  const addWorkflow = async () => {
-    const res = await fetch('/api/workflows', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'New workflow', nodes: [], edges: [] }),
-    })
-    const { id } = await res.json()
-    setSelected({ kind: 'workflows', id })
-    setVersion((v) => v + 1)
-  }
+  const [modal, setModal] = useState(false)
 
   // Called by the editors after a save (id) or a delete (null).
   const onItemChange = (id) => {
     if (!id) setSelected(null)
     setVersion((v) => v + 1)
   }
-  const onWidgetCreate = (id) => {
-    setSelected({ kind: 'widgets', id })
+  // Called after creating or importing an item ({ kind, id }); an empty import selects nothing.
+  const onCreate = (item) => {
+    setModal(false)
+    setSelected(item ?? null)
     setVersion((v) => v + 1)
   }
 
@@ -80,14 +94,14 @@ export default function App() {
     <div className="shell">
       <aside className="left">
         <List title="Widgets" kind="widgets" selected={selected} onSelect={setSelected} onAdd={() => setSelected({ kind: 'new-widget' })} version={version} />
-        <List title="Workflows" kind="workflows" selected={selected} onSelect={setSelected} onAdd={addWorkflow} version={version} />
+        <List title="Workflows" kind="workflows" selected={selected} onSelect={setSelected} onAdd={() => setModal(true)} version={version} />
       </aside>
       {selected?.kind === 'workflows' ? (
         <Workflow key={selected.id} id={selected.id} defs={defs} onChange={onItemChange} />
       ) : selected?.kind === 'widgets' ? (
         <Widget key={selected.id} id={selected.id} types={types} onChange={onItemChange} />
       ) : selected?.kind === 'new-widget' ? (
-        <NewWidget types={types} onCreate={onWidgetCreate} />
+        <NewWidget types={types} onCreate={onCreate} />
       ) : (
         <>
           <main className="center">Select a widget or workflow</main>
@@ -99,6 +113,7 @@ export default function App() {
         <Twitch />
         <ChatTest />
       </aside>
+      {modal && <NewWorkflow onDone={onCreate} onClose={() => setModal(false)} />}
     </div>
   )
 }

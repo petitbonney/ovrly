@@ -5,6 +5,7 @@ import {
   useNodesState, useEdgesState, addEdge, useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { exportItem, download } from './share.js'
 
 // Form generated from a config's defaults; the input kind follows each default value's type.
 export function Fields({ defaults, values, onChange }) {
@@ -87,6 +88,7 @@ function Editor({ workflow, defs, onRename, onDelete }) {
       <main className="center flow">
         <div className="toolbar">
           <input value={name} onChange={(e) => setName(e.target.value)} />
+          <button onClick={() => exportItem('workflows', workflow.id).then((b) => download(b, name))}>Export</button>
           <button onClick={onDelete}>Delete workflow</button>
         </div>
         <ReactFlow
