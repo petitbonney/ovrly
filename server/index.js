@@ -42,7 +42,7 @@ app.put('/api/twitch', async (req, res) => {
 
 // Widget types for the UI (metadata plus action names, no functions).
 app.get('/api/widget-types', (req, res) =>
-  res.json(Object.values(widgets.types).map(({ actions, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
+  res.json(Object.values(widgets.types).map(({ actions, output, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
 // Run a widget action by hand, e.g. POST /api/widgets/<id>/action { action: 'vote', value: '1', user }.
 app.post('/api/widgets/:id/action', async (req, res) => {
   const widget = await store.get('widgets', req.params.id)

@@ -1,4 +1,5 @@
 // Bets: viewers predict an outcome while bets are open; "win" reveals who guessed right.
+// Outputs { winner } (the winning option) and { winners } (the users who bet on it, comma-separated).
 import { list, pick } from '../lib.js'
 
 export default {
@@ -6,6 +7,11 @@ export default {
   label: 'Bets',
   config: { title: 'Who wins?', options: 'Blue, Red' },
   state: { open: false, bets: {}, winner: -1 }, // bets: user -> option index
+  adds: ['winner', 'winners'],
+  output: (state, config) => ({
+    winner: list(config.options)[state.winner] ?? '',
+    winners: Object.entries(state.bets).filter(([, i]) => i === state.winner).map(([user]) => user).join(', '),
+  }),
   actions: {
     open: () => ({ open: true, bets: {}, winner: -1 }),
     bet(state, { value, user }, config) {

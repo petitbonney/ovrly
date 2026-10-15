@@ -15,19 +15,22 @@ import { exportItem, download } from './share.js'
 
 const findWidget = (widgets, ref) => widgets.find((w) => w.id === ref || w.name === ref)
 
-// Data keys a node can use as {key}: what every node upstream of it adds (a manual trigger adds its JSON's keys).
-function upstreamKeys(id, nodes, edges, defs) {
+// Data keys a node can use as {key}: what every node upstream of it adds (a manual trigger adds its JSON's keys,
+// a widget node what its widget type outputs).
+function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
   const keys = new Set()
   const seen = new Set()
   const queue = [id]
   while (queue.length) {
-    for (const e of edges.filter((e) => e.target === queue.pop())) {
+    const target = queue.pop()
+    for (const e of edges.filter((e) => e.target === target)) {
       if (seen.has(e.source)) continue
       seen.add(e.source)
       queue.push(e.source)
       const node = nodes.find((n) => n.id === e.source)
       const def = defs.find((d) => d.type === node?.data.type)
-      for (const k of def?.adds ?? []) keys.add(k)
+      const type = def?.type === 'widget-update' && types.find((t) => t.type === findWidget(widgets, node.data.config.widget)?.type)
+      for (const k of [...(def?.adds ?? []), ...(type?.adds ?? [])]) keys.add(k)
       if (def?.type === 'manual') {
         try { Object.keys(JSON.parse(node.data.config.data ?? def.config.data)).forEach((k) => keys.add(k)) } catch {}
       }
@@ -45,14 +48,16 @@ function Config({ node, def, context, onChange, onEditWidget }) {
   const widget = def.type === 'widget-update' && findWidget(context.widgets, node.data.config.widget)
   const Icon = (widget ? widgetIcons[widget.type] : icons[def.type]) ?? icons.log
   return (
-    <AppShell.Footer p="sm" style={{ overflow: 'auto' }}>
-      <Group gap="xs" mb={4}>
-        <Icon size={20} color={colors[def.category]} />
-        <Text fw={600}>{widget ? widget.name : def.label}</Text>
-        {widget && <Button size="compact-xs" variant="default" leftSection={<IconPencil size={14} />} onClick={() => onEditWidget(widget.id)}>Edit widget</Button>}
-      </Group>
-      <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
-      <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={context} onChange={onChange} />
+    <AppShell.Footer>
+      <div className="pane">
+        <Group gap="xs" mb={4}>
+          <Icon size={20} color={colors[def.category]} />
+          <Text fw={600}>{widget ? widget.name : def.label}</Text>
+          {widget && <Button size="compact-xs" variant="default" leftSection={<IconPencil size={14} />} onClick={() => onEditWidget(widget.id)}>Edit widget</Button>}
+        </Group>
+        <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
+        <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={context} onChange={onChange} />
+      </div>
     </AppShell.Footer>
   )
 }
@@ -156,7 +161,7 @@ function Editor({ workflow, defs, widgets, types, onRename, onDelete, onEditWidg
       <Config
         node={selected}
         def={defs.find((d) => d.type === selected?.data.type)}
-        context={{ vars: selected ? upstreamKeys(selected.id, nodes, edges, defs) : [], widgets, types }}
+        context={{ vars: selected ? upstreamKeys(selected.id, { nodes, edges, defs, widgets, types }) : [], widgets, types }}
         onChange={setConfig}
         onEditWidget={onEditWidget}
       />
