@@ -31,7 +31,7 @@ export function Fields({ defaults, values, onChange }) {
 const sides = { targetPosition: 'left', sourcePosition: 'right' }
 
 function Config({ node, def, onChange }) {
-  if (!node || !def) return <AppShell.Footer p="sm" c="dimmed">Select a node</AppShell.Footer>
+  if (!node || !def) return null
   return (
     <AppShell.Footer p="sm" style={{ overflow: 'auto' }}>
       <Heading title={def.label} />
@@ -40,7 +40,7 @@ function Config({ node, def, onChange }) {
   )
 }
 
-function Editor({ workflow, defs, onRename, onDelete }) {
+function Editor({ workflow, defs, onRename, onDelete, panels, onToggle, onNodeSelect }) {
   const [name, setName] = useState(workflow.name)
   const [nodes, setNodes, onNodesChange] = useNodesState(workflow.nodes.map((n) => ({ ...n, ...sides })))
   const [edges, setEdges, onEdgesChange] = useEdgesState(workflow.edges)
@@ -79,6 +79,12 @@ function Editor({ workflow, defs, onRename, onDelete }) {
   }
 
   const selected = nodes.find((n) => n.selected)
+  // Tells the shell whether to show the bottom (node config) pane.
+  const hasNode = !!selected
+  useEffect(() => {
+    onNodeSelect(hasNode)
+    return () => onNodeSelect(false)
+  }, [hasNode])
   const setConfig = (config) =>
     setNodes((ns) => ns.map((n) => (n.id === selected.id ? { ...n, data: { ...n.data, config } } : n)))
 
@@ -87,6 +93,8 @@ function Editor({ workflow, defs, onRename, onDelete }) {
       <AppShell.Main className="editor">
         <Group gap="xs" p="xs" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
           <TextInput flex={1} size="xs" value={name} onChange={(e) => setName(e.target.value)} />
+          <Button size="xs" variant={panels.config ? 'light' : 'default'} onClick={() => onToggle('config')}>Config</Button>
+          <Button size="xs" variant={panels.library ? 'light' : 'default'} onClick={() => onToggle('library')}>Library</Button>
           <Button size="xs" variant="default" onClick={() => exportItem('workflows', workflow.id).then((b) => download(b, name))}>Export</Button>
           <Button size="xs" variant="light" color="red" onClick={onDelete}>Delete workflow</Button>
         </Group>
@@ -110,7 +118,7 @@ function Editor({ workflow, defs, onRename, onDelete }) {
   )
 }
 
-export default function Workflow({ id, defs, onChange }) {
+export default function Workflow({ id, defs, onChange, ...panelProps }) {
   const [workflow, setWorkflow] = useState(null)
   useEffect(() => {
     fetch(`/api/workflows/${id}`).then((r) => r.json()).then(setWorkflow)
@@ -124,7 +132,7 @@ export default function Workflow({ id, defs, onChange }) {
   if (!workflow) return null
   return (
     <ReactFlowProvider>
-      <Editor workflow={workflow} defs={defs} onRename={() => onChange(id)} onDelete={onDelete} />
+      <Editor workflow={workflow} defs={defs} onRename={() => onChange(id)} onDelete={onDelete} {...panelProps} />
     </ReactFlowProvider>
   )
 }

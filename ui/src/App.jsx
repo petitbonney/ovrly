@@ -1,6 +1,7 @@
-// App shell: left lists, center editor (workflow or widget), bottom node config, right node library and chat panels.
+// App shell: left lists, center editor (workflow or widget). While editing a workflow: right node library and chat
+// panels, and bottom config of the selected node; both can be toggled and resized.
 import { useEffect, useState } from 'react'
-import { ActionIcon, AppShell, Button, Center, Modal, NavLink, Stack, Text } from '@mantine/core'
+import { ActionIcon, AppShell, Button, Center, Modal, NavLink, Stack, Text, useAppShellResize } from '@mantine/core'
 import Workflow from './Workflow.jsx'
 import Widget, { NewWidget } from './Widget.jsx'
 import { Twitch, ChatTest } from './Chat.jsx'
@@ -84,6 +85,13 @@ export default function App() {
   }, [])
 
   const [modal, setModal] = useState(false)
+  // Panels the user toggled on/off, and whether the workflow editor has a node selected.
+  const [panels, setPanels] = useState({ library: true, config: true })
+  const togglePanel = (key) => setPanels((p) => ({ ...p, [key]: !p[key] }))
+  const [nodeSelected, setNodeSelected] = useState(false)
+  const resize = useAppShellResize({ aside: { min: 160, max: 480 }, footer: { min: 80, max: 600 } })
+  const editing = selected?.kind === 'workflows'
+  const showAside = editing && panels.library
 
   // Called by the editors after a save (id) or a delete (null).
   const onItemChange = (id) => {
@@ -101,25 +109,23 @@ export default function App() {
   return (
     <AppShell
       layout="alt"
+      resize={resize}
       navbar={{ width: 220, breakpoint: 0 }}
-      aside={{ width: 220, breakpoint: 0 }}
-      footer={{ height: 200 }}
+      aside={{ width: 220, breakpoint: 0, collapsed: { desktop: !showAside, mobile: !showAside } }}
+      footer={{ height: 200, collapsed: !(editing && nodeSelected && panels.config) }}
     >
       <AppShell.Navbar p="sm" style={{ overflow: 'auto' }}>
         <List title="Widgets" kind="widgets" selected={selected} onSelect={setSelected} onAdd={() => setSelected({ kind: 'new-widget' })} version={version} />
         <List title="Workflows" kind="workflows" selected={selected} onSelect={setSelected} onAdd={() => setModal(true)} version={version} />
       </AppShell.Navbar>
       {selected?.kind === 'workflows' ? (
-        <Workflow key={selected.id} id={selected.id} defs={defs} onChange={onItemChange} />
+        <Workflow key={selected.id} id={selected.id} defs={defs} onChange={onItemChange} panels={panels} onToggle={togglePanel} onNodeSelect={setNodeSelected} />
       ) : selected?.kind === 'widgets' ? (
         <Widget key={selected.id} id={selected.id} types={types} onChange={onItemChange} />
       ) : selected?.kind === 'new-widget' ? (
         <NewWidget types={types} onCreate={onCreate} />
       ) : (
-        <>
-          <AppShell.Main className="editor"><Center flex={1} c="dimmed">Select a widget or workflow</Center></AppShell.Main>
-          <AppShell.Footer p="sm" c="dimmed">Node config</AppShell.Footer>
-        </>
+        <AppShell.Main className="editor"><Center flex={1} c="dimmed">Select a widget or workflow</Center></AppShell.Main>
       )}
       <AppShell.Aside p="sm" style={{ overflow: 'auto' }}>
         <Library defs={defs} />
