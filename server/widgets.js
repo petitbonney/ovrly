@@ -16,6 +16,7 @@ for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
 const states = {} // widget id -> state
 const clients = {} // widget id -> Set of open SSE responses
 const waiting = new Map() // run id -> resolve, until a page reports that action finished
+const playing = {} // widget id -> cancels the action still playing on it
 let runs = 0
 
 function snapshot(widget) {
@@ -30,29 +31,41 @@ export function push(widget, run) {
 }
 
 // Applies one action, e.g. { action: 'vote', value: '2', user: 'bob' }, then pushes the new state.
-// `done` resolves once the action has finished playing. If the widget type says how long it plays (playTime), the
-// server waits that long itself: pages may be closed, or hidden and slowed down by the browser. Otherwise it waits for
-// a page to report the end: right away if no page is open, after 60s if none answers.
+// `done` resolves to true once the action has finished playing. If the widget type says how long it plays (playTime),
+// the server waits that long itself: pages may be closed, or hidden and slowed down by the browser. Otherwise it waits
+// for a page to report the end: right away if no page is open, after 60s if none answers.
+// Cancel and restart: an action arriving while another still plays on the same widget cancels it (its `done` resolves
+// to false, so that run stops) and plays instead.
 // `output` is what the widget type's output(state, config) gives back to the workflow, e.g. { winner: 'Red' }.
 export function update(widget, { action, value = '', user = '' }) {
   const def = types[widget.type]
   const fn = def.actions[action]
   if (!fn) throw new Error(`${def.label}: unknown action "${action}"`)
+  playing[widget.id]?.()
   const { config, state } = snapshot(widget)
   states[widget.id] = fn(state, { value: String(value).trim(), user }, config)
   const run = ++runs
   const ms = def.playTime?.(action, config)
-  const done = ms !== undefined ? new Promise((resolve) => setTimeout(resolve, ms))
-    : clients[widget.id]?.size ? new Promise((resolve) => {
-      waiting.set(run, resolve)
-      setTimeout(() => finish(run), 60_000)
+  const done = new Promise((resolve) => {
+    const cancel = (playing[widget.id] = () => {
+      waiting.delete(run)
+      resolve(false)
     })
-    : Promise.resolve()
+    const end = () => {
+      if (playing[widget.id] === cancel) delete playing[widget.id]
+      resolve(true)
+    }
+    if (ms !== undefined) setTimeout(end, ms)
+    else if (clients[widget.id]?.size) {
+      waiting.set(run, end)
+      setTimeout(() => finish(run), 60_000)
+    } else end()
+  })
   push(widget, run)
   const output = def.output?.(states[widget.id], config) ?? {}
   const pages = clients[widget.id]?.size ?? 0
   record('sse', 'widget', { widget: widget.name, action, ...(value !== '' && { value }), ...(user && { user }), pages })
-  done.then(() => record('sse', 'widget-done', { widget: widget.name, action, ...output }))
+  done.then((played) => record('sse', played ? 'widget-done' : 'widget-cancelled', { widget: widget.name, action, ...(played && output) }))
   return { state: states[widget.id], done, output }
 }
 

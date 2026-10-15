@@ -1,8 +1,8 @@
 // App shell: left workflow list and Twitch connection, center workflow editor. While editing a workflow: right library
 // (node and widget types to drag onto the graph) and bottom settings of the selected node; both toggle and resize.
 import { useEffect, useRef, useState } from 'react'
-import { ActionIcon, Affix, AppShell, Button, Center, Modal, NavLink, Stack, Switch, Text, Tooltip, useAppShellResize } from '@mantine/core'
-import { IconPlus, IconTool } from '@tabler/icons-react'
+import { ActionIcon, Affix, AppShell, Button, Center, Loader, Modal, NavLink, Stack, Switch, Text, Tooltip, useAppShellResize } from '@mantine/core'
+import { IconAlertOctagon, IconPlus, IconTool } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
 import { Twitch } from './Chat.jsx'
 import Heading from './Heading.jsx'
@@ -15,6 +15,16 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
   useEffect(() => {
     fetch(`/api/${kind}`).then((r) => r.json()).then(setItems)
   }, [kind, version])
+  // Workflow id -> firings in progress, from the engine's live activity: a loader shows next to running workflows.
+  const [running, setRunning] = useState({})
+  useEffect(() => {
+    const source = new EventSource('/api/activity')
+    source.onmessage = (e) => {
+      const a = JSON.parse(e.data)
+      if ('running' in a) setRunning((r) => ({ ...r, [a.workflow]: a.running }))
+    }
+    return () => source.close()
+  }, [])
 
   // Switches a workflow on or off; off, its triggers ignore chat and API calls.
   const toggle = (item, enabled) => {
@@ -33,6 +43,7 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
         <NavLink
           key={item.id}
           label={item.name || item.id}
+          rightSection={running[item.id] > 0 && <Loader size={10} />}
           c={item.enabled === false ? 'dimmed' : undefined}
           active={selected?.id === item.id}
           onClick={() => onSelect({ kind, id: item.id })}
@@ -165,6 +176,8 @@ export default function App() {
     shown.current = selected?.id
   })
 
+  // Emergency stop: every workflow off, runs cancelled; the list refetches to show the switches off.
+  const stopAll = () => fetch('/api/stop', { method: 'POST' }).then(() => setVersion((v) => v + 1))
   // Called by the editors after a save (id) or a delete (null).
   const onItemChange = (id) => {
     if (!id) setSelected(null)
@@ -189,8 +202,14 @@ export default function App() {
       footer={{ height: Math.max(200, Math.round(innerHeight * 0.6)), collapsed: !(editing && openNodes[selected.id]) }}
     >
       <AppShell.Navbar p="sm">
-        <AppShell.Section grow style={{ overflow: 'auto' }}>
+        {/* The stop button sits at the bottom of the workflows section, below however many workflows there are. */}
+        <AppShell.Section grow style={{ overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
           <List title="Workflows" kind="workflows" selected={selected} onSelect={setSelected} onAdd={() => setModal(true)} version={version} />
+          <Tooltip label="Switches every workflow off and cancels what is running" openDelay={400}>
+            <Button color="red" variant="light" size="xs" fullWidth mt="auto" mb="sm" style={{ flexShrink: 0 }} leftSection={<IconAlertOctagon size={16} />} onClick={stopAll}>
+              EMERGENCY
+            </Button>
+          </Tooltip>
         </AppShell.Section>
         <AppShell.Section pt="sm" style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}>
           <Twitch />

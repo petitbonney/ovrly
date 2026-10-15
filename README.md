@@ -12,7 +12,11 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 - **Widgets**: built-in browser-source overlays: alerts, poll, bets, spin wheel, TwitchPlays.
 - **Multiple instances**: run several widgets and workflows side by side.
 - **Triggers**: Twitch chat (any message or a `!command`), an API call to `http://localhost:3000/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual trigger).
-- **Logic**: filter, delay, if/else, switch, and wait for all (continues once every incoming link has delivered).
+- **Logic**: filter, delay, if/else, switch, wait for all (continues once every incoming link has delivered),
+  cooldown (lets data through, then sends the next to "blocked" for a while, for everyone or per viewer) and
+  queue (what follows runs one firing at a time, the next wait in line).
+- **Widget concurrency**: an action sent to a widget that is still playing one (e.g. a second `!spin`) cancels it and
+  plays the new one; the cancelled run stops there. Put a queue node before the widget to play them in turn instead.
 - **Actions**:
   - update a widget overlay (web source)
   - press a key on the broadcaster's machine
@@ -45,7 +49,7 @@ To show a widget in OBS, select its node and copy the browser-source link from t
 └──────────┴──────────────────────────────┴───────────┘
 ```
 
-- **Left**: workflow list (**+** opens the template picker; the switch next to each name turns a workflow off, so its triggers ignore chat and API calls, while ▶ Run still works), and the Twitch channel with its connection status.
+- **Left**: workflow list (**+** opens the template picker; the switch next to each name turns a workflow off: what it is running is cancelled and its triggers ignore chat and API calls, while ▶ Run still works; **EMERGENCY** below the list turns them all off at once), and the Twitch channel with its connection status.
 - **Center**: the node graph of the selected workflow. The toolbar has undo/redo, the name, run manual triggers (▶), then export and delete, then show/hide the library. Chat triggers have a test form in their settings that sends a fake chat message.
 - **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance (one node = one instance), set up from its node's settings: name, OBS link, settings, test and live preview. Deleting the node deletes the instance.
 - **Copy/paste**: Ctrl/⌘+C and Ctrl/⌘+V copy the selected nodes, also into another workflow. Pasted widget nodes share the same instance (once per workflow); it is deleted once no workflow uses it anymore. Each instance has its own id, shown in its node's settings with a button that copies the node.
