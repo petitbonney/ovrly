@@ -1,9 +1,10 @@
-// Server entry: REST API over the store, plus the UI (Vite in dev, ./dist in production).
+// Server entry: REST API over the store, widget pages, plus the UI (Vite in dev, ./dist in production).
 import express from 'express'
 import * as store from './store.js'
 import bus from './bus.js'
 import { nodes } from './engine.js'
 import * as twitch from './sources/twitch.js'
+import * as widgets from './widgets.js'
 
 const PORT = process.env.PORT || 3000
 const app = express()
@@ -26,20 +27,41 @@ app.put('/api/twitch', async (req, res) => {
   res.json(twitch.status)
 })
 
+// Widget types for the UI (metadata plus action names, no functions).
+app.get('/api/widget-types', (req, res) =>
+  res.json(Object.values(widgets.types).map(({ actions, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
+// Run a widget action by hand, e.g. POST /api/widgets/<id>/action { action: 'vote', value: '1', user }.
+app.post('/api/widgets/:id/action', async (req, res) => {
+  const widget = await store.get('widgets', req.params.id)
+  widget ? res.json(widgets.update(widget, req.body)) : res.sendStatus(404)
+})
+
 app.get('/api/:kind', async (req, res) => res.json(await store.list(req.params.kind)))
 app.get('/api/:kind/:id', async (req, res) => {
   const item = await store.get(req.params.kind, req.params.id)
   item ? res.json(item) : res.sendStatus(404)
 })
 app.post('/api/:kind', async (req, res) => res.json(await store.save(req.params.kind, req.body)))
-app.put('/api/:kind/:id', async (req, res) =>
-  res.json(await store.save(req.params.kind, { ...req.body, id: req.params.id })))
+app.put('/api/:kind/:id', async (req, res) => {
+  const item = await store.save(req.params.kind, { ...req.body, id: req.params.id })
+  if (req.params.kind === 'widgets') widgets.push(item) // live config changes on the overlay
+  res.json(item)
+})
 app.delete('/api/:kind/:id', async (req, res) => {
   await store.remove(req.params.kind, req.params.id)
   res.sendStatus(204)
 })
 // Store errors are bad kinds/ids; Express 5 forwards rejected promises here.
 app.use('/api', (err, req, res, next) => res.status(400).json({ error: err.message }))
+
+// Widget pages for OBS browser sources: /w/<id> serves its type's page, /w/<id>/events streams its state.
+app.use('/widgets', express.static('widgets'))
+app.get('/w/:id{/:events}', async (req, res) => {
+  const widget = await store.get('widgets', req.params.id).catch(() => null)
+  if (!widget || !widgets.types[widget.type]) return res.sendStatus(404)
+  if (req.params.events === 'events') return widgets.stream(widget, req, res)
+  res.sendFile(`widgets/${widget.type}/index.html`, { root: '.' })
+})
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static('dist'))

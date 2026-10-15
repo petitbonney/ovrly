@@ -6,33 +6,37 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
+// Form generated from a config's defaults; the input kind follows each default value's type.
+export function Fields({ defaults, values, onChange }) {
+  const keys = Object.keys(defaults)
+  if (keys.length === 0) return 'No settings'
+  return keys.map((key) => {
+    const fallback = defaults[key]
+    const value = values[key] ?? fallback
+    const set = (v) => onChange({ ...values, [key]: v })
+    return (
+      <label key={key} className="field">
+        {key}
+        {typeof fallback === 'boolean' ? (
+          <input type="checkbox" checked={value} onChange={(e) => set(e.target.checked)} />
+        ) : (
+          <input
+            type={typeof fallback === 'number' ? 'number' : 'text'}
+            value={value}
+            onChange={(e) => set(typeof fallback === 'number' ? Number(e.target.value) : e.target.value)}
+          />
+        )}
+      </label>
+    )
+  })
+}
+
 function Config({ node, def, onChange }) {
   if (!node || !def) return <section className="bottom">Select a node</section>
-  const keys = Object.keys(def.config)
   return (
     <section className="bottom">
       <h2>{def.label}</h2>
-      {keys.length === 0 && 'No settings'}
-      {keys.map((key) => {
-        const fallback = def.config[key]
-        const value = node.data.config[key] ?? fallback
-        // Input kind follows the type of the default value.
-        const set = (v) => onChange({ ...node.data.config, [key]: v })
-        return (
-          <label key={key} className="field">
-            {key}
-            {typeof fallback === 'boolean' ? (
-              <input type="checkbox" checked={value} onChange={(e) => set(e.target.checked)} />
-            ) : (
-              <input
-                type={typeof fallback === 'number' ? 'number' : 'text'}
-                value={value}
-                onChange={(e) => set(typeof fallback === 'number' ? Number(e.target.value) : e.target.value)}
-              />
-            )}
-          </label>
-        )
-      })}
+      <Fields defaults={def.config} values={node.data.config} onChange={onChange} />
     </section>
   )
 }

@@ -52,7 +52,7 @@ To show a widget in OBS, add a **Browser Source** pointing to `http://localhost:
 
 ```
 Twitch chat ──► Event bus ──► Workflow engine ──► Actions
-                                                    ├─ Widget (WebSocket → browser source)
+                                                    ├─ Widget (SSE → browser source)
                                                     ├─ Key press (nut.js)
                                                     ├─ HTTP request
                                                     └─ WebSocket client (OBS)
@@ -60,16 +60,16 @@ Twitch chat ──► Event bus ──► Workflow engine ──► Actions
 
 - **Event bus**: an in-process `EventEmitter`. Every source publishes events to it.
 - **Workflow**: a list of nodes and edges. When a trigger node matches an event, the engine runs the connected nodes in order and passes a `data` object from one node to the next.
-- **Widget**: an HTML page served by Express. It receives state updates over WebSocket.
+- **Widget**: an HTML page served by Express. Its live state is kept on the server and pushed to the page over Server-Sent Events, so OBS sources reconnect by themselves.
 
 ## Stack
 
 | Part      | Tech                          |
 | --------- | ----------------------------- |
-| Server    | Node.js, Express, `ws`        |
+| Server    | Node.js, Express, SSE         |
 | UI        | React, ReactFlow, Vite        |
 | Twitch    | tmi.js (chat)                 |
-| OBS       | obs-websocket-js (v5)         |
+| OBS       | obs-websocket v5 (built-in WebSocket) |
 | Key press | @nut-tree/nut-js              |
 | Storage   | JSON files in `./data`        |
 
@@ -80,11 +80,12 @@ server/
   index.js        Express, WebSocket and startup
   bus.js          event bus
   engine.js       runs workflows
+  widgets.js      widget state and SSE push
   store.js        reads/writes ./data
   nodes/          one file per node type
   sources/        twitch.js, …
 ui/               React app (Vite)
-widgets/          one folder per widget type (html + config schema)
+widgets/          one folder per widget type (index.html + widget.js)
 templates/        starter workflows
 data/             your widgets and workflows (gitignored)
 ```
@@ -106,6 +107,26 @@ export default {
   },
 }
 ```
+
+## Writing a widget
+
+Each widget type is a folder in `widgets/`: `widget.js` holds the config defaults and the actions (pure functions that return the new state), and `index.html` renders it.
+
+```js
+// widgets/poll/widget.js
+export default {
+  type: 'poll',
+  label: 'Poll',
+  config: { title: 'Poll', options: 'Yes, No' },
+  state: { votes: {} },
+  actions: {
+    vote: (state, { value, user }, config) => ({ votes: { ...state.votes, [user]: value } }),
+    reset: () => ({ votes: {} }),
+  },
+}
+```
+
+The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs actions with the **Widget update** node (widget name, action, value).
 
 ## Import / export
 

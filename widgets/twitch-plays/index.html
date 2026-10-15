@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>TwitchPlays</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<div class="card"><h1 id="title"></h1><div id="rows"></div></div>
+<script type="module">
+  import { subscribe, el } from '/widgets/lib.js'
+  subscribe(({ config, state }) => {
+    document.getElementById('title').textContent = config.title
+    document.getElementById('rows').replaceChildren(...state.log.map(({ user, value }, i) => {
+      const row = el('div', 'row', el('span', 'muted', user), el('span', '', value))
+      row.style.opacity = 1 - i / (config.max + 1) // older inputs fade out
+      return row
+    }))
+  })
+</script>
