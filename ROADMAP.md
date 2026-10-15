@@ -43,6 +43,11 @@ Small steps; each milestone should be usable on its own.
 - [x] Starter templates (e.g. `!spin` → wheel, chat poll)
 - [x] Import/export of workflows and widgets as JSON
 
+## M6: More nodes
+
+- [x] Triggers: API call (`/hooks/<path>`), manual (Run button)
+- [x] Logic: if/else, switch, wait for all (multi-output nodes and joins in the engine)
+
 ## Later
 
 - Twitch EventSub (follows, subs, bits, redeems; needs OAuth)
