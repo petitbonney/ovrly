@@ -14,4 +14,5 @@
 .flow-node .react-flow__handle { background: #9a9a9a; border: 0; }
 .flow-node .react-flow__handle.in { width: 8px; height: 22px; border-radius: 2px; left: -5px; }
 .flow-node .react-flow__handle.out { width: 14px; height: 14px; right: -8px; }
+.flow-node .port { position: absolute; left: 18px; top: -2px; font-size: 10px; color: #999; pointer-events: none; }
 .react-flow { --xy-edge-stroke: #9a9a9a; --xy-edge-stroke-width: 2; --xy-background-color: #2d2e2e; }

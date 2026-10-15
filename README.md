@@ -11,6 +11,8 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 - **Workflows**: node graphs of the form trigger → logic → action. Build one from scratch or start from a template.
 - **Widgets**: built-in browser-source overlays: alerts, poll, bets, spin wheel, TwitchPlays.
 - **Multiple instances**: run several widgets and workflows side by side.
+- **Triggers**: Twitch chat (any message or a `!command`), an API call to `http://localhost:3000/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual trigger).
+- **Logic**: filter, delay, if/else, switch, and wait for all (continues once every incoming link has delivered).
 - **Actions**:
   - update a widget overlay (web source)
   - press a key on the broadcaster's machine
@@ -108,6 +110,8 @@ export default {
   },
 }
 ```
+
+A node with several outputs declares them, e.g. `outputs: ['true', 'false']`, and returns `{ [output]: data }` to pick which ones continue. A trigger sets `event` to the bus event it listens to.
 
 ## Writing a widget
 

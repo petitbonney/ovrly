@@ -2,7 +2,7 @@
 import express from 'express'
 import * as store from './store.js'
 import bus from './bus.js'
-import { nodes } from './engine.js'
+import { nodes, fire } from './engine.js'
 import * as twitch from './sources/twitch.js'
 import * as widgets from './widgets.js'
 
@@ -15,6 +15,19 @@ app.get('/api/nodes', (req, res) => res.json(Object.values(nodes).map(({ run, ..
 // Fire a fake event on the bus, e.g. POST /api/emit/chat { user, message }.
 app.post('/api/emit/:event', (req, res) => {
   bus.emit(req.params.event, req.body)
+  res.sendStatus(204)
+})
+
+// Runs a workflow's manual triggers now (the Run button in the editor).
+app.post('/api/workflows/:id/run', async (req, res) => {
+  const workflow = await store.get('workflows', req.params.id).catch(() => null)
+  if (!workflow) return res.sendStatus(404)
+  fire(workflow, 'manual', {})
+  res.sendStatus(204)
+})
+// API call trigger: any request to /hooks/<path> fires the matching nodes; the query and JSON body become data.
+app.all('/hooks/:path', (req, res) => {
+  bus.emit('webhook', { ...req.query, ...req.body, path: req.params.path })
   res.sendStatus(204)
 })
 

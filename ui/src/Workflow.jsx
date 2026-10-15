@@ -6,7 +6,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { ActionIcon, AppShell, Checkbox, Group, NumberInput, Stack, TextInput, Tooltip } from '@mantine/core'
-import { IconDownload, IconLayoutBottombar, IconLayoutSidebarRight, IconTrash } from '@tabler/icons-react'
+import { IconDownload, IconLayoutBottombar, IconLayoutSidebarRight, IconPlayerPlay, IconTrash } from '@tabler/icons-react'
 import Heading from './Heading.jsx'
 import FlowNode from './FlowNode.jsx'
 import { exportItem, download } from './share.js'
@@ -60,7 +60,7 @@ function Editor({ workflow, defs, onRename, onDelete, panels, onToggle, onNodeSe
         body: JSON.stringify({
           name,
           nodes: nodes.map(({ id, type, position, data }) => ({ id, type, position, data })),
-          edges: edges.map(({ id, source, target }) => ({ id, source, target })),
+          edges: edges.map(({ id, source, sourceHandle, target }) => ({ id, source, sourceHandle, target })),
         }),
       }).then(() => onRename())
     }, 500)
@@ -82,6 +82,7 @@ function Editor({ workflow, defs, onRename, onDelete, panels, onToggle, onNodeSe
   }
 
   const selected = nodes.find((n) => n.selected)
+  const hasManual = nodes.some((n) => n.data.type === 'manual')
   // Tells the shell whether to show the bottom (node config) pane.
   const hasNode = !!selected
   useEffect(() => {
@@ -96,6 +97,11 @@ function Editor({ workflow, defs, onRename, onDelete, panels, onToggle, onNodeSe
       <AppShell.Main className="editor">
         <Group gap="xs" p="xs" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
           <TextInput flex={1} size="xs" value={name} onChange={(e) => setName(e.target.value)} />
+          <Tooltip label={hasManual ? 'Run manual triggers' : 'Add a Manual trigger to run this workflow by hand'}>
+            <ActionIcon size="md" variant="light" color="green" disabled={!hasManual} onClick={() => fetch(`/api/workflows/${workflow.id}/run`, { method: 'POST' })}>
+              <IconPlayerPlay size={18} />
+            </ActionIcon>
+          </Tooltip>
           <Tooltip label={`${panels.config ? 'Hide' : 'Show'} node settings`}>
             <ActionIcon size="md" variant={panels.config ? 'light' : 'default'} onClick={() => onToggle('config')}><IconLayoutBottombar size={18} /></ActionIcon>
           </Tooltip>
