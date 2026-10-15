@@ -32,10 +32,10 @@ Small steps; each milestone should be usable on its own.
 
 ## M4: Widgets
 
-- [ ] Widget runtime: `/w/:id` page plus WebSocket state updates
-- [ ] `widget-update` action node
-- [ ] Widget config panel (center pane)
-- [ ] Built-ins: alerts → poll → spin wheel → bets → TwitchPlays
+- [x] Widget runtime: `/w/:id` page plus live state updates (SSE)
+- [x] `widget-update` action node
+- [x] Widget config panel (center pane)
+- [x] Built-ins: alerts → poll → spin wheel → bets → TwitchPlays
 
 ## M5: Templates & sharing
 

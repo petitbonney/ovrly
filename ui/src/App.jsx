@@ -1,6 +1,7 @@
-// App shell: left lists, center editor, bottom node config, right node library and chat panels.
+// App shell: left lists, center editor (workflow or widget), bottom node config, right node library and chat panels.
 import { useEffect, useState } from 'react'
 import Workflow from './Workflow.jsx'
+import Widget, { NewWidget } from './Widget.jsx'
 import { Twitch, ChatTest } from './Chat.jsx'
 
 function List({ title, kind, selected, onSelect, onAdd, version }) {
@@ -45,11 +46,13 @@ function Library({ defs }) {
 export default function App() {
   const [selected, setSelected] = useState(null)
   const [defs, setDefs] = useState([])
+  const [types, setTypes] = useState([])
   // Bumped to make the lists refetch after a change.
   const [version, setVersion] = useState(0)
 
   useEffect(() => {
     fetch('/api/nodes').then((r) => r.json()).then(setDefs)
+    fetch('/api/widget-types').then((r) => r.json()).then(setTypes)
   }, [])
 
   const addWorkflow = async () => {
@@ -63,22 +66,31 @@ export default function App() {
     setVersion((v) => v + 1)
   }
 
-  const onWorkflowChange = (id) => {
+  // Called by the editors after a save (id) or a delete (null).
+  const onItemChange = (id) => {
     if (!id) setSelected(null)
+    setVersion((v) => v + 1)
+  }
+  const onWidgetCreate = (id) => {
+    setSelected({ kind: 'widgets', id })
     setVersion((v) => v + 1)
   }
 
   return (
     <div className="shell">
       <aside className="left">
-        <List title="Widgets" kind="widgets" selected={selected} onSelect={setSelected} version={version} />
+        <List title="Widgets" kind="widgets" selected={selected} onSelect={setSelected} onAdd={() => setSelected({ kind: 'new-widget' })} version={version} />
         <List title="Workflows" kind="workflows" selected={selected} onSelect={setSelected} onAdd={addWorkflow} version={version} />
       </aside>
       {selected?.kind === 'workflows' ? (
-        <Workflow key={selected.id} id={selected.id} defs={defs} onChange={onWorkflowChange} />
+        <Workflow key={selected.id} id={selected.id} defs={defs} onChange={onItemChange} />
+      ) : selected?.kind === 'widgets' ? (
+        <Widget key={selected.id} id={selected.id} types={types} onChange={onItemChange} />
+      ) : selected?.kind === 'new-widget' ? (
+        <NewWidget types={types} onCreate={onWidgetCreate} />
       ) : (
         <>
-          <main className="center">{selected ? `${selected.kind}: ${selected.id}` : 'Select a widget or workflow'}</main>
+          <main className="center">Select a widget or workflow</main>
           <section className="bottom">Node config</section>
         </>
       )}

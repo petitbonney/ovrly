@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Spin wheel</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<style>
+  #wheel-box { position: relative; width: 400px; margin: 16px; }
+  #pointer { position: absolute; left: 50%; top: -6px; translate: -50%; border: 18px solid transparent; border-top: 32px solid #fff; z-index: 1; }
+  #result { text-align: center; min-height: 1.4em; margin-top: 8px; }
+</style>
+<div id="wheel-box"><div id="pointer"></div><canvas id="wheel" width="400" height="400"></canvas><div id="result"></div></div>
+<script type="module">
+  import { subscribe, list } from '/widgets/lib.js'
+  const canvas = document.getElementById('wheel')
+  const result = document.getElementById('result')
+  const colors = ['#9147ff', '#ff4f8b', '#00c2a8', '#ffb400', '#3d8bff', '#ff7a00']
+
+  // Segment i starts at the top and runs clockwise.
+  function draw(options) {
+    const ctx = canvas.getContext('2d')
+    const r = 200, seg = (2 * Math.PI) / options.length
+    ctx.clearRect(0, 0, 400, 400)
+    options.forEach((option, i) => {
+      const a = -Math.PI / 2 + i * seg
+      ctx.beginPath(); ctx.moveTo(r, r); ctx.arc(r, r, r - 4, a, a + seg); ctx.fillStyle = colors[i % colors.length]; ctx.fill()
+      ctx.save(); ctx.translate(r, r); ctx.rotate(a + seg / 2)
+      ctx.textAlign = 'right'; ctx.fillStyle = '#fff'; ctx.font = '700 22px system-ui'; ctx.fillText(option, r - 20, 8)
+      ctx.restore()
+    })
+  }
+
+  let angle = 0, lastSpin = 0, timer
+  subscribe(({ config, state }) => {
+    const options = list(config.options)
+    draw(options)
+    if (state.winner < 0 || state.at === lastSpin) return
+    lastSpin = state.at
+    // Turn so the winner's middle lands under the top pointer, after 5 full turns.
+    const target = 360 - ((state.winner + 0.5) * 360) / options.length
+    angle = angle - (angle % 360) + 360 * 5 + target
+    const left = state.at + config.duration * 1000 - Date.now()
+    canvas.style.transition = left > 0 ? `transform ${left}ms cubic-bezier(.15, .85, .25, 1)` : 'none'
+    canvas.style.transform = `rotate(${angle}deg)`
+    result.textContent = ''
+    clearTimeout(timer)
+    timer = setTimeout(() => (result.textContent = options[state.winner] ?? ''), Math.max(left, 0))
+  })
+</script>

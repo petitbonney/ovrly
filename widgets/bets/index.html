@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Bets</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<style>.row.win { outline: 3px solid #ffb400; }</style>
+<div class="card"><h1 id="title"></h1><div id="status" class="muted"></div><div id="rows"></div><div id="winners" class="muted"></div></div>
+<script type="module">
+  import { subscribe, list, el } from '/widgets/lib.js'
+  subscribe(({ config, state }) => {
+    const options = list(config.options)
+    const bets = Object.entries(state.bets)
+    const won = state.winner >= 0
+    document.getElementById('title').textContent = config.title
+    document.getElementById('status').textContent = won ? `Winner: ${options[state.winner]}` : state.open ? 'Bets are open' : 'Bets are closed'
+    document.getElementById('rows').replaceChildren(...options.map((option, i) => {
+      const count = bets.filter(([, v]) => v === i).length
+      const bar = el('div', 'bar')
+      bar.style.width = `${bets.length ? (count / bets.length) * 100 : 0}%`
+      return el('div', won && i === state.winner ? 'row win' : 'row', bar, el('span', '', `${i + 1}. ${option}`), el('span', '', String(count)))
+    }))
+    const winners = bets.filter(([, v]) => v === state.winner).map(([user]) => user)
+    document.getElementById('winners').textContent = won ? `Right: ${winners.join(', ') || 'nobody'}` : ''
+  })
+</script>
