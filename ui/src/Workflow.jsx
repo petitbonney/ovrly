@@ -10,12 +10,13 @@ import {
 import '@xyflow/react/dist/style.css'
 import { ActionIcon, AppShell, Button, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip } from '@mantine/core'
 import {
-  IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconPlayerPlay,
+  IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconPlayerPlay, IconSitemap,
   IconTrash,
 } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import WidgetSettings from './Widget.jsx'
 import FlowNode, { colors, icons, widgetIcons } from './FlowNode.jsx'
+import layout from './layout.js'
 import { ChatTest } from './Chat.jsx'
 import { exportWorkflow, download } from './share.js'
 
@@ -91,7 +92,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     workflow.nodes.map((n) => ({ ...n, type: 'step', selected: n.id === openNode })),
   )
   const [edges, setEdges, onEdgesChange] = useEdgesState(workflow.edges)
-  const { screenToFlowPosition, getViewport, setViewport } = useReactFlow()
+  const { screenToFlowPosition, getViewport, setViewport, fitView } = useReactFlow()
 
   // Short feedback message (copy, paste) shown over the graph for a few seconds.
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -285,6 +286,12 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     onNodeSelect(selected?.id ?? null)
   }, [selected?.id])
   const hasManual = nodes.some((n) => n.data.type === 'manual')
+  // One-shot auto layout: moves every node once (a single undo step), then fits the view. Nodes stay movable.
+  const arrange = () => {
+    const positions = layout(nodes, edges, defs)
+    setNodes((ns) => ns.map((n) => ({ ...n, position: positions[n.id] })))
+    setTimeout(() => fitView({ ...fitOptions, duration: 300 }))
+  }
   const setConfig = (config) =>
     setNodes((ns) => ns.map((n) => (n.id === selected.id ? { ...n, data: { ...n.data, config } } : n)))
 
@@ -352,6 +359,9 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           <Controls position="top-left" fitViewOptions={fitOptions} showInteractive={false}>
             <ControlButton onClick={() => setLocked((l) => !l)} title={locked ? 'Unlock the graph' : 'Lock node positions'}>
               {locked ? <IconLock /> : <IconLockOpen />}
+            </ControlButton>
+            <ControlButton onClick={arrange} disabled={locked} title={locked ? 'Unlock the graph to arrange it' : 'Arrange nodes (once)'}>
+              <IconSitemap style={{ transform: 'rotate(-90deg)' }} />
             </ControlButton>
           </Controls>
         </ReactFlow>
