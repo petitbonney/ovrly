@@ -2,8 +2,8 @@
 // Nodes with several outputs (if/else, switch) get one labelled handle each. Widget nodes show their widget.
 import { Handle } from '@xyflow/react'
 import {
-  IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconChartBar, IconCoin, IconDeviceGamepad2,
-  IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconMessage,
+  IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconChartBar, IconClockPause, IconCoin, IconDeviceGamepad2,
+  IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
   IconMessageCode, IconMovie, IconNotes, IconPlugConnected, IconWebhook, IconWheel, IconWorld,
 } from '@tabler/icons-react'
 
@@ -17,6 +17,8 @@ export const icons = {
   'if-else': IconGitBranch,
   switch: IconArrowsSplit,
   'wait-all': IconArrowsJoin2,
+  cooldown: IconClockPause,
+  queue: IconListNumbers,
   'http-request': IconWorld,
   'key-press': IconKeyboard,
   log: IconNotes,

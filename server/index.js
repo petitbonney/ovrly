@@ -2,7 +2,7 @@
 import express from 'express'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
-import { nodes, fire, activity } from './engine.js'
+import { nodes, fire, cancel, running, activity } from './engine.js'
 import * as twitch from './sources/twitch.js'
 import * as widgets from './widgets.js'
 
@@ -24,6 +24,7 @@ app.post('/api/emit/:event', (req, res) => {
 app.get('/api/activity', (req, res) => {
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }).flushHeaders()
   const send = (a) => res.write(`data: ${JSON.stringify(a)}\n\n`)
+  for (const [workflow, count] of Object.entries(running())) send({ workflow, running: count })
   activity.on('activity', send)
   req.on('close', () => activity.off('activity', send))
 })
@@ -37,6 +38,15 @@ app.post('/api/workflows/:id/run', async (req, res) => {
   if (!workflow) return res.sendStatus(404)
   record('http', 'manual', { workflow: workflow.id }) // not on the bus: it targets this workflow only
   fire(workflow, 'manual', {})
+  res.sendStatus(204)
+})
+// Emergency stop: switches every workflow off and cancels what is running.
+app.post('/api/stop', async (req, res) => {
+  for (const workflow of await store.list('workflows')) {
+    if (workflow.enabled !== false) await store.save('workflows', { ...workflow, enabled: false })
+    cancel(workflow.id)
+  }
+  record('http', 'stop-all', {})
   res.sendStatus(204)
 })
 // API call trigger: any request to /hooks/<path> fires the matching nodes; the query and JSON body become data.
@@ -84,6 +94,7 @@ app.put('/api/:kind/:id', async (req, res) => {
   // Workflow updates are merged, so the editor's autosave keeps fields it doesn't send (e.g. enabled).
   const old = req.params.kind === 'workflows' && await store.get('workflows', req.params.id)
   const item = await store.save(req.params.kind, { ...old, ...req.body, id: req.params.id })
+  if (old && req.body.enabled === false) cancel(item.id) // switched off: stop what is running
   if (req.params.kind === 'widgets') widgets.push(item) // live config changes on the overlay
   if (old) await dropUnusedWidgets(widgetRefs(old))
   res.json(item)
