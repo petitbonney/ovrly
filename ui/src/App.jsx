@@ -1,8 +1,8 @@
 // App shell: left workflow list and Twitch connection, center workflow editor. While editing a workflow: right library
 // (node and widget types to drag onto the graph) and bottom settings of the selected node; both toggle and resize.
 import { useEffect, useRef, useState } from 'react'
-import { ActionIcon, AppShell, Button, Center, Modal, NavLink, Stack, Text, Tooltip, useAppShellResize } from '@mantine/core'
-import { IconPlus } from '@tabler/icons-react'
+import { ActionIcon, Affix, AppShell, Button, Center, Modal, NavLink, Stack, Switch, Text, Tooltip, useAppShellResize } from '@mantine/core'
+import { IconPlus, IconTool } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
 import { Twitch } from './Chat.jsx'
 import Heading from './Heading.jsx'
@@ -16,6 +16,12 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
     fetch(`/api/${kind}`).then((r) => r.json()).then(setItems)
   }, [kind, version])
 
+  // Switches a workflow on or off; off, its triggers ignore chat and API calls.
+  const toggle = (item, enabled) => {
+    setItems((list) => list.map((i) => (i.id === item.id ? { ...i, enabled } : i)))
+    fetch(`/api/${kind}/${item.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }) })
+  }
+
   return (
     <Stack gap={0} mb="md">
       <Heading title={title}>
@@ -27,8 +33,17 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
         <NavLink
           key={item.id}
           label={item.name || item.id}
+          c={item.enabled === false ? 'dimmed' : undefined}
           active={selected?.id === item.id}
           onClick={() => onSelect({ kind, id: item.id })}
+          leftSection={
+            // The wrapper keeps a click on the switch from also opening the workflow.
+            <span style={{ display: 'flex' }} onClick={(e) => e.stopPropagation()}>
+              <Tooltip label={item.enabled === false ? 'Off: click to turn on' : 'On: click to turn off'} openDelay={400}>
+                <Switch size="xs" checked={item.enabled !== false} onChange={(e) => toggle(item, e.currentTarget.checked)} />
+              </Tooltip>
+            </span>
+          }
         />
       ))}
     </Stack>
@@ -119,12 +134,28 @@ export default function App() {
   }, [version])
 
   const [modal, setModal] = useState(false)
+  // Developer mode, toggled with Ctrl+Shift+D (Ctrl on macOS too) and remembered by this browser.
+  const [devMode, setDevMode] = useState(() => {
+    try { return localStorage.getItem('ovrly-dev') === '1' } catch { return false }
+  })
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey && e.shiftKey && e.code === 'KeyD')) return
+      e.preventDefault()
+      setDevMode((on) => {
+        try { localStorage.setItem('ovrly-dev', on ? '0' : '1') } catch {}
+        return !on
+      })
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
   // Panels the user toggled on/off.
   const [panels, setPanels] = useState({ library: true })
   const togglePanel = (key) => setPanels((p) => ({ ...p, [key]: !p[key] }))
   // Workflow id -> id of its selected node, whose settings show in the bottom pane; kept when switching workflows.
   const [openNodes, setOpenNodes] = useState({})
-  const resize = useAppShellResize({ aside: { min: 160, max: 480 }, footer: { min: 80, max: 600 } })
+  const resize = useAppShellResize({ aside: { min: 160, max: 480 }, footer: { min: 80, max: Math.round(innerHeight * 0.85) } })
   const editing = selected?.kind === 'workflows'
   const showAside = editing && panels.library
   // Panes don't slide when switching workflows: they just show the new workflow's state.
@@ -154,7 +185,8 @@ export default function App() {
       transitionDuration={switched ? 0 : undefined}
       navbar={{ width: 220, breakpoint: 0 }}
       aside={{ width: 220, breakpoint: 0, collapsed: { desktop: !showAside, mobile: !showAside } }}
-      footer={{ height: 200, collapsed: !(editing && openNodes[selected.id]) }}
+      // The settings pane opens at 60% of the window, enough for a widget's settings and preview; dragging resizes it.
+      footer={{ height: Math.max(200, Math.round(innerHeight * 0.6)), collapsed: !(editing && openNodes[selected.id]) }}
     >
       <AppShell.Navbar p="sm">
         <AppShell.Section grow style={{ overflow: 'auto' }}>
@@ -186,6 +218,13 @@ export default function App() {
           <Library defs={defs} types={types} />
         </div>
       </AppShell.Aside>
+      {devMode && (
+        <Affix position={{ bottom: 16, right: 16 }}>
+          <Tooltip label="Developer: recent events (opens a new tab)" position="left">
+            <ActionIcon component="a" href="/api/events" target="_blank" size="lg" variant="default"><IconTool size={20} /></ActionIcon>
+          </Tooltip>
+        </Affix>
+      )}
       <NewWorkflow opened={modal} onDone={onCreate} onClose={() => setModal(false)} />
     </AppShell>
   )

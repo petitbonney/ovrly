@@ -54,7 +54,7 @@ Small steps; each milestone should be usable on its own.
 - [x] Widgets in the library: dropping a widget type creates an instance (own id), set up in its node's settings
 - [x] Undo/redo of graph edits (buttons and shortcuts)
 - [x] Copy/paste nodes across workflows, with feedback; pasted widget nodes share their instance (once per workflow), deleted with its last node
-- [x] Twitch connection in the sidebar, chat test in the workflow toolbar
+- [x] Twitch connection in the sidebar, chat test in chat triggers' settings
 
 ## Later
 
