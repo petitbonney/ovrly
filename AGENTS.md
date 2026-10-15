@@ -11,7 +11,7 @@ Ovrly is a local, node-based automation tool for live stream interactions. See [
 
 ## Stack
 
-Plain JavaScript (ESM), no TypeScript. pnpm, single package. Express + `ws` on the server; React + ReactFlow + Vite for the UI.
+Plain JavaScript (ESM), no TypeScript. pnpm, single package. Express + `ws` on the server; React + ReactFlow + Mantine + Vite for the UI.
 
 ## Commands
 

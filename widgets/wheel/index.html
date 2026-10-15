@@ -9,7 +9,7 @@
 </style>
 <div id="wheel-box"><div id="pointer"></div><canvas id="wheel" width="400" height="400"></canvas><div id="result"></div></div>
 <script type="module">
-  import { subscribe, list } from '/widgets/lib.js'
+  import { subscribe, list, wait } from '/widgets/lib.js'
   const canvas = document.getElementById('wheel')
   const result = document.getElementById('result')
   const colors = ['#9147ff', '#ff4f8b', '#00c2a8', '#ffb400', '#3d8bff', '#ff7a00']
@@ -43,5 +43,6 @@
     result.textContent = ''
     clearTimeout(timer)
     timer = setTimeout(() => (result.textContent = options[state.winner] ?? ''), Math.max(left, 0))
+    return wait(left) // finished once the wheel stops
   })
 </script>

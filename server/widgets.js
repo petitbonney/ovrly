@@ -13,27 +13,41 @@ for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
 // Live state lives in memory only: it resets when the server restarts.
 const states = {} // widget id -> state
 const clients = {} // widget id -> Set of open SSE responses
+const waiting = new Map() // run id -> resolve, until a page reports that action finished
+let runs = 0
 
 function snapshot(widget) {
   const def = types[widget.type]
   return { config: { ...def.config, ...widget.config }, state: states[widget.id] ?? structuredClone(def.state) }
 }
 
-// Sends the current { config, state } to every page showing this widget.
-export function push(widget) {
-  const msg = `data: ${JSON.stringify(snapshot(widget))}\n\n`
+// Sends the current { config, state } to every page showing this widget, plus the run id when an action caused it.
+export function push(widget, run) {
+  const msg = `data: ${JSON.stringify({ ...snapshot(widget), run })}\n\n`
   for (const res of clients[widget.id] ?? []) res.write(msg)
 }
 
 // Applies one action, e.g. { action: 'vote', value: '2', user: 'bob' }, then pushes the new state.
+// `done` resolves once a page has finished playing it: right away if no page is open, after 60s if none answers.
 export function update(widget, { action, value = '', user = '' }) {
   const def = types[widget.type]
   const fn = def.actions[action]
   if (!fn) throw new Error(`${def.label}: unknown action "${action}"`)
   const { config, state } = snapshot(widget)
   states[widget.id] = fn(state, { value: String(value).trim(), user }, config)
-  push(widget)
-  return states[widget.id]
+  const run = ++runs
+  const done = clients[widget.id]?.size ? new Promise((resolve) => {
+    waiting.set(run, resolve)
+    setTimeout(() => finish(run), 60_000)
+  }) : Promise.resolve()
+  push(widget, run)
+  return { state: states[widget.id], done }
+}
+
+// Called by POST /w/:id/done when a page has finished playing an action.
+export function finish(run) {
+  waiting.get(run)?.()
+  waiting.delete(run)
 }
 
 // Express handler for GET /w/:id/events: an SSE stream of snapshots.

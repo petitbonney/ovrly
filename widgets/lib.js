@@ -1,11 +1,19 @@
 // Widget helpers, shared by the overlay pages (browser) and widget.js files (server).
 
 // Page side: calls render({ config, state }) now and on every update from the server.
-// EventSource reconnects by itself, so OBS sources survive a server restart.
+// render may return a promise (e.g. an animation): once it settles, the page tells the server the action
+// finished, so the workflow moves on. EventSource reconnects by itself, so OBS sources survive a server restart.
 export function subscribe(render) {
   const id = location.pathname.split('/')[2]
-  new EventSource(`/w/${id}/events`).onmessage = (e) => render(JSON.parse(e.data))
+  new EventSource(`/w/${id}/events`).onmessage = async (e) => {
+    const msg = JSON.parse(e.data)
+    await render(msg)
+    if (msg.run) fetch(`/w/${id}/done`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ run: msg.run }) })
+  }
 }
+
+// Page side: a promise that resolves after ms, for render to return while an animation plays.
+export const wait = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(ms, 0)))
 
 // "Red, Blue,Green" -> ['Red', 'Blue', 'Green']
 export const list = (text) => String(text).split(',').map((s) => s.trim()).filter(Boolean)

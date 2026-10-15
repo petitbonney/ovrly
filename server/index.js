@@ -33,7 +33,7 @@ app.get('/api/widget-types', (req, res) =>
 // Run a widget action by hand, e.g. POST /api/widgets/<id>/action { action: 'vote', value: '1', user }.
 app.post('/api/widgets/:id/action', async (req, res) => {
   const widget = await store.get('widgets', req.params.id)
-  widget ? res.json(widgets.update(widget, req.body)) : res.sendStatus(404)
+  widget ? res.json(widgets.update(widget, req.body).state) : res.sendStatus(404)
 })
 
 app.get('/api/:kind', async (req, res) => res.json(await store.list(req.params.kind)))
@@ -56,6 +56,11 @@ app.use('/api', (err, req, res, next) => res.status(400).json({ error: err.messa
 
 // Widget pages for OBS browser sources: /w/<id> serves its type's page, /w/<id>/events streams its state.
 app.use('/widgets', express.static('widgets'))
+// The page reports that it finished playing an action, e.g. { run: 12 }.
+app.post('/w/:id/done', (req, res) => {
+  widgets.finish(req.body.run)
+  res.sendStatus(204)
+})
 app.get('/w/:id{/:events}', async (req, res) => {
   const widget = await store.get('widgets', req.params.id).catch(() => null)
   if (!widget || !widgets.types[widget.type]) return res.sendStatus(404)
