@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, vars, multiline, hidden, type: 'json' | 'secret' | 'var' | 'keys' | 'action' }.
+// { label, hint, unit, options, vars, multiline, hidden, type: 'json' | 'secret' | 'var' | 'keys' | 'action' | 'input' }.
 import { useRef } from 'react'
 import {
   ActionIcon, Autocomplete, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl, Select, Stack, Switch,
@@ -43,7 +43,13 @@ function Field({ name, f, fallback, value, set, values, context }) {
   }
   // A widget's actions come from its type (nothing to pick if there is only one); short option lists are buttons.
   const widget = context.widgets?.find((w) => w.id === values.widget || w.name === values.widget)
-  const options = f.type === 'action' ? context.types?.find((t) => t.type === widget?.type)?.actions ?? [] : f.options
+  const type = context.types?.find((t) => t.type === widget?.type)
+  // A widget action's value is only asked for if the action takes one; the widget type says what it is.
+  if (f.type === 'input') {
+    const hint = type?.inputs?.[values.action || type.actions[0]]
+    return hint ? <VarInput {...props} description={hint} vars={context.vars ?? []} value={value} onChange={set} /> : null
+  }
+  const options = f.type === 'action' ? type?.actions ?? [] : f.options
   if (f.type === 'action' && options.length <= 1) return null
   if (options?.length <= 4) {
     return (

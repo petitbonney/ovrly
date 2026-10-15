@@ -13,7 +13,7 @@ export default {
   fields: {
     widget: { hidden: true }, // set by dropping the widget onto the graph
     action: { type: 'action' },
-    value: { vars: true },
+    value: { type: 'input', vars: true }, // only shown for actions that take a value
   },
   config: { widget: '', action: '', value: '' },
   async run({ config, data }) {

@@ -8,6 +8,7 @@ export default {
   state: { winner: -1, at: 0 },
   adds: ['winner'],
   output: (state, config) => ({ winner: list(config.options)[state.winner] ?? '' }),
+  inputs: {}, // no action takes a value
   actions: {
     spin: (state, input, config) => ({ winner: Math.floor(Math.random() * list(config.options).length), at: Date.now() }),
   },

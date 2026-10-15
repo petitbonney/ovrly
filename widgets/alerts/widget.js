@@ -4,6 +4,7 @@ export default {
   label: 'Alerts',
   config: { duration: 5 },
   state: { text: '', at: 0 },
+  inputs: { show: 'Text to show, e.g. {user} just ran !hype' }, // actions that take a value, and what it is
   actions: {
     show: (state, { value }) => ({ text: value, at: Date.now() }),
   },
