@@ -1,11 +1,9 @@
 // App shell: left workflow list and Twitch connection, center workflow editor. While editing a workflow: right library
-// (node types and widgets to drag onto the graph) and bottom settings of the selected node; both toggle and resize.
-// Widgets are created and edited in a dialog.
+// (node and widget types to drag onto the graph) and bottom settings of the selected node; both toggle and resize.
 import { useEffect, useState } from 'react'
 import { ActionIcon, AppShell, Button, Center, Modal, NavLink, Stack, Text, Tooltip, useAppShellResize } from '@mantine/core'
 import { IconPlus } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
-import WidgetModal from './Widget.jsx'
 import { Twitch } from './Chat.jsx'
 import Heading from './Heading.jsx'
 import { icons, colors, widgetIcons } from './FlowNode.jsx'
@@ -37,8 +35,8 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
   )
 }
 
-// Drag a node type or a widget onto the graph; click a widget to edit it.
-function Library({ defs, widgets, onAddWidget, onEditWidget }) {
+// Drag a node type or a widget type onto the graph; each widget dropped is a new instance.
+function Library({ defs, types }) {
   return (
     <>
       {['trigger', 'logic', 'action'].map((category) => (
@@ -61,27 +59,21 @@ function Library({ defs, widgets, onAddWidget, onEditWidget }) {
         </Stack>
       ))}
       <Stack gap={0} mb="md">
-        <Heading title="Widgets">
-          <Tooltip label="New widget">
-            <ActionIcon variant="default" size="sm" onClick={onAddWidget}><IconPlus size={14} /></ActionIcon>
-          </Tooltip>
-        </Heading>
-        {widgets.map((w) => {
-          const Icon = widgetIcons[w.type]
+        <Heading title="Widgets" />
+        {types.map((t) => {
+          const Icon = widgetIcons[t.type]
           return (
-            <Tooltip key={w.id} label="Drag onto the graph, click to edit" position="left" openDelay={400}>
+            <Tooltip key={t.type} label="Drag onto the graph to add a new overlay" position="left" openDelay={400}>
               <NavLink
-                label={w.name}
+                label={t.label}
                 leftSection={Icon && <Icon size={18} color={colors.widget} />}
                 draggable
                 style={{ cursor: 'grab' }}
-                onDragStart={(e) => e.dataTransfer.setData('application/ovrly-widget', w.id)}
-                onClick={() => onEditWidget(w.id)}
+                onDragStart={(e) => e.dataTransfer.setData('application/ovrly-widget', t.type)}
               />
             </Tooltip>
           )
         })}
-        {widgets.length === 0 && <Text size="xs" c="dimmed">No widgets yet</Text>}
       </Stack>
     </>
   )
@@ -127,7 +119,6 @@ export default function App() {
   }, [version])
 
   const [modal, setModal] = useState(false)
-  const [widgetModal, setWidgetModal] = useState(null) // widget id, 'new', or null
   // Panels the user toggled on/off, and whether the workflow editor has a node selected.
   const [panels, setPanels] = useState({ library: true, config: true })
   const togglePanel = (key) => setPanels((p) => ({ ...p, [key]: !p[key] }))
@@ -173,7 +164,7 @@ export default function App() {
           widgets={widgets}
           types={types}
           onChange={onItemChange}
-          onEditWidget={setWidgetModal}
+          onWidgetChange={() => setVersion((v) => v + 1)}
           panels={panels}
           onToggle={togglePanel}
           onNodeSelect={setNodeSelected}
@@ -183,17 +174,10 @@ export default function App() {
       )}
       <AppShell.Aside>
         <div className="pane">
-          <Library defs={defs} widgets={widgets} onAddWidget={() => setWidgetModal('new')} onEditWidget={setWidgetModal} />
+          <Library defs={defs} types={types} />
         </div>
       </AppShell.Aside>
       <NewWorkflow opened={modal} onDone={onCreate} onClose={() => setModal(false)} />
-      <WidgetModal
-        id={widgetModal}
-        types={types}
-        onOpen={setWidgetModal}
-        onClose={() => setWidgetModal(null)}
-        onChange={() => setVersion((v) => v + 1)}
-      />
     </AppShell>
   )
 }

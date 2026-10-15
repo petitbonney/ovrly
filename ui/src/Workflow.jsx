@@ -1,19 +1,24 @@
 // Workflow editor: ReactFlow graph (center) and selected node settings (bottom), autosaved.
-// Nodes are dropped from the library: node types, or widgets (which become widget nodes).
+// Nodes are dropped from the library: node types, or widget types (each drop creates a widget instance).
+// Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; pasted widget nodes share the same instance.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, MarkerType,
   useNodesState, useEdgesState, addEdge, useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ActionIcon, AppShell, Button, Group, Text, TextInput, Tooltip } from '@mantine/core'
-import { IconDownload, IconLayoutBottombar, IconLayoutSidebarRight, IconPencil, IconPlayerPlay, IconTrash } from '@tabler/icons-react'
+import { ActionIcon, AppShell, Group, Text, TextInput, Tooltip } from '@mantine/core'
+import { IconDownload, IconLayoutBottombar, IconLayoutSidebarRight, IconPlayerPlay, IconTrash } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
+import WidgetSettings from './Widget.jsx'
 import FlowNode, { colors, icons, widgetIcons } from './FlowNode.jsx'
 import { ChatTest } from './Chat.jsx'
-import { exportItem, download } from './share.js'
+import { exportWorkflow, download } from './share.js'
 
 const findWidget = (widgets, ref) => widgets.find((w) => w.id === ref || w.name === ref)
+
+// Copied nodes and the edges between them; kept in memory so they can be pasted into another workflow.
+let clipboard = null
 
 // Data keys a node can use as {key}: what every node upstream of it adds (a manual trigger adds its JSON's keys,
 // a widget node what its widget type outputs).
@@ -43,26 +48,30 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
 const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '#9a9a9a' } }
 
 // Settings of the selected node: title, description, then a form built from the node type's fields.
-function Config({ node, def, context, onChange, onEditWidget }) {
+// A widget node also shows its widget instance's settings and preview.
+function Config({ node, def, context, onChange, onWidgetChange }) {
   if (!node || !def) return null
   const widget = def.type === 'widget-update' && findWidget(context.widgets, node.data.config.widget)
+  const type = widget && context.types.find((t) => t.type === widget.type)
   const Icon = (widget ? widgetIcons[widget.type] : icons[def.type]) ?? icons.log
+  const fields = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={context} onChange={onChange} />
   return (
     <AppShell.Footer>
       <div className="pane">
         <Group gap="xs" mb={4}>
           <Icon size={20} color={colors[def.category]} />
           <Text fw={600}>{widget ? widget.name : def.label}</Text>
-          {widget && <Button size="compact-xs" variant="default" leftSection={<IconPencil size={14} />} onClick={() => onEditWidget(widget.id)}>Edit widget</Button>}
         </Group>
         <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
-        <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={context} onChange={onChange} />
+        {def.type !== 'widget-update' ? fields
+          : widget && type ? <WidgetSettings key={widget.id} widget={widget} type={type} onChange={onWidgetChange}>{fields}</WidgetSettings>
+          : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>}
       </div>
     </AppShell.Footer>
   )
 }
 
-function Editor({ workflow, defs, widgets, types, onRename, onDelete, onEditWidget, panels, onToggle, onNodeSelect }) {
+function Editor({ workflow, defs, widgets, types, onRename, onDelete, onWidgetChange, panels, onToggle, onNodeSelect }) {
   const [name, setName] = useState(workflow.name)
   const [nodes, setNodes, onNodesChange] = useNodesState(workflow.nodes.map((n) => ({ ...n, type: 'step' })))
   const [edges, setEdges, onEdgesChange] = useEdgesState(workflow.edges)
@@ -91,20 +100,49 @@ function Editor({ workflow, defs, widgets, types, onRename, onDelete, onEditWidg
 
   const onConnect = useCallback((c) => setEdges((es) => addEdge(c, es)), [])
 
-  // A library item is a node type, or a widget that becomes a widget node set to its first action.
-  const onDrop = (e) => {
+  // A library item is a node type, or a widget type: that creates a new widget instance (the server picks a free
+  // name) and a widget node for it, set to the type's first action.
+  const onDrop = async (e) => {
     e.preventDefault()
-    const widget = widgets.find((w) => w.id === e.dataTransfer.getData('application/ovrly-widget'))
-    const def = defs.find((d) => d.type === (widget ? 'widget-update' : e.dataTransfer.getData('application/ovrly')))
+    const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    const type = types.find((t) => t.type === e.dataTransfer.getData('application/ovrly-widget'))
+    const def = defs.find((d) => d.type === (type ? 'widget-update' : e.dataTransfer.getData('application/ovrly')))
     if (!def) return
-    const action = types.find((t) => t.type === widget?.type)?.actions[0]
-    setNodes((ns) => ns.concat({
-      id: crypto.randomUUID(),
-      type: 'step',
-      position: screenToFlowPosition({ x: e.clientX, y: e.clientY }),
-      data: { type: def.type, label: def.label, config: widget ? { widget: widget.id, action, value: '' } : {} },
-    }))
+    let config = {}
+    if (type) {
+      const res = await fetch('/api/widgets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: type.label, type: type.type, config: {} }),
+      })
+      config = { widget: (await res.json()).id, action: type.actions[0], value: '' }
+      onWidgetChange()
+    }
+    setNodes((ns) => ns.concat({ id: crypto.randomUUID(), type: 'step', position, data: { type: def.type, label: def.label, config } }))
   }
+
+  // Copy/paste of the selected nodes, skipped while typing in a field. Pasted nodes get new ids and are offset.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.target.closest('input, textarea, [contenteditable]')) return
+      if (e.key === 'c') {
+        const picked = nodes.filter((n) => n.selected)
+        if (!picked.length) return
+        const ids = picked.map((n) => n.id)
+        clipboard = { nodes: picked, edges: edges.filter((ed) => ids.includes(ed.source) && ids.includes(ed.target)) }
+      }
+      if (e.key === 'v' && clipboard) {
+        const ids = Object.fromEntries(clipboard.nodes.map((n) => [n.id, crypto.randomUUID()]))
+        const pasted = clipboard.nodes.map((n) => ({
+          ...n, id: ids[n.id], selected: true, position: { x: n.position.x + 40, y: n.position.y + 40 },
+        }))
+        setNodes((ns) => ns.map((n) => ({ ...n, selected: false })).concat(pasted))
+        setEdges((es) => es.concat(clipboard.edges.map((ed) => ({ ...ed, id: crypto.randomUUID(), source: ids[ed.source], target: ids[ed.target] }))))
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [nodes, edges])
 
   const selected = nodes.find((n) => n.selected)
   const hasManual = nodes.some((n) => n.data.type === 'manual')
@@ -135,7 +173,7 @@ function Editor({ workflow, defs, widgets, types, onRename, onDelete, onEditWidg
             <ActionIcon size="md" variant={panels.library ? 'light' : 'default'} onClick={() => onToggle('library')}><IconLayoutSidebarRight size={18} /></ActionIcon>
           </Tooltip>
           <Tooltip label="Export as JSON">
-            <ActionIcon size="md" variant="default" onClick={() => exportItem('workflows', workflow.id).then((b) => download(b, name))}><IconDownload size={18} /></ActionIcon>
+            <ActionIcon size="md" variant="default" onClick={() => exportWorkflow(workflow.id).then((b) => download(b, name))}><IconDownload size={18} /></ActionIcon>
           </Tooltip>
           <Tooltip label="Delete workflow">
             <ActionIcon size="md" variant="light" color="red" onClick={onDelete}><IconTrash size={18} /></ActionIcon>
@@ -163,7 +201,7 @@ function Editor({ workflow, defs, widgets, types, onRename, onDelete, onEditWidg
         def={defs.find((d) => d.type === selected?.data.type)}
         context={{ vars: selected ? upstreamKeys(selected.id, { nodes, edges, defs, widgets, types }) : [], widgets, types }}
         onChange={setConfig}
-        onEditWidget={onEditWidget}
+        onWidgetChange={onWidgetChange}
       />
     </>
   )

@@ -51,7 +51,8 @@ Small steps; each milestone should be usable on its own.
 ## M7: Editor polish
 
 - [x] Settings pane with option pickers, key picker, JSON editor and `{key}` insertion from upstream nodes
-- [x] Widgets in the library: drag a widget onto the graph, edit it in a dialog; unique widget names
+- [x] Widgets in the library: dropping a widget type creates an instance, set up in its node's settings; unique widget names
+- [x] Copy/paste nodes across workflows; pasted widget nodes share their instance, deleted with its last node
 - [x] Twitch connection in the sidebar, chat test in the workflow toolbar
 
 ## Later
