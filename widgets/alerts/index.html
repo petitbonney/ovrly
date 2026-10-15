@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Alerts</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<style>
+  #alert { text-align: center; font-size: 40px; opacity: 0; transform: translateY(-20px); transition: .4s; }
+  #alert.on { opacity: 1; transform: none; }
+</style>
+<div id="alert" class="card"></div>
+<script type="module">
+  import { subscribe } from '/widgets/lib.js'
+  const alert = document.getElementById('alert')
+  let timer
+  subscribe(({ config, state }) => {
+    const left = state.at + config.duration * 1000 - Date.now()
+    alert.textContent = state.text
+    alert.classList.toggle('on', left > 0)
+    clearTimeout(timer)
+    if (left > 0) timer = setTimeout(() => alert.classList.remove('on'), left)
+  })
+</script>

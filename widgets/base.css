@@ -1,0 +1,9 @@
+/* Shared overlay styles: transparent page, bold readable text for OBS. */
+html, body { margin: 0; background: transparent; color: #fff; font: 700 24px system-ui, sans-serif; text-shadow: 0 2px 4px #000a; }
+.card { margin: 16px; padding: 16px 20px; background: #16161acc; border-radius: 12px; }
+.card h1 { font-size: 28px; margin: 0 0 12px; }
+.muted { color: #aaa; font-size: 18px; }
+
+/* Option rows with a percentage bar behind the text (poll, bets). */
+.row { position: relative; z-index: 0; display: flex; justify-content: space-between; gap: 16px; padding: 6px 10px; margin: 6px 0; border-radius: 6px; background: #ffffff14; overflow: hidden; }
+.row .bar { position: absolute; inset: 0 auto 0 0; z-index: -1; background: #9147ff99; }
