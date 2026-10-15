@@ -1,10 +1,20 @@
 // Server entry: REST API over the store, plus the UI (Vite in dev, ./dist in production).
 import express from 'express'
 import * as store from './store.js'
+import bus from './bus.js'
+import { nodes } from './engine.js'
 
 const PORT = process.env.PORT || 3000
 const app = express()
 app.use(express.json())
+
+// Node types for the UI library (metadata only, no run function).
+app.get('/api/nodes', (req, res) => res.json(Object.values(nodes).map(({ run, ...meta }) => meta)))
+// Fire a fake event on the bus, e.g. POST /api/emit/chat { user, message }.
+app.post('/api/emit/:event', (req, res) => {
+  bus.emit(req.params.event, req.body)
+  res.sendStatus(204)
+})
 
 app.get('/api/:kind', async (req, res) => res.json(await store.list(req.params.kind)))
 app.get('/api/:kind/:id', async (req, res) => {

@@ -11,11 +11,11 @@ Small steps; each milestone should be usable on its own.
 
 ## M1: Workflows
 
-- [ ] ReactFlow graph: add, connect and delete nodes; save to JSON
-- [ ] Node library pane with drag & drop
-- [ ] Node config pane generated from each node's `config` defaults
-- [ ] Engine: trigger → walk edges → run nodes, passing `data`
-- [ ] Core nodes: `chat-message` (trigger), `filter`, `delay`, `log`
+- [x] ReactFlow graph: add, connect and delete nodes; save to JSON
+- [x] Node library pane with drag & drop
+- [x] Node config pane generated from each node's `config` defaults
+- [x] Engine: trigger → walk edges → run nodes, passing `data`
+- [x] Core nodes: `chat-message` (trigger), `filter`, `delay`, `log`
 
 ## M2: Twitch chat
 
