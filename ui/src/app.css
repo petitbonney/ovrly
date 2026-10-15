@@ -23,9 +23,21 @@
 .flow-node .caption { position: absolute; top: 100%; margin-top: 8px; width: 160px; text-align: center; pointer-events: none; }
 .flow-node .label { font-size: 13px; font-weight: 600; color: #eee; }
 .flow-node .sub { font-size: 11px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Connectors sit centred on the node's 2px border (ReactFlow centres them on the inner edge, so 1px further out). */
 .flow-node .react-flow__handle { background: #9a9a9a; border: 0; }
-.flow-node .react-flow__handle.in { width: 8px; height: 22px; border-radius: 2px; left: -5px; }
-.flow-node .react-flow__handle.out { width: 14px; height: 14px; right: -8px; }
+.flow-node .react-flow__handle.in { width: 8px; height: 22px; border-radius: 2px; left: -1px; }
+.flow-node .react-flow__handle.out { width: 14px; height: 14px; right: -1px; }
+.flow-node .react-flow__handle-top { top: -1px; }
+.flow-node .react-flow__handle-bottom { bottom: -1px; }
+/* Widget nodes are circles; diamond connectors link them to Fire Widget nodes, under which the caption moves down. */
+.flow-node.widget { border-radius: 50%; }
+/* The handle stays an unrotated 16px square (ReactFlow measures it to place link ends); the diamond is drawn inside,
+   its tips touching the square's edges, so links end exactly at a tip. */
+.flow-node .react-flow__handle.diamond { width: 16px; height: 16px; border-radius: 0; background: none; }
+.flow-node .react-flow__handle.diamond::before { content: ''; position: absolute; inset: 2.34px; border-radius: 1px; background: var(--mantine-color-teal-4); transform: rotate(45deg); }
+.flow-node.fires .caption { margin-top: 14px; }
+.flow-node.fires .caption > div { width: fit-content; margin: 0 auto; padding: 0 4px; background: var(--xy-background-color); } /* hides the link behind */
+.react-flow__edge.widget-link path { stroke: var(--mantine-color-teal-4); stroke-dasharray: 5 4; }
 .flow-node .port { position: absolute; left: 18px; top: -2px; font-size: 10px; color: #999; pointer-events: none; }
 .react-flow { --xy-edge-stroke: #9a9a9a; --xy-edge-stroke-width: 2; --xy-background-color: #2d2e2e; }
 

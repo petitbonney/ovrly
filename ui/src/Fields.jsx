@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, vars, multiline, hidden, type: 'json' | 'secret' | 'var' | 'keys' | 'widget' | 'action' | 'input' }.
+// { label, hint, unit, options, vars, multiline, hidden, type: 'json' | 'secret' | 'var' | 'keys' | 'action' | 'input' }.
 import { useRef } from 'react'
 import {
   ActionIcon, Autocomplete, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl, Select, Stack, Switch,
@@ -35,40 +35,18 @@ function VarInput({ vars, value, onChange, multiline, ...props }) {
   return <Input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rightSection={menu} autosize={multiline || undefined} minRows={multiline ? 2 : undefined} {...props} />
 }
 
-// One setting; context: { vars: data keys available here, widgets, types } for the dynamic field types.
+// One setting; context: { vars: data keys available here, widget: the linked widget, types } for the dynamic types.
 function Field({ name, f, fallback, value, set, values, context }) {
   const props = { label: f.label ?? humanize(name), description: f.hint, size: 'xs' }
   if (f.type === 'keys') {
     return <TagsInput {...props} data={f.options} value={value ? value.split('+') : []} onChange={(v) => set(v.join('+'))} />
   }
   // A widget's actions come from its type (nothing to pick if there is only one); short option lists are buttons.
-  const widget = context.widgets?.find((w) => w.id === values.widget || w.name === values.widget)
-  const type = context.types?.find((t) => t.type === widget?.type)
+  const type = context.types?.find((t) => t.type === context.widget?.type)
   // A widget action's value is only asked for if the action takes one; the widget type says what it is.
   if (f.type === 'input') {
     const hint = type?.inputs?.[values.action || type.actions[0]]
     return hint ? <VarInput {...props} description={hint} vars={context.vars ?? []} value={value} onChange={set} /> : null
-  }
-  // A widget instance, searched by name or id (several instances can share a name).
-  if (f.type === 'widget') {
-    return (
-      <Select
-        {...props}
-        searchable
-        placeholder="Search widgets"
-        nothingFoundMessage="No widget with this name or instance ID"
-        data={(context.widgets ?? []).map((w) => ({ value: w.id, label: w.name }))}
-        filter={({ options, search }) => options.filter((o) => `${o.label} ${o.value}`.toLowerCase().includes(search.toLowerCase().trim()))}
-        renderOption={({ option }) => (
-          <div>
-            <Text size="xs">{option.label}</Text>
-            <Text size="xs" c="dimmed" ff="monospace">{option.value}</Text>
-          </div>
-        )}
-        value={value || null}
-        onChange={set}
-      />
-    )
   }
   const options = f.type === 'action' ? type?.actions ?? [] : f.options
   if (f.type === 'action' && options.length <= 1) return null
@@ -76,7 +54,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
     return (
       <Stack gap={4}>
         <Text size="xs" fw={500}>{props.label}</Text>
-        {/* A widget node with no action set runs its widget's first one. */}
+        {/* A Fire Widget node with no action set runs its widget's first one. */}
         <SegmentedControl size="xs" data={options} value={f.type === 'action' ? value || options[0] : value} onChange={set} style={{ alignSelf: 'start' }} />
       </Stack>
     )
@@ -103,8 +81,7 @@ export default function Fields({ defaults, values, onChange, fields = {}, contex
           f={fields[key] ?? {}}
           fallback={defaults[key]}
           value={values[key] ?? defaults[key]}
-          // Picking another widget clears the action: the new widget may not have it.
-          set={(v) => onChange({ ...values, [key]: v, ...(fields[key]?.type === 'widget' && { action: '' }) })}
+          set={(v) => onChange({ ...values, [key]: v })}
           values={values}
           context={context}
         />

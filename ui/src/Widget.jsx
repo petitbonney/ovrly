@@ -30,8 +30,8 @@ function Test({ widget, type }) {
   )
 }
 
-// children: the node's own settings (action, value), shown after the instance's id and name. onCopy copies the node for pasting.
-export default function WidgetSettings({ widget, type, onChange, onCopy, children }) {
+// A widget node's settings: the instance's id and name, its settings and test. onCopy copies the node for pasting.
+export default function WidgetSettings({ widget, type, onChange, onCopy }) {
   const [name, setName] = useState(widget.name)
   const [config, setConfig] = useState(widget.config)
 
@@ -55,7 +55,6 @@ export default function WidgetSettings({ widget, type, onChange, onCopy, childre
           </Tooltip>
         </Group>
         <TextInput size="xs" label="Name" description="Shared by every node that uses this widget" value={name} onChange={(e) => setName(e.target.value)} />
-        {children}
         <Fields defaults={type.config} values={config} onChange={setConfig} />
         <Test widget={widget} type={type} />
       </Stack>
