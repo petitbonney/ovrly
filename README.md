@@ -126,7 +126,7 @@ export default {
 }
 ```
 
-The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs actions with the **Widget update** node (widget name, action, value).
+The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs actions with the **Widget update** node (widget name, action, value). The node waits until the page has finished playing the action before the next nodes run: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays.
 
 ## Import / export
 
