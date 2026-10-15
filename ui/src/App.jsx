@@ -181,8 +181,10 @@ export default function App() {
       ) : (
         <AppShell.Main className="editor"><Center flex={1} c="dimmed">Select or create a workflow</Center></AppShell.Main>
       )}
-      <AppShell.Aside p="sm" style={{ overflow: 'auto' }}>
-        <Library defs={defs} widgets={widgets} onAddWidget={() => setWidgetModal('new')} onEditWidget={setWidgetModal} />
+      <AppShell.Aside>
+        <div className="pane">
+          <Library defs={defs} widgets={widgets} onAddWidget={() => setWidgetModal('new')} onEditWidget={setWidgetModal} />
+        </div>
       </AppShell.Aside>
       <NewWorkflow opened={modal} onDone={onCreate} onClose={() => setModal(false)} />
       <WidgetModal

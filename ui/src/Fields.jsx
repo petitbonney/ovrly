@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, vars, multiline, type: 'json' | 'secret' | 'var' | 'keys' | 'widget' | 'action' }.
+// { label, hint, unit, options, vars, multiline, hidden, type: 'json' | 'secret' | 'var' | 'keys' | 'action' }.
 import { useRef } from 'react'
 import {
   ActionIcon, Autocomplete, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl, Select, Stack, Switch,
@@ -38,18 +38,13 @@ function VarInput({ vars, value, onChange, multiline, ...props }) {
 // One setting; context: { vars: data keys available here, widgets, types } for the dynamic field types.
 function Field({ name, f, fallback, value, set, values, context }) {
   const props = { label: f.label ?? humanize(name), description: f.hint, size: 'xs' }
-  if (f.type === 'widget') {
-    // Older workflows refer to widgets by name; the select works with ids.
-    const widgets = context.widgets ?? []
-    const id = widgets.find((w) => w.id === value || w.name === value)?.id ?? null
-    return <Select {...props} data={widgets.map((w) => ({ value: w.id, label: w.name }))} value={id} onChange={set} placeholder="Pick a widget" />
-  }
   if (f.type === 'keys') {
     return <TagsInput {...props} data={f.options} value={value ? value.split('+') : []} onChange={(v) => set(v.join('+'))} />
   }
-  // A widget's actions come from its type; short option lists are shown as buttons.
+  // A widget's actions come from its type (nothing to pick if there is only one); short option lists are buttons.
   const widget = context.widgets?.find((w) => w.id === values.widget || w.name === values.widget)
   const options = f.type === 'action' ? context.types?.find((t) => t.type === widget?.type)?.actions ?? [] : f.options
+  if (f.type === 'action' && options.length <= 1) return null
   if (options?.length <= 4) {
     return (
       <Stack gap={4}>
@@ -69,7 +64,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
 }
 
 export default function Fields({ defaults, values, onChange, fields = {}, context = {} }) {
-  const keys = Object.keys(defaults)
+  const keys = Object.keys(defaults).filter((key) => !fields[key]?.hidden)
   if (keys.length === 0) return <Text size="sm" c="dimmed">No settings</Text>
   return (
     <Stack gap="sm" maw={420}>
