@@ -12,11 +12,15 @@
   const alert = document.getElementById('alert')
   let timer
   subscribe(({ config, state }) => {
-    const left = state.at + config.duration * 1000 - Date.now()
+    const left = state.cancelled ? 0 : state.at + config.duration * 1000 - Date.now()
     alert.textContent = state.text
     alert.classList.toggle('on', left > 0)
     clearTimeout(timer)
     if (left > 0) timer = setTimeout(() => alert.classList.remove('on'), left)
     return wait(left + 400) // finished once faded out
+  }, () => {
+    // Cancel: the alert fades out now.
+    clearTimeout(timer)
+    alert.classList.remove('on')
   })
 </script>

@@ -32,7 +32,7 @@
   subscribe(({ config, state }) => {
     const options = list(config.options)
     draw(options)
-    if (state.winner < 0 || state.at === lastSpin) return
+    if (state.winner < 0 || state.at === lastSpin || state.cancelled) return
     lastSpin = state.at
     // Turn so the winner's middle lands under the top pointer, after 5 full turns.
     const target = 360 - ((state.winner + 0.5) * 360) / options.length
@@ -44,5 +44,13 @@
     clearTimeout(timer)
     timer = setTimeout(() => (result.textContent = options[state.winner] ?? ''), Math.max(left, 0))
     return wait(left) // finished once the wheel stops
+  }, () => {
+    // Cancel: the wheel freezes where it is, with no result.
+    const [a, b] = new DOMMatrix(getComputedStyle(canvas).transform).toFloat64Array()
+    angle = (Math.atan2(b, a) * 180) / Math.PI
+    canvas.style.transition = 'none'
+    canvas.style.transform = `rotate(${angle}deg)`
+    clearTimeout(timer)
+    result.textContent = ''
   })
 </script>

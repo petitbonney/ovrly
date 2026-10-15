@@ -1,12 +1,15 @@
 // Widget helpers, shared by the overlay pages (browser) and widget.js files (server).
 
-// Page side: calls render({ config, state }) now and on every update from the server.
-// render may return a promise (e.g. an animation): once it settles, the page tells the server the action
-// finished, so the workflow moves on. EventSource reconnects by itself, so OBS sources survive a server restart.
-export function subscribe(render) {
+// Page side: calls render({ config, state }) now and on every update from the server, and stop() when the "cancel"
+// action asks the page to stop its animation. The "show" and "hide" actions fade the whole page (base.css). render may return a promise (e.g. an animation): once it settles, the
+// page tells the server the action finished, so the workflow moves on. EventSource reconnects by itself, so OBS
+// sources survive a server restart.
+export function subscribe(render, stop) {
   const id = location.pathname.split('/')[2]
   new EventSource(`/w/${id}/events`).onmessage = async (e) => {
     const msg = JSON.parse(e.data)
+    document.body.classList.toggle('hidden', msg.hidden)
+    if (msg.cancel) return stop?.()
     await render(msg)
     if (msg.run) fetch(`/w/${id}/done`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ run: msg.run }) })
   }

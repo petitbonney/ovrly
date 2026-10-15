@@ -47,6 +47,7 @@ Small steps; each milestone should be usable on its own.
 
 - [x] Triggers: API call (`/hooks/<path>`), manual (Run button)
 - [x] Logic: if/else, switch, wait for all (multi-output nodes and joins in the engine)
+- [x] Logic: cooldown (global or per viewer) and queue; widget actions cancel and restart the one still playing
 
 ## M7: Editor polish
 

@@ -2,8 +2,8 @@
 // Nodes with several outputs (if/else, switch) get one labelled handle each. Widget nodes show their widget.
 import { Handle } from '@xyflow/react'
 import {
-  IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconChartBar, IconCoin, IconDeviceGamepad2,
-  IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconMessage,
+  IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconChartBar, IconClockPause, IconCoin, IconDeviceGamepad2,
+  IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
   IconMessageCode, IconMovie, IconNotes, IconPlugConnected, IconWebhook, IconWheel, IconWorld,
 } from '@tabler/icons-react'
 
@@ -17,12 +17,15 @@ export const icons = {
   'if-else': IconGitBranch,
   switch: IconArrowsSplit,
   'wait-all': IconArrowsJoin2,
+  cooldown: IconClockPause,
+  queue: IconListNumbers,
   'http-request': IconWorld,
   'key-press': IconKeyboard,
   log: IconNotes,
   'obs-scene': IconMovie,
   'obs-source': IconEye,
   'websocket-send': IconPlugConnected,
+  'event-bus': IconBroadcast,
   'widget-update': IconLayoutDashboard,
 }
 
@@ -46,8 +49,11 @@ export default function FlowNode({ data, selected, def, widget }) {
   const isWidget = data.type === 'widget-update'
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[data.type]) ?? IconBox
   const trigger = def?.category === 'trigger'
-  // Subtitle like n8n's "mode: Rules": the node's first setting.
+  // Subtitle like n8n's "mode: Rules": the node's first setting. An Event Bus node shows its widget and action.
   const [key, value] = Object.entries({ ...def?.config, ...data.config })[0] ?? []
+  const sub = isWidget ? data.config.action
+    : data.type === 'event-bus' ? widget && [widget.name, data.config.action].filter(Boolean).join(': ')
+    : key && value !== '' && `${key}: ${value}`
   const outputs = def?.outputs ?? []
   return (
     <div className={`flow-node${trigger ? ' trigger' : ''}${selected ? ' selected' : ''}`} style={{ height: Math.max(90, outputs.length * 24) }}>
@@ -61,7 +67,7 @@ export default function FlowNode({ data, selected, def, widget }) {
       )) : <Handle type="source" position="right" className="out" />}
       <div className="caption">
         <div className="label">{isWidget ? widget?.name ?? 'Missing widget' : data.label}</div>
-        {isWidget ? <div className="sub">{data.config.action}</div> : key && value !== '' && <div className="sub">{key}: {String(value)}</div>}
+        {sub && <div className="sub">{sub}</div>}
       </div>
     </div>
   )

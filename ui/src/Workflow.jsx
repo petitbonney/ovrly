@@ -114,7 +114,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     const source = new EventSource('/api/activity')
     source.onmessage = (e) => {
       const a = JSON.parse(e.data)
-      if (a.workflow !== workflow.id) return
+      if (a.workflow !== workflow.id || 'running' in a) return
       if (a.edge) return setLive((l) => ({ ...l, edges: { ...l.edges, [a.edge]: a.target } }))
       setLive((l) => ({ ...l, nodes: { ...l.nodes, [a.node]: a.state } }))
       if (a.state === 'error') notify(`${nodes.find((n) => n.id === a.node)?.data.label ?? 'A node'} failed: ${a.error}`, 'red')

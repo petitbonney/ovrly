@@ -1,5 +1,8 @@
 /* Shared overlay styles: transparent page, bold readable text for OBS. */
 html, body { margin: 0; background: transparent; color: #fff; font: 700 24px system-ui, sans-serif; text-shadow: 0 2px 4px #000a; }
+/* The "show" and "hide" actions every widget has fade the whole overlay (lib.js). */
+body { transition: opacity .4s; }
+body.hidden { opacity: 0; }
 .card { margin: 16px; padding: 16px 20px; background: #16161acc; border-radius: 12px; }
 .card h1 { font-size: 28px; margin: 0 0 12px; }
 .muted { color: #aaa; font-size: 18px; }
