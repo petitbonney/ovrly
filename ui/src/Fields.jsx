@@ -27,7 +27,7 @@ function VarInput({ vars, value, onChange, multiline, ...props }) {
       </Menu.Target>
       <Menu.Dropdown>
         {vars.length ? vars.map((k) => <Menu.Item key={k} onClick={() => insert(k)}>{`{${k}}`}</Menu.Item>)
-          : <Menu.Label>Connect a trigger first</Menu.Label>}
+          : <Menu.Label>Connect an input first</Menu.Label>}
       </Menu.Dropdown>
     </Menu>
   )
