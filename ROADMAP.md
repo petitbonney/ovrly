@@ -25,10 +25,10 @@ Small steps; each milestone should be usable on its own.
 
 ## M3: Actions
 
-- [ ] `http-request`
-- [ ] `websocket-send` (generic)
-- [ ] `obs` (switch scene, toggle source) via obs-websocket v5
-- [ ] `key-press` via nut.js
+- [x] `http-request`
+- [x] `websocket-send` (generic)
+- [x] `obs-scene`, `obs-source` (switch scene, toggle source) via obs-websocket v5
+- [x] `key-press` via nut.js
 
 ## M4: Widgets
 
