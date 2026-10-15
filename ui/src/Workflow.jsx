@@ -67,7 +67,7 @@ function Config({ node, def, context, onChange, onWidgetChange, onCopy }) {
   const fields = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={context} onChange={onChange} />
   return (
     <AppShell.Footer>
-      <div className="pane">
+      <div className={widget ? 'pane split' : 'pane'}>
         <Group gap="xs" mb={4}>
           <Icon size={20} color={colors[def.category]} />
           <Text fw={600}>{widget ? widget.name : def.label}</Text>
