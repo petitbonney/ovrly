@@ -28,3 +28,9 @@ input { background: #22222a; border: 1px solid #444; color: inherit; border-radi
 .field input[type="text"], .field input[type="number"] { width: 240px; }
 .right li { cursor: grab; }
 .center.flow .react-flow { flex: 1; height: auto; min-height: 0; }
+
+/* Chat panels */
+.stack { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.stack button { padding: 4px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #a33; align-self: center; }
+.dot.on { background: #3a3; }
