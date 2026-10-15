@@ -1,0 +1,19 @@
+/* Layout and base styles for the three-pane shell. */
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px system-ui, sans-serif; background: #16161a; color: #ddd; }
+h2 { font-size: 12px; text-transform: uppercase; color: #888; margin: 0 0 8px; display: flex; justify-content: space-between; }
+button { background: none; border: 1px solid #444; color: inherit; border-radius: 4px; cursor: pointer; }
+ul { list-style: none; margin: 0 0 16px; padding: 0; }
+li { padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+li:hover, li.active { background: #2a2a32; }
+
+.shell {
+  height: 100vh;
+  display: grid;
+  grid-template: "left center right" 1fr "left bottom right" 200px / 220px 1fr 220px;
+}
+.shell > * { padding: 12px; overflow: auto; border-color: #2a2a32; border-style: solid; border-width: 0; }
+.left { grid-area: left; border-right-width: 1px; }
+.center { grid-area: center; display: grid; place-items: center; color: #666; }
+.bottom { grid-area: bottom; border-top-width: 1px; color: #666; }
+.right { grid-area: right; border-left-width: 1px; }
