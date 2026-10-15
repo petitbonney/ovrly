@@ -5,40 +5,35 @@ import {
   useNodesState, useEdgesState, addEdge, useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { AppShell, Button, Checkbox, Group, NumberInput, Stack, TextInput } from '@mantine/core'
+import Heading from './Heading.jsx'
 import { exportItem, download } from './share.js'
 
 // Form generated from a config's defaults; the input kind follows each default value's type.
 export function Fields({ defaults, values, onChange }) {
   const keys = Object.keys(defaults)
   if (keys.length === 0) return 'No settings'
-  return keys.map((key) => {
-    const fallback = defaults[key]
-    const value = values[key] ?? fallback
-    const set = (v) => onChange({ ...values, [key]: v })
-    return (
-      <label key={key} className="field">
-        {key}
-        {typeof fallback === 'boolean' ? (
-          <input type="checkbox" checked={value} onChange={(e) => set(e.target.checked)} />
-        ) : (
-          <input
-            type={typeof fallback === 'number' ? 'number' : 'text'}
-            value={value}
-            onChange={(e) => set(typeof fallback === 'number' ? Number(e.target.value) : e.target.value)}
-          />
-        )}
-      </label>
-    )
-  })
+  return (
+    <Stack gap="xs" mb="md">
+      {keys.map((key) => {
+        const fallback = defaults[key]
+        const value = values[key] ?? fallback
+        const set = (v) => onChange({ ...values, [key]: v })
+        if (typeof fallback === 'boolean') return <Checkbox key={key} label={key} checked={value} onChange={(e) => set(e.target.checked)} />
+        if (typeof fallback === 'number') return <NumberInput key={key} label={key} w={240} size="xs" value={value} onChange={(v) => set(Number(v))} />
+        return <TextInput key={key} label={key} w={240} size="xs" value={value} onChange={(e) => set(e.target.value)} />
+      })}
+    </Stack>
+  )
 }
 
 function Config({ node, def, onChange }) {
-  if (!node || !def) return <section className="bottom">Select a node</section>
+  if (!node || !def) return <AppShell.Footer p="sm" c="dimmed">Select a node</AppShell.Footer>
   return (
-    <section className="bottom">
-      <h2>{def.label}</h2>
+    <AppShell.Footer p="sm" style={{ overflow: 'auto' }}>
+      <Heading title={def.label} />
       <Fields defaults={def.config} values={node.data.config} onChange={onChange} />
-    </section>
+    </AppShell.Footer>
   )
 }
 
@@ -85,12 +80,12 @@ function Editor({ workflow, defs, onRename, onDelete }) {
 
   return (
     <>
-      <main className="center flow">
-        <div className="toolbar">
-          <input value={name} onChange={(e) => setName(e.target.value)} />
-          <button onClick={() => exportItem('workflows', workflow.id).then((b) => download(b, name))}>Export</button>
-          <button onClick={onDelete}>Delete workflow</button>
-        </div>
+      <AppShell.Main className="editor">
+        <Group gap="xs" p="xs" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+          <TextInput flex={1} size="xs" value={name} onChange={(e) => setName(e.target.value)} />
+          <Button size="xs" variant="default" onClick={() => exportItem('workflows', workflow.id).then((b) => download(b, name))}>Export</Button>
+          <Button size="xs" variant="light" color="red" onClick={onDelete}>Delete workflow</Button>
+        </Group>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -105,7 +100,7 @@ function Editor({ workflow, defs, onRename, onDelete }) {
           <Background />
           <Controls />
         </ReactFlow>
-      </main>
+      </AppShell.Main>
       <Config node={selected} def={defs.find((d) => d.type === selected?.data.type)} onChange={setConfig} />
     </>
   )

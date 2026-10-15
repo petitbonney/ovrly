@@ -1,5 +1,7 @@
 // Chat panels: Twitch channel setting and a test form that fires fake chat messages.
 import { useEffect, useState } from 'react'
+import { Button, ColorSwatch, Stack, TextInput } from '@mantine/core'
+import Heading from './Heading.jsx'
 
 const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
@@ -20,13 +22,15 @@ export function Twitch() {
   }
 
   return (
-    <section>
-      <h2>Twitch <span className={status.connected ? 'dot on' : 'dot'} title={status.connected ? 'Connected' : 'Disconnected'} /></h2>
-      <form className="stack" onSubmit={save}>
-        <input placeholder="channel" value={channel} onChange={(e) => setChannel(e.target.value)} />
-        <button>Connect</button>
-      </form>
-    </section>
+    <form onSubmit={save}>
+      <Heading title="Twitch">
+        <ColorSwatch size={8} withShadow={false} color={status.connected ? 'var(--mantine-color-green-7)' : 'var(--mantine-color-red-8)'} title={status.connected ? 'Connected' : 'Disconnected'} />
+      </Heading>
+      <Stack gap="xs" mb="md">
+        <TextInput size="xs" placeholder="channel" value={channel} onChange={(e) => setChannel(e.target.value)} />
+        <Button size="xs" variant="default" type="submit">Connect</Button>
+      </Stack>
+    </form>
   )
 }
 
@@ -40,13 +44,13 @@ export function ChatTest() {
   }
 
   return (
-    <section>
-      <h2>Chat test</h2>
-      <form className="stack" onSubmit={send}>
-        <input placeholder="user" value={user} onChange={(e) => setUser(e.target.value)} />
-        <input placeholder="message" value={message} onChange={(e) => setMessage(e.target.value)} />
-        <button>Send</button>
-      </form>
-    </section>
+    <form onSubmit={send}>
+      <Heading title="Chat test" />
+      <Stack gap="xs" mb="md">
+        <TextInput size="xs" placeholder="user" value={user} onChange={(e) => setUser(e.target.value)} />
+        <TextInput size="xs" placeholder="message" value={message} onChange={(e) => setMessage(e.target.value)} />
+        <Button size="xs" variant="default" type="submit">Send</Button>
+      </Stack>
+    </form>
   )
 }

@@ -10,6 +10,8 @@
     "start": "NODE_ENV=production node server/index.js"
   },
   "dependencies": {
+    "@mantine/core": "^9.7.2",
+    "@mantine/hooks": "^9.7.2",
     "@nut-tree-fork/nut-js": "^4.2.6",
     "@xyflow/react": "^12.12.0",
     "express": "^5.3.0",

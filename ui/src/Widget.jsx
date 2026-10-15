@@ -1,6 +1,8 @@
 // Widget editor: config and live preview (center), test actions (bottom), autosaved. Plus the new-widget type picker.
 import { useEffect, useState } from 'react'
+import { Anchor, AppShell, Button, Group, NativeSelect, Stack, Text, TextInput } from '@mantine/core'
 import { Fields } from './Workflow.jsx'
+import Heading from './Heading.jsx'
 import { exportItem, download, importFile } from './share.js'
 
 const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -12,14 +14,14 @@ export function NewWidget({ types, onCreate }) {
   }
   return (
     <>
-      <main className="center">
-        <div className="stack">
-          <h2>New widget</h2>
-          {types.map((t) => <button key={t.type} onClick={() => create(t)}>{t.label}</button>)}
-          <button onClick={() => importFile().then(onCreate, (err) => alert(`Import failed: ${err.message}`))}>Import JSON…</button>
-        </div>
-      </main>
-      <section className="bottom" />
+      <AppShell.Main className="editor" style={{ justifyContent: 'center', alignItems: 'center' }}>
+        <Stack gap="xs" w={240}>
+          <Heading title="New widget" />
+          {types.map((t) => <Button key={t.type} variant="default" onClick={() => create(t)}>{t.label}</Button>)}
+          <Button variant="default" onClick={() => importFile().then(onCreate, (err) => alert(`Import failed: ${err.message}`))}>Import JSON…</Button>
+        </Stack>
+      </AppShell.Main>
+      <AppShell.Footer />
     </>
   )
 }
@@ -34,17 +36,17 @@ function Test({ widget, type }) {
     fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, value, user }))
   }
   return (
-    <section className="bottom">
-      <h2>Test</h2>
-      <form className="row-form" onSubmit={send}>
-        <select value={action} onChange={(e) => setAction(e.target.value)}>
-          {type.actions.map((a) => <option key={a}>{a}</option>)}
-        </select>
-        <input placeholder="value" value={value} onChange={(e) => setValue(e.target.value)} />
-        <input placeholder="user" value={user} onChange={(e) => setUser(e.target.value)} />
-        <button>Send</button>
+    <AppShell.Footer p="sm">
+      <Heading title="Test" />
+      <form onSubmit={send}>
+        <Group gap="xs">
+          <NativeSelect size="xs" data={type.actions} value={action} onChange={(e) => setAction(e.target.value)} />
+          <TextInput size="xs" placeholder="value" value={value} onChange={(e) => setValue(e.target.value)} />
+          <TextInput size="xs" placeholder="user" value={user} onChange={(e) => setUser(e.target.value)} />
+          <Button size="xs" variant="default" type="submit">Send</Button>
+        </Group>
       </form>
-    </section>
+    </AppShell.Footer>
   )
 }
 
@@ -63,19 +65,19 @@ function Editor({ widget, type, onChange, onDelete }) {
   const url = `${location.origin}/w/${widget.id}`
   return (
     <>
-      <main className="center widget">
-        <div className="toolbar">
-          <input value={name} onChange={(e) => setName(e.target.value)} />
-          <button onClick={() => exportItem('widgets', widget.id).then((b) => download(b, name))}>Export</button>
-          <button onClick={onDelete}>Delete widget</button>
-        </div>
-        <div className="widget-body">
-          <h2>{type.label}</h2>
-          <p>OBS browser source: <a href={url} target="_blank">{url}</a></p>
+      <AppShell.Main className="editor">
+        <Group gap="xs" p="xs" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+          <TextInput flex={1} size="xs" value={name} onChange={(e) => setName(e.target.value)} />
+          <Button size="xs" variant="default" onClick={() => exportItem('widgets', widget.id).then((b) => download(b, name))}>Export</Button>
+          <Button size="xs" variant="light" color="red" onClick={onDelete}>Delete widget</Button>
+        </Group>
+        <div style={{ flex: 1, minHeight: 0, padding: 'var(--mantine-spacing-sm)', overflow: 'auto' }}>
+          <Heading title={type.label} />
+          <Text size="sm" mb="md">OBS browser source: <Anchor href={url} target="_blank">{url}</Anchor></Text>
           <Fields defaults={type.config} values={config} onChange={setConfig} />
           <iframe className="preview" src={url} title="Preview" />
         </div>
-      </main>
+      </AppShell.Main>
       <Test widget={widget} type={type} />
     </>
   )
