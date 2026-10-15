@@ -27,6 +27,9 @@ export function Fields({ defaults, values, onChange }) {
   )
 }
 
+// Left-to-right graph: inputs on the left side of a node, outputs on the right. Not stored, set on load and drop.
+const sides = { targetPosition: 'left', sourcePosition: 'right' }
+
 function Config({ node, def, onChange }) {
   if (!node || !def) return <AppShell.Footer p="sm" c="dimmed">Select a node</AppShell.Footer>
   return (
@@ -39,7 +42,7 @@ function Config({ node, def, onChange }) {
 
 function Editor({ workflow, defs, onRename, onDelete }) {
   const [name, setName] = useState(workflow.name)
-  const [nodes, setNodes, onNodesChange] = useNodesState(workflow.nodes)
+  const [nodes, setNodes, onNodesChange] = useNodesState(workflow.nodes.map((n) => ({ ...n, ...sides })))
   const [edges, setEdges, onEdgesChange] = useEdgesState(workflow.edges)
   const { screenToFlowPosition } = useReactFlow()
 
@@ -67,6 +70,7 @@ function Editor({ workflow, defs, onRename, onDelete }) {
     if (!def) return
     setNodes((ns) => ns.concat({
       id: crypto.randomUUID(),
+      ...sides,
       // Triggers have no input handle.
       type: def.category === 'trigger' ? 'input' : 'default',
       position: screenToFlowPosition({ x: e.clientX, y: e.clientY }),

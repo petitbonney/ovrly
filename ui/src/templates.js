@@ -10,7 +10,7 @@ function command(name, description, command, widget, action, value) {
       name,
       nodes: [
         { id: 'trigger', type: 'input', position: { x: 0, y: 0 }, data: { type: 'chat-command', label: 'Chat !command', config: { command } } },
-        { id: 'action', type: 'default', position: { x: 0, y: 120 }, data: { type: 'widget-update', label: 'Widget update', config: { widget: 'w', action, value } } },
+        { id: 'action', type: 'default', position: { x: 220, y: 0 }, data: { type: 'widget-update', label: 'Widget update', config: { widget: 'w', action, value } } },
       ],
       edges: [{ id: 'e', source: 'trigger', target: 'action' }],
     }],
