@@ -5,6 +5,8 @@ import { pick } from '../lib.js'
 export default {
   type: 'bets',
   label: 'Bets',
+  description: 'Viewers bet on an outcome while bets are open; reveals who guessed right.',
+  soon: true, // coming soon: shown in the library, its settings are not ready yet
   config: { title: 'Who wins?', options: ['Blue', 'Red'] },
   state: { open: false, bets: {}, winner: -1 }, // bets: user -> option index
   adds: ['winner', 'winners'],

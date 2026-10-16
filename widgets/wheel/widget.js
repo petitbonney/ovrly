@@ -3,6 +3,7 @@
 export default {
   type: 'wheel',
   label: 'Spin wheel',
+  description: 'Spins a wheel of weighted, colored options and picks a winner.',
   config: {
     options: [
       { label: 'Purple', color: '#9147ff', weight: 1 },
