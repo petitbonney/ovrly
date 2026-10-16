@@ -11,13 +11,13 @@ import { IconBraces, IconGripVertical, IconPlus, IconX } from '@tabler/icons-rea
 // "case1" -> "Case1", "sceneName" -> "Scene name"
 const humanize = (key) => key[0].toUpperCase() + key.slice(1).replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`)
 
-// Text input with a menu that inserts "{key}" placeholders for the data keys available at this node.
+// Text input with a menu that inserts "{{key}}" placeholders for the data keys available at this node.
 function VarInput({ vars, value, onChange, multiline, ...props }) {
   const ref = useRef()
   const insert = (key) => {
     const el = ref.current
     const start = el?.selectionStart ?? value.length
-    onChange(value.slice(0, start) + `{${key}}` + value.slice(el?.selectionEnd ?? start))
+    onChange(value.slice(0, start) + `{{${key}}}` + value.slice(el?.selectionEnd ?? start))
   }
   const menu = (
     <Menu position="bottom-end" withinPortal>
@@ -27,7 +27,7 @@ function VarInput({ vars, value, onChange, multiline, ...props }) {
         </Tooltip>
       </Menu.Target>
       <Menu.Dropdown>
-        {vars.length ? vars.map((k) => <Menu.Item key={k} onClick={() => insert(k)}>{`{${k}}`}</Menu.Item>)
+        {vars.length ? vars.map((k) => <Menu.Item key={k} onClick={() => insert(k)}>{`{{${k}}}`}</Menu.Item>)
           : <Menu.Label>Connect an input first</Menu.Label>}
       </Menu.Dropdown>
     </Menu>
@@ -57,7 +57,7 @@ function ItemInput({ item, shape, onChange }) {
 // A list setting: one row per item, reordered by dragging its grip (dropped above the row it lands on) or removed,
 // and an Add button. A new item is empty
 // text, or shaped like the default items with empty text and, for colors, the first swatch not used yet.
-function ListInput({ label, value, defaults, onChange }) {
+function ListInput({ label, description, value, defaults, onChange }) {
   const shape = defaults[0]
   const set = (i, item) => onChange(value.map((v, j) => (j === i ? item : v)))
   const [drag, setDrag] = useState(null) // { from, over }: the row being dragged and the row it is over
@@ -76,6 +76,7 @@ function ListInput({ label, value, defaults, onChange }) {
   return (
     <Stack gap={4}>
       <Text size="xs" fw={500}>{label}</Text>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
       {typeof shape === 'object' && (
         // Column titles, as wide as the fields under them.
         <Group gap={6} wrap="nowrap" pl={28} pr={28}>
@@ -136,7 +137,7 @@ function ListInput({ label, value, defaults, onChange }) {
 // One setting; context: { vars: data keys available here, widget: the linked widget, types } for the dynamic types.
 function Field({ name, f, fallback, value, set, values, context }) {
   const props = { label: f.label ?? humanize(name), description: f.hint, size: 'xs' }
-  if (Array.isArray(fallback)) return <ListInput label={props.label} value={value} defaults={fallback} onChange={set} />
+  if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} onChange={set} />
   if (f.type === 'keys') {
     return <TagsInput {...props} data={f.options} value={value ? value.split('+') : []} onChange={(v) => set(v.join('+'))} />
   }

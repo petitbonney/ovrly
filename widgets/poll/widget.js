@@ -13,7 +13,7 @@ export default {
     const top = Math.max(0, ...counts)
     return { leader: top ? config.options[counts.indexOf(top)] : '', votes: Object.keys(state.votes).length }
   },
-  inputs: { vote: 'Option number or name, e.g. {args}' }, // actions that take a value, and what it is
+  inputs: { vote: 'Option number or name, e.g. {{args}}' }, // actions that take a value, and what it is
   actions: {
     vote(state, { value, user }, config) {
       const i = pick(config.options, value)
