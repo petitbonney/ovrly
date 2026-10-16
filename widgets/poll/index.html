@@ -4,9 +4,9 @@
 <link rel="stylesheet" href="/widgets/base.css">
 <div class="card"><h1 id="title"></h1><div id="rows"></div><div id="total" class="muted"></div></div>
 <script type="module">
-  import { subscribe, list, el } from '/widgets/lib.js'
+  import { subscribe, el } from '/widgets/lib.js'
   subscribe(({ config, state }) => {
-    const options = list(config.options)
+    const options = config.options
     const votes = Object.values(state.votes)
     document.getElementById('title').textContent = config.title
     document.getElementById('rows').replaceChildren(...options.map((option, i) => {
