@@ -6,19 +6,27 @@
 <div class="card"><h1 id="title"></h1><div id="status" class="muted"></div><div id="rows"></div><div id="winners" class="muted"></div></div>
 <script type="module">
   import { subscribe, el } from '/widgets/lib.js'
-  subscribe(({ config, state }) => {
+  // Bets close at endsAt: render again then.
+  let timer
+  subscribe(function render({ config, state }) {
+    clearTimeout(timer)
+    const open = state.open && Date.now() < state.endsAt
+    if (open) timer = setTimeout(() => render({ config, state }), state.endsAt - Date.now())
     const options = config.options
-    const bets = Object.entries(state.bets)
     const won = state.winner >= 0
+    // Bettors per option; for a Twitch prediction, the channel points on it.
+    const counts = options.map((o, i) => (state.prediction ? state.points[i] : state.counts[i]) ?? 0)
+    const total = counts.reduce((a, b) => a + b, 0)
     document.getElementById('title').textContent = config.title
-    document.getElementById('status').textContent = won ? `Winner: ${options[state.winner]}` : state.open ? 'Bets are open' : 'Bets are closed'
+    document.getElementById('status').textContent = won ? `Winner: ${options[state.winner]}` : open ? 'Bets are open' : 'Bets are closed'
     document.getElementById('rows').replaceChildren(...options.map((option, i) => {
-      const count = bets.filter(([, v]) => v === i).length
       const bar = el('div', 'bar')
-      bar.style.width = `${bets.length ? (count / bets.length) * 100 : 0}%`
-      return el('div', won && i === state.winner ? 'row win' : 'row', bar, el('span', '', `${i + 1}. ${option}`), el('span', '', String(count)))
+      bar.style.width = `${total ? (counts[i] / total) * 100 : 0}%`
+      const count = state.prediction ? `${counts[i].toLocaleString()} pts` : String(counts[i])
+      return el('div', won && i === state.winner ? 'row win' : 'row', bar, el('span', '', `${i + 1}. ${option}`), el('span', '', count))
     }))
-    const winners = bets.filter(([, v]) => v === state.winner).map(([user]) => user)
+    const winners = state.prediction ? state.top[state.winner] ?? []
+      : Object.entries(state.bets).filter(([, v]) => v === state.winner).map(([user]) => user)
     document.getElementById('winners').textContent = won ? `Right: ${winners.join(', ') || 'nobody'}` : ''
   })
 </script>

@@ -5,17 +5,21 @@
 <div class="card"><h1 id="title"></h1><div id="rows"></div><div id="total" class="muted"></div></div>
 <script type="module">
   import { subscribe, el } from '/widgets/lib.js'
-  subscribe(({ config, state }) => {
-    const options = config.options
-    const votes = Object.values(state.votes)
+  // Voting closes at endsAt: render again then.
+  let timer
+  subscribe(function render({ config, state }) {
+    clearTimeout(timer)
+    const open = state.open && !(state.endsAt && Date.now() >= state.endsAt)
+    if (open && state.endsAt) timer = setTimeout(() => render({ config, state }), state.endsAt - Date.now())
+    const counts = config.options.map((o, i) => state.counts[i] ?? 0)
+    const total = counts.reduce((a, b) => a + b, 0)
     document.getElementById('title').textContent = config.title
-    document.getElementById('rows').replaceChildren(...options.map((option, i) => {
-      const count = votes.filter((v) => v === i).length
-      const pct = votes.length ? Math.round((count / votes.length) * 100) : 0
+    document.getElementById('rows').replaceChildren(...config.options.map((option, i) => {
+      const pct = total ? Math.round((counts[i] / total) * 100) : 0
       const bar = el('div', 'bar')
       bar.style.width = `${pct}%`
       return el('div', 'row', bar, el('span', '', `${i + 1}. ${option}`), el('span', '', `${pct}%`))
     }))
-    document.getElementById('total').textContent = `${votes.length} vote${votes.length === 1 ? '' : 's'}`
+    document.getElementById('total').textContent = `${total} vote${total === 1 ? '' : 's'}${open ? '' : ' · closed'}`
   })
 </script>

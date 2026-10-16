@@ -26,4 +26,5 @@ pnpm dev      # server + UI on http://localhost:6875
 - One widget type = one folder in `widgets/`.
 - Data lives in `./data` as JSON files (gitignored). Never commit it.
 - Scope is Twitch chat and OBS only for now. Don't add other platforms until the roadmap says so.
+- Twitch features that need the streamer signed in (Streamer mode) say so: a whole node or widget type with `streamer: true`, one setting option with `{ value, label, streamer: true }` (the UI disables it in Guest mode). On the server, call `needStreamer('Feature name')` from `server/sources/twitch.js` before using them.
 - Update `ROADMAP.md` checkboxes when you finish an item.

@@ -57,10 +57,11 @@ Small steps; each milestone should be usable on its own.
 - [x] Undo/redo of graph edits (buttons and shortcuts)
 - [x] Copy/paste nodes across workflows, with feedback; pasted widget nodes share their instance (once per workflow), deleted with its last node
 - [x] Twitch connection in the sidebar, chat test in chat triggers' settings
+- [x] Twitch Guest/Streamer modes (Device Code sign-in, EventSub over WebSocket); Twitch poll and prediction modes in Poll and Bets
 
 ## Later
 
-- Twitch EventSub (follows, subs, bits, redeems; needs OAuth)
+- Twitch EventSub triggers (follows, subs, bits, redeems; Streamer mode)
 - Other platforms (YouTube, Kick) and software (Streamlabs)
 - TypeScript
 - Workflow run logs and debugging view
