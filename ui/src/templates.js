@@ -25,7 +25,7 @@ export default [
   command('!spin → wheel', 'Spins a wheel when chat types !spin.', '!spin',
     { name: 'Spin wheel', type: 'wheel', config: {} }, 'spin', ''),
   command('Chat poll', 'Viewers vote with !vote 1 or !vote yes.', '!vote',
-    { name: 'Poll', type: 'poll', config: {} }, 'vote', '{args}'),
+    { name: 'Poll', type: 'poll', config: {} }, 'vote', '{{args}}'),
   command('!hype alert', 'Shows a banner when someone types !hype.', '!hype',
-    { name: 'Alerts', type: 'alerts', config: {} }, 'show', '{user} just ran !hype'),
+    { name: 'Alerts', type: 'alerts', config: {} }, 'show', '{{user}} just ran !hype'),
 ]

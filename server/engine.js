@@ -95,11 +95,12 @@ async function step(workflow, node, data, run, { def, config, id, status }) {
   if (trigger) run.start()
   end('done')
   // Nodes with several outputs (if/else, switch) return { [output]: data }; only those outputs continue.
-  const next = workflow.edges.filter((e) => e.source === node.id && e.sourceHandle !== 'widget' && (!def.outputs || e.sourceHandle in out))
+  const multi = def.outputs || def.outputsFrom
+  const next = workflow.edges.filter((e) => e.source === node.id && e.sourceHandle !== 'widget' && (!multi || e.sourceHandle in out))
   await Promise.all(next.map((e) => {
     const target = workflow.nodes.find((n) => n.id === e.target)
     if (target) activity.emit('activity', { workflow: workflow.id, edge: e.id, target: e.target })
-    return target && walk(workflow, target, def.outputs ? out[e.sourceHandle] : out, run)
+    return target && walk(workflow, target, multi ? out[e.sourceHandle] : out, run)
   }))
 }
 

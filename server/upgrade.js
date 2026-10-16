@@ -1,10 +1,46 @@
 // Brings workflows and widgets saved by older versions up to date; applied at startup and to every item saved or
 // imported.
+
+// Node settings that changed shape: each returns the new settings, or nothing if they are already up to date.
+const settings = {
+  // case1..case3 became a list (outputs keep their ids "1".."3").
+  switch: ({ case1, case2, case3, ...config }) => config.cases === undefined && { ...config, cases: [case1 ?? '', case2 ?? '', case3 ?? ''] },
+  // "data[field] contains text" became an if/else-like comparison.
+  filter: ({ field, contains, ...config }) => field !== undefined && { ...config, value: `{{${field}}}`, operator: 'contains', compare: contains ?? '' },
+  // ms became seconds.
+  delay: ({ ms, ...config }) => ms !== undefined && { ...config, seconds: ms / 1000 },
+}
+
+// Placeholders were "{key}" until version 2, then "{{key}}". Done once (the version is saved), so a "{word}" typed
+// later stays as it is.
+const doubled = (value) => (typeof value === 'string' ? value.replace(/(?<!\{)\{(\w+)\}(?!\})/g, '{{$1}}')
+  : Array.isArray(value) ? value.map(doubled) : value)
+function upgradePlaceholders(workflow) {
+  if (workflow.version >= 2) return workflow
+  const nodes = workflow.nodes?.map((n) => {
+    const config = Object.fromEntries(Object.entries(n.data.config ?? {}).map(([k, v]) => [k, doubled(v)]))
+    return { ...n, data: { ...n.data, config } }
+  })
+  return { ...workflow, version: 2, nodes }
+}
+
+export default function upgrade(old) {
+  const workflow = upgradePlaceholders(old)
+  let changed = false
+  const nodes = workflow.nodes?.map((n) => {
+    const config = settings[n.data.type]?.(n.data.config ?? {})
+    if (!config) return n
+    changed = true
+    return { ...n, data: { ...n.data, config } }
+  })
+  return upgradeWidgetNodes(changed ? { ...workflow, nodes } : workflow)
+}
+
 // Widgets used to run inside the flow ("widget-update" nodes, and "event-bus" nodes that sent actions to any widget):
 // each becomes a Fire Widget node (same id, links and action) linked to one widget node per instance, placed below.
 const OLD = ['widget-update', 'event-bus']
 
-export default function upgrade(workflow) {
+function upgradeWidgetNodes(workflow) {
   if (!workflow.nodes?.some((n) => OLD.includes(n.data.type))) return workflow
   const nodes = []
   const edges = [...(workflow.edges ?? [])]

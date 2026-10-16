@@ -1,4 +1,4 @@
-// Action: runs an action on the widget linked to its diamond input, e.g. "spin" on a wheel or "vote" with "{args}".
+// Action: runs an action on the widget linked to its diamond input, e.g. "spin" on a wheel or "vote" with "{{args}}".
 // Waits until the overlay has finished playing it (e.g. the wheel stopped), so the next nodes run after, and adds
 // the widget's output to data (e.g. { winner } from the wheel). With no action set, it runs the widget's first one.
 // If another action on the same widget cancels this one before it ends, this run stops here; if the workflow is

@@ -34,11 +34,13 @@ function widgetRef(node, nodes, edges) {
 
 // Copied nodes and the edges between them; kept in memory so they can be pasted into another workflow.
 let clipboard = null
+// Workflow id -> its last view (pan and zoom), so coming back to a workflow shows it where it was left.
+const views = {}
 // Widget id -> last known widget instance. The server deletes an instance with its last node; undo or paste
 // puts it back from here.
 const knownWidgets = {}
 
-// Data keys a node can use as {key}: what every node upstream of it adds (a manual trigger adds its JSON's keys,
+// Data keys a node can use as {{key}}: what every node upstream of it adds (a manual trigger adds its JSON's keys,
 // a Fire Widget node what its widget type outputs).
 function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
   const keys = new Set()
@@ -338,8 +340,27 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     setNodes((ns) => ns.map((n) => ({ ...n, position: positions[n.id] })))
     setTimeout(() => fitView({ ...fitOptions, duration: 300 }))
   }
-  const setConfig = (config) =>
+  // Links follow switch cases: a moved case keeps its links, a renamed one too, and a removed one takes them along.
+  const setConfig = (config) => {
     setNodes((ns) => ns.map((n) => (n.id === selected.id ? { ...n, data: { ...n.data, config } } : n)))
+    const def = defs.find((d) => d.type === selected.data.type)
+    const key = def?.outputsFrom
+    const before = selected.data.config[key] ?? def?.config[key]
+    const after = config[key] ?? def?.config[key]
+    if (!key || before === after) return
+    const taken = new Set()
+    const moved = {} // old output id -> new output id
+    before.forEach((item, i) => {
+      let j = after.findIndex((a, k) => a === item && !taken.has(k))
+      if (j < 0 && before.length === after.length) j = i // renamed in place
+      if (j < 0) return
+      taken.add(j)
+      moved[i + 1] = String(j + 1)
+    })
+    const fixed = def.outputs ?? []
+    setEdges((es) => es.flatMap((e) => (e.source !== selected.id || isLink(e) || fixed.includes(e.sourceHandle) ? [e]
+      : moved[e.sourceHandle] ? [{ ...e, sourceHandle: moved[e.sourceHandle] }] : [])))
+  }
 
   return (
     <>
@@ -398,8 +419,10 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
           colorMode="dark"
-          fitView
+          fitView={!views[workflow.id]}
           fitViewOptions={fitOptions}
+          defaultViewport={views[workflow.id]}
+          onMoveEnd={(e, viewport) => (views[workflow.id] = viewport)}
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#555" gap={20} />

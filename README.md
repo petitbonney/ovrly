@@ -12,7 +12,8 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 - **Widgets**: built-in browser-source overlays: alerts, poll, bets, spin wheel, TwitchPlays.
 - **Multiple instances**: run several widgets and workflows side by side.
 - **Triggers**: Twitch chat (any message or a `!command`), an API call to `http://localhost:3000/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual trigger).
-- **Logic**: filter, delay, if/else, switch, wait for all (continues once every incoming link has delivered),
+- **Logic**: filter (continues only if a comparison holds, like if/else), delay (in seconds), if/else, switch (a list
+  of cases, one output each, labelled by the case; links follow their case when cases move or are removed), wait for all (continues once every incoming link has delivered),
   cooldown (lets data through, then sends the next to "blocked" for a while, for everyone or per viewer) and
   queue (what follows runs one firing at a time, the next wait in line).
 - **Widget concurrency**: an action sent to a widget that is still playing one (e.g. a second `!spin`) cancels it and
@@ -63,7 +64,7 @@ To show a widget in OBS, select its node and copy the browser-source link from t
 - **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance and its widget node, set up from the node's settings: instance ID, name, OBS link, settings, test and live preview. Deleting the node deletes the instance. A Fire Widget node's settings show its linked widget (name and instance ID), then the action to run.
 - **Copy/paste**: Ctrl/⌘+C and Ctrl/⌘+V copy the selected nodes, also into another workflow. Pasted widget nodes share the same instance (once per workflow); it is deleted once no workflow uses it anymore. Each instance has its own id, shown in its node's settings with a button that copies the node.
 - **Undo/redo**: Ctrl/⌘+Z and Ctrl/⌘+Shift+Z (or Ctrl+Y), or the toolbar arrows. Undoing a widget node's deletion brings its instance back too.
-- **Bottom**: settings of the selected node (workflow only; each workflow remembers which node was open, and the graph stays centered as the pane opens), with pickers for options and a **{ }** menu to insert data from previous nodes, e.g. `{user}`.
+- **Bottom**: settings of the selected node (workflow only; each workflow remembers which node was open, and the graph stays centered as the pane opens), with pickers for options and a **{ }** menu to insert data from previous nodes, e.g. `{{user}}`.
 - **Live feedback**: while a workflow runs, its graph shows it: a running node pulses blue, a finished one flashes green, one that stopped the flow (e.g. a filter that didn't match) dims, a failing one turns red (with the error), and links carrying data animate.
 - **Graph controls** (top left): zoom, fit view, lock (nodes can't be moved, linked or deleted, but still open their settings), and arrange: a one-shot left-to-right layout (one undo step; nodes stay movable).
 - Drag the edge of the right and bottom panes to resize them.
@@ -129,7 +130,7 @@ export default {
 }
 ```
 
-Optional metadata makes the settings pane friendlier: `description`, `adds` (the data keys the node adds, offered as `{key}` in later nodes) and `fields` (per-setting hints such as `{ options: [...] }`, `{ vars: true }` for `{key}` placeholders, or `{ type: 'json' }`; see `ui/src/Fields.jsx`).
+Optional metadata makes the settings pane friendlier: `description`, `adds` (the data keys the node adds, offered as `{{key}}` in later nodes) and `fields` (per-setting hints such as `{ options: [...] }`, `{ vars: true }` for `{{key}}` placeholders, or `{ type: 'json' }`; see `ui/src/Fields.jsx`).
 
 A node with several outputs declares them, e.g. `outputs: ['true', 'false']`, and returns `{ [output]: data }` to pick which ones continue. A trigger sets `event` to the bus event it listens to.
 

@@ -1,4 +1,4 @@
-// Action: opens a WebSocket, sends one message ({key} placeholders filled from data), then closes. The message (or the
+// Action: opens a WebSocket, sends one message ({{key}} placeholders filled from data), then closes. The message (or the
 // connection failure) is recorded as a `websocket` event.
 import { fill } from '../template.js'
 import { record } from '../bus.js'
@@ -9,7 +9,7 @@ export default {
   category: 'action',
   description: 'Opens a WebSocket, sends one message, then closes.',
   fields: { url: { label: 'URL' }, message: { vars: true, multiline: true } },
-  config: { url: 'ws://localhost:8080', message: '{message}' },
+  config: { url: 'ws://localhost:8080', message: '{{message}}' },
   async run({ config, data }) {
     const url = fill(config.url, data)
     const ws = new WebSocket(url)
