@@ -37,7 +37,8 @@
 .flow-node .react-flow__handle.diamond::before { content: ''; position: absolute; inset: 2.34px; border-radius: 1px; background: var(--mantine-color-teal-4); transform: rotate(45deg); }
 .flow-node.fires .caption { margin-top: 14px; }
 .flow-node.fires .caption > div { width: fit-content; margin: 0 auto; padding: 0 4px; background: var(--xy-background-color); } /* hides the link behind */
-.react-flow__edge.widget-link path { stroke: var(--mantine-color-teal-4); stroke-dasharray: 5 4; }
+/* Widget links are plain; while their Fire Widget node runs they turn teal and animate (dashed). */
+.react-flow__edge.widget-link.animated path { stroke: var(--mantine-color-teal-4); }
 .flow-node .port { position: absolute; left: 18px; top: -2px; font-size: 10px; color: #999; pointer-events: none; }
 .react-flow { --xy-edge-stroke: #9a9a9a; --xy-edge-stroke-width: 2; --xy-background-color: #2d2e2e; }
 
