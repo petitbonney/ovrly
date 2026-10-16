@@ -1,6 +1,5 @@
 // Import/export: workflows and widgets travel as one JSON bundle { widgets: [...], workflows: [...] }.
-const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-const get = (path) => fetch(path).then((r) => r.json())
+import { get, json } from './api.js'
 
 // Bundles a workflow with the widget instances its widget nodes point to (by id or name).
 export async function exportWorkflow(id) {

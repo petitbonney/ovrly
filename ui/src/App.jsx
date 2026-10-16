@@ -12,11 +12,12 @@ import Heading from './Heading.jsx'
 import { icons, colors, widgetIcons } from './FlowNode.jsx'
 import templates from './templates.js'
 import { importBundle, importFile } from './share.js'
+import { get, json } from './api.js'
 
 function List({ title, kind, selected, onSelect, onAdd, version }) {
   const [items, setItems] = useState([])
   useEffect(() => {
-    fetch(`/api/${kind}`).then((r) => r.json()).then(setItems)
+    get(`/api/${kind}`).then(setItems)
   }, [kind, version])
   // Workflow id -> firings in progress, from the engine's live activity: a loader shows next to running workflows.
   const [running, setRunning] = useState({})
@@ -32,7 +33,7 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
   // Switches a workflow on or off; off, its triggers ignore chat and API calls.
   const toggle = (item, enabled) => {
     setItems((list) => list.map((i) => (i.id === item.id ? { ...i, enabled } : i)))
-    fetch(`/api/${kind}/${item.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled }) })
+    fetch(`/api/${kind}/${item.id}`, json('PUT', { enabled }))
   }
 
   return (
@@ -171,13 +172,14 @@ export default function App() {
   const [widgets, setWidgets] = useState([])
   // Bumped to make the lists refetch after a change.
   const [version, setVersion] = useState(0)
+  const refresh = () => setVersion((v) => v + 1)
 
   useEffect(() => {
-    fetch('/api/nodes').then((r) => r.json()).then(setDefs)
-    fetch('/api/widget-types').then((r) => r.json()).then(setTypes)
+    get('/api/nodes').then(setDefs)
+    get('/api/widget-types').then(setTypes)
   }, [])
   useEffect(() => {
-    fetch('/api/widgets').then((r) => r.json()).then(setWidgets)
+    get('/api/widgets').then(setWidgets)
   }, [version])
 
   const [modal, setModal] = useState(false)
@@ -213,17 +215,17 @@ export default function App() {
   })
 
   // Emergency stop: every workflow off, runs cancelled; the list refetches to show the switches off.
-  const stopAll = () => fetch('/api/stop', { method: 'POST' }).then(() => setVersion((v) => v + 1))
+  const stopAll = () => fetch('/api/stop', { method: 'POST' }).then(refresh)
   // Called by the editors after a save (id) or a delete (null).
   const onItemChange = (id) => {
     if (!id) setSelected(null)
-    setVersion((v) => v + 1)
+    refresh()
   }
   // Called after creating or importing a workflow ({ kind, id }); an import with no workflow selects nothing.
   const onCreate = (item) => {
     setModal(false)
     setSelected(item?.kind === 'workflows' ? item : null)
-    setVersion((v) => v + 1)
+    refresh()
   }
 
   // "alt" layout: the sidebars take the full height and the footer (node config) sits between them.
@@ -259,7 +261,7 @@ export default function App() {
           widgets={widgets}
           types={types}
           onChange={onItemChange}
-          onWidgetChange={() => setVersion((v) => v + 1)}
+          onWidgetChange={refresh}
           panels={panels}
           onToggle={togglePanel}
           openNode={openNodes[selected.id]}

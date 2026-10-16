@@ -5,8 +5,7 @@ import { ActionIcon, Alert, Anchor, Button, Code, CopyButton, Divider, Group, Se
 import { IconCheck, IconCopy, IconHourglassHigh } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import Heading from './Heading.jsx'
-
-const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+import { get, json } from './api.js'
 
 // Fires one widget action by hand, like a widget node would. The value box only shows for actions that take one.
 function Test({ widget, type }) {
@@ -41,7 +40,7 @@ export default function WidgetSettings({ widget, type, onChange, onCopy }) {
   // Whether Twitch features (options marked streamer) can run, for the settings to say so.
   const [streamer, setStreamer] = useState(true)
   useEffect(() => {
-    fetch('/api/twitch').then((r) => r.json()).then((s) => setStreamer(s.streamer), () => {})
+    get('/api/twitch').then((s) => setStreamer(s.streamer), () => {})
   }, [])
 
   // Debounced autosave; the server pushes the new config to open overlays.
