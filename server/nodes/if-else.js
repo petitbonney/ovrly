@@ -11,7 +11,7 @@ export const tests = {
 
 export default {
   type: 'if-else',
-  label: 'If / else',
+  label: 'If / Else',
   category: 'logic',
   description: 'Sends data to "true" or "false" by comparing two values.',
   fields: {
@@ -23,7 +23,7 @@ export default {
   config: { value: '{{message}}', operator: 'contains', compare: '' },
   run({ config, data }) {
     const test = tests[config.operator]
-    if (!test) throw new Error(`If / else: unknown operator "${config.operator}", use ${Object.keys(tests).join(', ')}`)
+    if (!test) throw new Error(`If / Else: unknown operator "${config.operator}", use ${Object.keys(tests).join(', ')}`)
     return { [test(fill(config.value, data), fill(config.compare, data))]: data }
   },
 }

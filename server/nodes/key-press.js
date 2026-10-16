@@ -4,7 +4,7 @@ import { keyboard, Key } from '@nut-tree-fork/nut-js'
 
 export default {
   type: 'key-press',
-  label: 'Key press',
+  label: 'Key Press',
   category: 'action',
   description: 'Presses a key combo on this machine.',
   fields: {

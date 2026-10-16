@@ -1,11 +1,11 @@
 // Trigger: fires when you press Run in the workflow editor, with the given JSON as data.
 export default {
   type: 'manual',
-  label: 'Manual trigger',
+  label: 'Manual Trigger',
   category: 'trigger',
   description: 'Fires when you press Run in the workflow toolbar.',
   fields: { data: { type: 'json', label: 'Data (JSON)' } },
   event: 'manual',
-  config: { data: '{"user": "streamer"}' },
+  config: { data: '{"mode": "manual"}' },
   run: ({ config, data }) => ({ ...JSON.parse(config.data || '{}'), ...data }),
 }

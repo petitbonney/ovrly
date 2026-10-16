@@ -2,6 +2,8 @@
 export default {
   type: 'twitch-plays',
   label: 'TwitchPlays',
+  description: 'Shows the latest chat inputs, to pair with key presses for a game.',
+  soon: true, // coming soon: shown in the library, its settings are not ready yet
   config: { title: 'Twitch Plays', max: 8 },
   state: { log: [] }, // newest first: { user, value }
   inputs: { push: 'The input to show, e.g. {{message}}' }, // actions that take a value, and what it is

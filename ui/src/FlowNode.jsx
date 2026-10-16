@@ -96,7 +96,7 @@ export default function FlowNode({ id, data, selected, def, widget }) {
       )) : <Handle type="source" position="right" className="out" />}
       {def?.widgetInput && <Handle id="widget" type="target" position="bottom" className="diamond" />}
       <div className="caption">
-        <div className="label">{data.label}</div>
+        <div className="label">{def?.label ?? data.label}</div>
         {sub && <div className="sub">{sub}</div>}
       </div>
     </div>

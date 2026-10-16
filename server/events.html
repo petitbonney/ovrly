@@ -25,7 +25,7 @@
   td.time { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--dimmed); }
   .badge { display: inline-block; padding: 0 8px; border-radius: 10px; font-size: 12px; font-weight: 600; border: 1px solid currentColor; }
   /* Channel tags: how each event travelled. */
-  .bus { color: #ff922b; } .http { color: #4dabf7; } .websocket { color: #da77f2; } .sse { color: #38d9a9; } .other { color: #828282; }
+  .bus { color: #ff922b; } .http { color: #4dabf7; } .websocket { color: #da77f2; } .sse { color: #38d9a9; } .log { color: #ffd43b; } .other { color: #828282; }
   td.event { font-weight: 600; white-space: nowrap; }
   .data span { margin-right: 12px; } .data b { color: var(--dimmed); font-weight: 400; }
   code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
@@ -68,7 +68,7 @@
       const time = el('td', 'time', new Date(at).toLocaleTimeString([], { hour12: false }) + '.' + String(new Date(at).getMilliseconds()).padStart(3, '0'))
       time.title = new Date(at).toLocaleString()
       const tag = document.createElement('td')
-      tag.append(el('span', `badge ${['bus', 'http', 'websocket', 'sse'].includes(channel) ? channel : 'other'}`, channel ?? '?'))
+      tag.append(el('span', `badge ${['bus', 'http', 'websocket', 'sse', 'log'].includes(channel) ? channel : 'other'}`, channel ?? '?'))
       const name = el('td', 'event', event)
       const cell = el('td', 'data')
       for (const [key, value] of Object.entries(data ?? {})) {

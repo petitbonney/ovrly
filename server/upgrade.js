@@ -24,8 +24,20 @@ function upgradePlaceholders(workflow) {
   return { ...workflow, version: 2, nodes }
 }
 
+// Version 3: the OBS connection moved from each OBS node to the OBS integration (sidebar), and the scene, which
+// defaulted to "Scene", is now picked from OBS (empty by default): nodes that relied on the old default keep it.
+function upgradeObs(workflow) {
+  if (workflow.version >= 3) return workflow
+  const nodes = workflow.nodes?.map((n) => {
+    if (!n.data.type.startsWith('obs-')) return n
+    const { url, password, ...config } = n.data.config ?? {}
+    return { ...n, data: { ...n.data, config: { ...config, scene: config.scene ?? 'Scene' } } }
+  })
+  return { ...workflow, version: 3, nodes }
+}
+
 export default function upgrade(old) {
-  const workflow = upgradePlaceholders(old)
+  const workflow = upgradeObs(upgradePlaceholders(old))
   let changed = false
   const nodes = workflow.nodes?.map((n) => {
     const config = settings[n.data.type]?.(n.data.config ?? {})

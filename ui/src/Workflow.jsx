@@ -65,8 +65,21 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
 }
 
 // Every node is drawn by FlowNode ("step"); edges get an arrow like n8n.
-// Diamond connectors (handle "widget") only connect to each other.
-const isValidConnection = (c) => (c.sourceHandle === 'widget') === (c.targetHandle === 'widget')
+// A link is allowed if diamond connectors (handle "widget") only meet each other, and it doesn't close a loop: the
+// target must not already lead, through flow links, back to the source (or be the source itself).
+function isValidConnection(c, edges) {
+  if ((c.sourceHandle === 'widget') !== (c.targetHandle === 'widget')) return false
+  const seen = new Set()
+  const queue = [c.target]
+  while (queue.length) {
+    const id = queue.pop()
+    if (id === c.source) return false
+    if (seen.has(id)) continue
+    seen.add(id)
+    for (const e of edges) if (e.source === id && !isLink(e)) queue.push(e.target)
+  }
+  return true
+}
 const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '#9a9a9a' } }
 // Fitting the graph (on open and with the fit view button) never zooms past 100%, so a small graph isn't blown up.
 const fitOptions = { maxZoom: 1, padding: 0.3 }
@@ -149,7 +162,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       if (a.workflow !== workflow.id || 'running' in a) return
       if (a.edge) return setLive((l) => ({ ...l, edges: { ...l.edges, [a.edge]: a.target } }))
       setLive((l) => ({ ...l, nodes: { ...l.nodes, [a.node]: a.state } }))
-      if (a.state === 'error') notify(`${nodes.find((n) => n.id === a.node)?.data.label ?? 'A node'} failed: ${a.error}`, 'red')
+      if (a.state === 'error') notify(`${nodeName(nodes.find((n) => n.id === a.node) ?? { data: { label: 'A node' } })} failed: ${a.error}`, 'red')
       if (a.state !== 'running' && a.state !== 'waiting') fade(a.node, a.state, a.state === 'error' ? 4000 : 1500)
     }
     return () => {
@@ -288,7 +301,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     setNodes((ns) => ns.concat({ id: crypto.randomUUID(), type: 'step', position, data: { type: def.type, label: def.label, config } }))
   }
 
-  const nodeName = (n) => (n.data.type === 'widget' ? findWidget(widgets, n.data.config.widget)?.name : null) ?? n.data.label
+  const nodeName = (n) => (n.data.type === 'widget' ? findWidget(widgets, n.data.config.widget)?.name : defs.find((d) => d.type === n.data.type)?.label) ?? n.data.label
   const copy = (picked) => {
     const ids = picked.map((n) => n.id)
     clipboard = { nodes: picked, edges: edges.filter((ed) => ids.includes(ed.source) && ids.includes(ed.target)) }
@@ -373,7 +386,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
             <ActionIcon size="md" variant="default" disabled={!history.current.future.length} onClick={redo}><IconArrowForwardUp size={18} /></ActionIcon>
           </Tooltip>
           <TextInput flex={1} size="xs" value={name} onChange={(e) => setName(e.target.value)} />
-          <Tooltip label={hasManual ? 'Run manual triggers' : 'Add a Manual trigger to run this workflow by hand'}>
+          <Tooltip label={hasManual ? 'Run manual triggers' : 'Add a Manual Trigger to run this workflow by hand'}>
             <ActionIcon size="md" variant="light" color="green" disabled={!hasManual} onClick={() => fetch(`/api/workflows/${workflow.id}/run`, { method: 'POST' })}>
               <IconPlayerPlay size={18} />
             </ActionIcon>
@@ -412,7 +425,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          isValidConnection={isValidConnection}
+          isValidConnection={(c) => isValidConnection(c, edges)}
           nodesDraggable={!locked}
           nodesConnectable={!locked}
           deleteKeyCode={locked ? null : 'Backspace'}

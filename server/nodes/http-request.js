@@ -5,7 +5,7 @@ import { record } from '../bus.js'
 
 export default {
   type: 'http-request',
-  label: 'HTTP request',
+  label: 'HTTP Request',
   category: 'action',
   description: 'Sends an HTTP request.',
   adds: ['status', 'response'],

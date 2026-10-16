@@ -17,7 +17,7 @@ Plain JavaScript (ESM), no TypeScript. pnpm, single package. Express + `ws` on t
 
 ```bash
 pnpm install
-pnpm dev      # server + UI on http://localhost:3000
+pnpm dev      # server + UI on http://localhost:6875
 ```
 
 ## Conventions

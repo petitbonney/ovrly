@@ -1,7 +1,9 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, vars, multiline, hidden, type: 'json' | 'secret' | 'var' | 'keys' | 'action' | 'input' }.
-// A list default (e.g. a poll's options) gets a list editor, a color default ("#rrggbb") a color picker.
-import { useRef, useState } from 'react'
+// { label, hint, unit, options, presets, vars, multiline, hidden, type: 'json' | 'secret' | 'var' | 'keys' | 'action' | 'input' }.
+// presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
+// A list default (e.g. a poll's options) gets a list editor, a color default ("#rrggbb") a color picker, and
+// { obs: 'scenes' | 'sources' } suggestions from OBS.
+import { useEffect, useRef, useState } from 'react'
 import {
   ActionIcon, Autocomplete, Button, ColorInput, Group, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
   Select, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
@@ -11,8 +13,9 @@ import { IconBraces, IconGripVertical, IconPlus, IconX } from '@tabler/icons-rea
 // "case1" -> "Case1", "sceneName" -> "Scene name"
 const humanize = (key) => key[0].toUpperCase() + key.slice(1).replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`)
 
-// Text input with a menu that inserts "{{key}}" placeholders for the data keys available at this node.
-function VarInput({ vars, value, onChange, multiline, ...props }) {
+// Text input with a menu that inserts "{{key}}" placeholders for the data keys available at this node. With data,
+// it also suggests those values as you type (all of them while the value is one of them).
+function VarInput({ vars, value, onChange, multiline, data, ...props }) {
   const ref = useRef()
   const insert = (key) => {
     const el = ref.current
@@ -32,8 +35,50 @@ function VarInput({ vars, value, onChange, multiline, ...props }) {
       </Menu.Dropdown>
     </Menu>
   )
+  if (data) {
+    const filter = ({ options, search }) => (options.some((o) => o.value === search) ? options
+      : options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase())))
+    return <Autocomplete ref={ref} data={data} filter={filter} value={value} onChange={onChange} rightSection={menu} {...props} />
+  }
   const Input = multiline ? Textarea : TextInput
   return <Input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rightSection={menu} autosize={multiline || undefined} minRows={multiline ? 2 : undefined} {...props} />
+}
+
+// A scene or source name, suggested from the OBS integration (the sources of the node's scene). Typing stays free,
+// so it works with OBS closed, and with {{key}} placeholders.
+function ObsInput({ list, scene, ...props }) {
+  const [names, setNames] = useState([])
+  const [error, setError] = useState('')
+  const path = list === 'scenes' ? '/api/obs/scenes' : `/api/obs/sources?scene=${encodeURIComponent(scene)}`
+  const skip = list === 'sources' && (!scene || scene.includes('{{'))
+  useEffect(() => {
+    if (skip) return setNames([])
+    fetch(path).then(async (r) => {
+      const body = await r.json()
+      setNames(r.ok ? body : [])
+      setError(r.ok ? '' : 'OBS is not connected: names can still be typed')
+    }, () => setError('OBS is not reachable'))
+  }, [path, skip])
+  return <VarInput {...props} data={names} description={error || props.description} placeholder={names.length ? 'Pick or type a name' : undefined} />
+}
+
+// "90 s" -> "1m30", "300 s" -> "5m": presets read faster in minutes.
+const short = (n, unit) => (unit === 's' && n >= 60 ? `${Math.floor(n / 60)}m${n % 60 ? String(n % 60).padStart(2, '0') : ''}` : `${n}${unit ?? ''}`)
+
+// A number with preset buttons (the current one highlighted) and an input for any other value.
+function PresetInput({ label, description, unit, presets, value, onChange }) {
+  return (
+    <Stack gap={4}>
+      <Text size="xs" fw={500}>{label}</Text>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
+      <Group gap={6} wrap="nowrap">
+        {presets.map((n) => (
+          <Button key={n} size="compact-xs" h={30} px="sm" variant={n === value ? 'filled' : 'default'} onClick={() => onChange(n)}>{short(n, unit)}</Button>
+        ))}
+        <NumberInput size="xs" w={90} min={0} aria-label={`Custom ${label.toLowerCase()}`} suffix={unit && ` ${unit}`} value={value} onChange={(v) => onChange(Number(v))} />
+      </Group>
+    </Stack>
+  )
 }
 
 const isColor = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)
@@ -165,7 +210,9 @@ function Field({ name, f, fallback, value, set, values, context }) {
   if (f.type === 'secret') return <PasswordInput {...props} value={value} onChange={(e) => set(e.target.value)} />
   if (isColor(fallback)) return <ColorInput {...props} swatches={swatches} value={value} onChange={set} />
   if (typeof fallback === 'boolean') return <Switch {...props} checked={value} onChange={(e) => set(e.target.checked)} />
+  if (f.presets) return <PresetInput {...props} unit={f.unit} presets={f.presets} value={value} onChange={set} />
   if (typeof fallback === 'number') return <NumberInput {...props} suffix={f.unit && ` ${f.unit}`} value={value} onChange={(v) => set(Number(v))} />
+  if (f.obs) return <ObsInput {...props} list={f.obs} scene={values.scene ?? ''} vars={context.vars ?? []} value={value} onChange={set} />
   if (f.vars) return <VarInput {...props} vars={context.vars ?? []} multiline={f.multiline} value={value} onChange={set} />
   return <TextInput {...props} value={value} onChange={(e) => set(e.target.value)} />
 }

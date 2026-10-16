@@ -5,6 +5,8 @@ import { pick } from '../lib.js'
 export default {
   type: 'poll',
   label: 'Poll',
+  description: 'One vote per viewer by option number or name; shows the results live.',
+  soon: true, // coming soon: shown in the library, its settings are not ready yet
   config: { title: 'Poll', options: ['Yes', 'No'] },
   state: { votes: {} }, // user -> option index
   adds: ['leader', 'votes'],

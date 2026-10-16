@@ -5,7 +5,7 @@ import { record } from '../bus.js'
 
 export default {
   type: 'websocket-send',
-  label: 'WebSocket send',
+  label: 'WebSocket Send',
   category: 'action',
   description: 'Opens a WebSocket, sends one message, then closes.',
   fields: { url: { label: 'URL' }, message: { vars: true, multiline: true } },
