@@ -240,17 +240,17 @@ export default function App() {
       footer={{ height: Math.max(200, Math.round(innerHeight * 0.6)), collapsed: !(editing && openNodes[selected.id]) }}
     >
       <AppShell.Navbar p="sm">
+        <AppShell.Section pb="sm" mb="sm" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+          <Integrations />
+        </AppShell.Section>
         {/* The stop button sits at the bottom of the workflows section, below however many workflows there are. */}
         <AppShell.Section grow style={{ overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
           <List title="Workflows" kind="workflows" selected={selected} onSelect={setSelected} onAdd={() => setModal(true)} version={version} />
           <Tooltip label="Switches every workflow off and cancels what is running" openDelay={400}>
-            <Button color="red" variant="light" size="xs" fullWidth mt="auto" mb="sm" style={{ flexShrink: 0 }} onClick={stopAll}>
+            <Button color="red" variant="light" size="xs" fullWidth mt="auto" mb={0} style={{ flexShrink: 0 }} onClick={stopAll}>
               <IconSos size={24} />
             </Button>
           </Tooltip>
-        </AppShell.Section>
-        <AppShell.Section pt="sm" style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}>
-          <Integrations />
         </AppShell.Section>
       </AppShell.Navbar>
       {editing ? (
