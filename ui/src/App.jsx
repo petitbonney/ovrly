@@ -5,7 +5,7 @@ import {
   ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, SimpleGrid, Stack, Switch, Text,
   Tooltip, UnstyledButton, useAppShellResize,
 } from '@mantine/core'
-import { IconAlertOctagon, IconChevronRight, IconFile, IconFileImport, IconPlus, IconTool } from '@tabler/icons-react'
+import { IconChevronRight, IconFile, IconFileImport, IconPlus, IconSos, IconTool } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
 import Integrations from './Integrations.jsx'
 import Heading from './Heading.jsx'
@@ -244,8 +244,8 @@ export default function App() {
         <AppShell.Section grow style={{ overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
           <List title="Workflows" kind="workflows" selected={selected} onSelect={setSelected} onAdd={() => setModal(true)} version={version} />
           <Tooltip label="Switches every workflow off and cancels what is running" openDelay={400}>
-            <Button color="red" variant="light" size="xs" fullWidth mt="auto" mb="sm" style={{ flexShrink: 0 }} leftSection={<IconAlertOctagon size={16} />} onClick={stopAll}>
-              EMERGENCY
+            <Button color="red" variant="light" size="xs" fullWidth mt="auto" mb="sm" style={{ flexShrink: 0 }} onClick={stopAll}>
+              <IconSos size={24} />
             </Button>
           </Tooltip>
         </AppShell.Section>
