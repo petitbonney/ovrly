@@ -1,22 +1,23 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, vars, multiline, hidden, type: 'json' | 'secret' | 'var' | 'keys' | 'widget' | 'action' | 'input' }.
-import { useRef } from 'react'
+// { label, hint, unit, options, vars, multiline, hidden, type: 'json' | 'secret' | 'var' | 'keys' | 'action' | 'input' }.
+// A list default (e.g. a poll's options) gets a list editor, a color default ("#rrggbb") a color picker.
+import { useRef, useState } from 'react'
 import {
-  ActionIcon, Autocomplete, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl, Select, Stack, Switch,
-  TagsInput, Text, Textarea, TextInput, Tooltip,
+  ActionIcon, Autocomplete, Button, ColorInput, Group, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
+  Select, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
 } from '@mantine/core'
-import { IconBraces } from '@tabler/icons-react'
+import { IconBraces, IconGripVertical, IconPlus, IconX } from '@tabler/icons-react'
 
 // "case1" -> "Case1", "sceneName" -> "Scene name"
 const humanize = (key) => key[0].toUpperCase() + key.slice(1).replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`)
 
-// Text input with a menu that inserts "{key}" placeholders for the data keys available at this node.
+// Text input with a menu that inserts "{{key}}" placeholders for the data keys available at this node.
 function VarInput({ vars, value, onChange, multiline, ...props }) {
   const ref = useRef()
   const insert = (key) => {
     const el = ref.current
     const start = el?.selectionStart ?? value.length
-    onChange(value.slice(0, start) + `{${key}}` + value.slice(el?.selectionEnd ?? start))
+    onChange(value.slice(0, start) + `{{${key}}}` + value.slice(el?.selectionEnd ?? start))
   }
   const menu = (
     <Menu position="bottom-end" withinPortal>
@@ -26,8 +27,8 @@ function VarInput({ vars, value, onChange, multiline, ...props }) {
         </Tooltip>
       </Menu.Target>
       <Menu.Dropdown>
-        {vars.length ? vars.map((k) => <Menu.Item key={k} onClick={() => insert(k)}>{`{${k}}`}</Menu.Item>)
-          : <Menu.Label>Connect a trigger first</Menu.Label>}
+        {vars.length ? vars.map((k) => <Menu.Item key={k} onClick={() => insert(k)}>{`{{${k}}}`}</Menu.Item>)
+          : <Menu.Label>Connect an input first</Menu.Label>}
       </Menu.Dropdown>
     </Menu>
   )
@@ -35,40 +36,117 @@ function VarInput({ vars, value, onChange, multiline, ...props }) {
   return <Input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rightSection={menu} autosize={multiline || undefined} minRows={multiline ? 2 : undefined} {...props} />
 }
 
-// One setting; context: { vars: data keys available here, widgets, types } for the dynamic field types.
+const isColor = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)
+const swatches = ['#9147ff', '#ff4f8b', '#00c2a8', '#ffb400', '#3d8bff', '#ff7a00', '#e03131', '#2f9e44']
+// Column widths of list items with fields: colors and numbers are narrow, text takes the rest.
+const width = (v) => (isColor(v) ? 110 : typeof v === 'number' ? 72 : undefined)
+
+// One list item: a text, or an object edited field by field. shape (a default item) says which input each field gets,
+// so a color being typed doesn't turn into a text field.
+function ItemInput({ item, shape, onChange }) {
+  if (typeof shape !== 'object') return <TextInput size="xs" flex={1} value={item} onChange={(e) => onChange(e.target.value)} />
+  return Object.entries(shape).map(([key, example]) => {
+    const props = { key, size: 'xs', w: width(example), flex: width(example) ? undefined : 1, 'aria-label': humanize(key) }
+    const set = (v) => onChange({ ...item, [key]: v })
+    if (isColor(example)) return <ColorInput {...props} swatches={swatches} value={item[key] ?? ''} onChange={set} />
+    if (typeof example === 'number') return <NumberInput {...props} min={0} value={item[key]} onChange={(v) => set(Number(v))} />
+    return <TextInput {...props} value={item[key] ?? ''} onChange={(e) => set(e.target.value)} />
+  })
+}
+
+// A list setting: one row per item, reordered by dragging its grip (dropped above the row it lands on) or removed,
+// and an Add button. A new item is empty
+// text, or shaped like the default items with empty text and, for colors, the first swatch not used yet.
+function ListInput({ label, description, value, defaults, onChange }) {
+  const shape = defaults[0]
+  const set = (i, item) => onChange(value.map((v, j) => (j === i ? item : v)))
+  const [drag, setDrag] = useState(null) // { from, over }: the row being dragged and the row it is over
+  const drop = () => {
+    const next = value.filter((_, j) => j !== drag.from)
+    next.splice(drag.over > drag.from ? drag.over - 1 : drag.over, 0, value[drag.from])
+    onChange(next)
+    setDrag(null)
+  }
+  const blank = () => {
+    if (typeof shape !== 'object') return ''
+    const used = value.flatMap((item) => Object.values(item))
+    const fresh = swatches.find((c) => !used.includes(c)) ?? swatches[value.length % swatches.length]
+    return Object.fromEntries(Object.entries(shape).map(([k, v]) => [k, isColor(v) ? fresh : typeof v === 'string' ? '' : v]))
+  }
+  return (
+    <Stack gap={4}>
+      <Text size="xs" fw={500}>{label}</Text>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
+      {typeof shape === 'object' && (
+        // Column titles, as wide as the fields under them.
+        <Group gap={6} wrap="nowrap" pl={28} pr={28}>
+          {Object.entries(shape).map(([key, example]) => (
+            <Text key={key} size="xs" c="dimmed" w={width(example)} flex={width(example) ? undefined : 1}>{humanize(key)}</Text>
+          ))}
+        </Group>
+      )}
+      {value.map((item, i) => (
+        <Group
+          key={i}
+          gap={6}
+          wrap="nowrap"
+          // The drop spot shows as a line above the row (or below the last one).
+          style={{ boxShadow: drag && drag.over === i && drag.from !== i ? '0 -2px 0 var(--mantine-color-blue-5)' : undefined }}
+          onDragOver={(e) => {
+            if (!drag) return
+            e.preventDefault()
+            const { top, height } = e.currentTarget.getBoundingClientRect()
+            const over = e.clientY > top + height / 2 && i === value.length - 1 ? value.length : i
+            if (over !== drag.over) setDrag({ ...drag, over })
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            if (drag) drop()
+          }}
+        >
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="sm"
+            style={{ cursor: 'grab' }}
+            aria-label="Drag to reorder"
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = 'move'
+              e.dataTransfer.setData('application/ovrly-row', String(i)) // Firefox needs some data to drag
+              e.dataTransfer.setDragImage(e.currentTarget.parentElement, 0, 0)
+              setDrag({ from: i, over: i })
+            }}
+            onDragEnd={() => setDrag(null)}
+          >
+            <IconGripVertical size={14} />
+          </ActionIcon>
+          <ItemInput item={item} shape={shape} onChange={(v) => set(i, v)} />
+          <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label="Remove"><IconX size={14} /></ActionIcon>
+        </Group>
+      ))}
+      {drag?.over === value.length && <div style={{ height: 2, marginTop: -2, background: 'var(--mantine-color-blue-5)' }} />}
+      <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} fullWidth
+        onClick={() => onChange([...value, blank()])}>
+        Add
+      </Button>
+    </Stack>
+  )
+}
+
+// One setting; context: { vars: data keys available here, widget: the linked widget, types } for the dynamic types.
 function Field({ name, f, fallback, value, set, values, context }) {
   const props = { label: f.label ?? humanize(name), description: f.hint, size: 'xs' }
+  if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} onChange={set} />
   if (f.type === 'keys') {
     return <TagsInput {...props} data={f.options} value={value ? value.split('+') : []} onChange={(v) => set(v.join('+'))} />
   }
   // A widget's actions come from its type (nothing to pick if there is only one); short option lists are buttons.
-  const widget = context.widgets?.find((w) => w.id === values.widget || w.name === values.widget)
-  const type = context.types?.find((t) => t.type === widget?.type)
+  const type = context.types?.find((t) => t.type === context.widget?.type)
   // A widget action's value is only asked for if the action takes one; the widget type says what it is.
   if (f.type === 'input') {
     const hint = type?.inputs?.[values.action || type.actions[0]]
     return hint ? <VarInput {...props} description={hint} vars={context.vars ?? []} value={value} onChange={set} /> : null
-  }
-  // A widget instance, searched by name or id (several instances can share a name).
-  if (f.type === 'widget') {
-    return (
-      <Select
-        {...props}
-        searchable
-        placeholder="Search widgets"
-        nothingFoundMessage="No widget with this name or instance ID"
-        data={(context.widgets ?? []).map((w) => ({ value: w.id, label: w.name }))}
-        filter={({ options, search }) => options.filter((o) => `${o.label} ${o.value}`.toLowerCase().includes(search.toLowerCase().trim()))}
-        renderOption={({ option }) => (
-          <div>
-            <Text size="xs">{option.label}</Text>
-            <Text size="xs" c="dimmed" ff="monospace">{option.value}</Text>
-          </div>
-        )}
-        value={value || null}
-        onChange={set}
-      />
-    )
   }
   const options = f.type === 'action' ? type?.actions ?? [] : f.options
   if (f.type === 'action' && options.length <= 1) return null
@@ -76,7 +154,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
     return (
       <Stack gap={4}>
         <Text size="xs" fw={500}>{props.label}</Text>
-        {/* A widget node with no action set runs its widget's first one. */}
+        {/* A Fire Widget node with no action set runs its widget's first one. */}
         <SegmentedControl size="xs" data={options} value={f.type === 'action' ? value || options[0] : value} onChange={set} style={{ alignSelf: 'start' }} />
       </Stack>
     )
@@ -85,6 +163,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
   if (f.type === 'var') return <Autocomplete {...props} data={context.vars ?? []} value={value} onChange={set} />
   if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} />
   if (f.type === 'secret') return <PasswordInput {...props} value={value} onChange={(e) => set(e.target.value)} />
+  if (isColor(fallback)) return <ColorInput {...props} swatches={swatches} value={value} onChange={set} />
   if (typeof fallback === 'boolean') return <Switch {...props} checked={value} onChange={(e) => set(e.target.checked)} />
   if (typeof fallback === 'number') return <NumberInput {...props} suffix={f.unit && ` ${f.unit}`} value={value} onChange={(v) => set(Number(v))} />
   if (f.vars) return <VarInput {...props} vars={context.vars ?? []} multiline={f.multiline} value={value} onChange={set} />
@@ -103,8 +182,7 @@ export default function Fields({ defaults, values, onChange, fields = {}, contex
           f={fields[key] ?? {}}
           fallback={defaults[key]}
           value={values[key] ?? defaults[key]}
-          // Picking another widget clears the action: the new widget may not have it.
-          set={(v) => onChange({ ...values, [key]: v, ...(fields[key]?.type === 'widget' && { action: '' }) })}
+          set={(v) => onChange({ ...values, [key]: v })}
           values={values}
           context={context}
         />

@@ -5,6 +5,16 @@ import bus, { recent, record } from './bus.js'
 import { nodes, fire, cancel, running, activity } from './engine.js'
 import * as twitch from './sources/twitch.js'
 import * as widgets from './widgets.js'
+import upgrade, { upgradeWidget } from './upgrade.js'
+
+// Items saved by older versions are upgraded once, before anything reads them.
+const upgraded = (kind, item) => kind === 'workflows' ? upgrade(item)
+  : kind === 'widgets' && widgets.types[item.type] ? upgradeWidget(item, widgets.types[item.type].config) : item
+for (const kind of ['workflows', 'widgets']) {
+  for (const item of await store.list(kind)) {
+    if (upgraded(kind, item) !== item) await store.save(kind, upgraded(kind, item))
+  }
+}
 
 const PORT = process.env.PORT || 3000
 const app = express()
@@ -75,7 +85,7 @@ app.post('/api/widgets/:id/action', async (req, res) => {
 
 // A widget instance lives as long as a workflow node refers to it (pasted nodes can share one across workflows).
 // After a workflow is saved or deleted, the widgets it referred to and no workflow uses anymore are deleted.
-const widgetRefs = (workflow) => workflow?.nodes.filter((n) => n.data.type === 'widget-update').map((n) => n.data.config.widget) ?? []
+const widgetRefs = (workflow) => workflow?.nodes.filter((n) => n.data.type === 'widget').map((n) => n.data.config.widget) ?? []
 async function dropUnusedWidgets(refs) {
   const used = new Set((await store.list('workflows')).flatMap(widgetRefs))
   for (const w of await store.list('widgets')) {
@@ -89,11 +99,11 @@ app.get('/api/:kind/:id', async (req, res) => {
   const item = await store.get(req.params.kind, req.params.id)
   item ? res.json(item) : res.sendStatus(404)
 })
-app.post('/api/:kind', async (req, res) => res.json(await store.save(req.params.kind, req.body)))
+app.post('/api/:kind', async (req, res) => res.json(await store.save(req.params.kind, upgraded(req.params.kind, req.body))))
 app.put('/api/:kind/:id', async (req, res) => {
   // Workflow updates are merged, so the editor's autosave keeps fields it doesn't send (e.g. enabled).
   const old = req.params.kind === 'workflows' && await store.get('workflows', req.params.id)
-  const item = await store.save(req.params.kind, { ...old, ...req.body, id: req.params.id })
+  const item = await store.save(req.params.kind, upgraded(req.params.kind, { ...old, ...req.body, id: req.params.id }))
   if (old && req.body.enabled === false) cancel(item.id) // switched off: stop what is running
   if (req.params.kind === 'widgets') widgets.push(item) // live config changes on the overlay
   if (old) await dropUnusedWidgets(widgetRefs(old))

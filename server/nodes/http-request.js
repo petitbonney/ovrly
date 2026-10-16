@@ -1,4 +1,4 @@
-// Action: sends an HTTP request ({key} placeholders filled from data). Adds { status, response }. Each request is
+// Action: sends an HTTP request ({{key}} placeholders filled from data). Adds { status, response }. Each request is
 // recorded as an `http-request` event (GET /api/events).
 import { fill } from '../template.js'
 import { record } from '../bus.js'
@@ -14,7 +14,7 @@ export default {
     url: { label: 'URL', vars: true },
     body: { vars: true, multiline: true },
   },
-  config: { method: 'POST', url: 'http://localhost:8080', body: '{"user":"{user}"}' },
+  config: { method: 'POST', url: 'http://localhost:8080', body: '{"user":"{{user}}"}' },
   async run({ config, data, signal }) {
     const method = config.method.toUpperCase()
     const hasBody = !['GET', 'HEAD'].includes(method)

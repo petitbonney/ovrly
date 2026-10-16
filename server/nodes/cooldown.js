@@ -1,5 +1,5 @@
 // Logic: lets data through, then blocks for a while, for everyone or per viewer. Blocked data goes to "blocked" with
-// {remaining} seconds, e.g. to reply "on cooldown". Cooldowns live in memory: they reset when the server restarts.
+// {{remaining}} seconds, e.g. to reply "on cooldown". Cooldowns live in memory: they reset when the server restarts.
 const until = {} // node id (+ user) -> time it lets data through again
 
 export default {

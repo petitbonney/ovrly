@@ -18,9 +18,6 @@ export function subscribe(render, stop) {
 // Page side: a promise that resolves after ms, for render to return while an animation plays.
 export const wait = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(ms, 0)))
 
-// "Red, Blue,Green" -> ['Red', 'Blue', 'Green']
-export const list = (text) => String(text).split(',').map((s) => s.trim()).filter(Boolean)
-
 // Finds an option from chat input: its number ("2") or its name ("blue"). Returns the index or -1.
 export function pick(options, value) {
   const n = Number(value)

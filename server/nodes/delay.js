@@ -4,11 +4,11 @@ export default {
   label: 'Delay',
   category: 'logic',
   description: 'Waits before passing data on.',
-  fields: { ms: { label: 'Delay', unit: 'ms' } },
-  config: { ms: 1000 },
+  fields: { seconds: { label: 'Delay', unit: 's' } },
+  config: { seconds: 1 },
   async run({ config, data, signal }) {
     await new Promise((resolve) => {
-      const timer = setTimeout(resolve, config.ms)
+      const timer = setTimeout(resolve, config.seconds * 1000)
       signal.addEventListener('abort', () => resolve(clearTimeout(timer)), { once: true }) // workflow cancelled
     })
     return data
