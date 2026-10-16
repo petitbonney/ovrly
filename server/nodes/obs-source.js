@@ -1,4 +1,4 @@
-// Action: shows, hides or toggles a source in an OBS scene via obs-websocket v5.
+// Action: shows, hides or toggles a source in an OBS scene, through the OBS integration (sidebar).
 import { request } from '../obs.js'
 import { fill } from '../template.js'
 
@@ -8,22 +8,17 @@ export default {
   category: 'action',
   description: 'Shows, hides or toggles a source in an OBS scene.',
   fields: {
-    url: { label: 'OBS WebSocket URL' },
-    password: { type: 'secret' },
-    scene: { vars: true },
-    source: { vars: true },
+    scene: { vars: true, obs: 'scenes' },
+    source: { vars: true, obs: 'sources' }, // the sources of the scene above
     visible: { options: ['toggle', 'show', 'hide'] },
   },
-  config: { url: 'ws://localhost:4455', password: '', scene: 'Scene', source: '', visible: 'toggle' },
+  config: { scene: '', source: '', visible: 'toggle' },
   async run({ config, data }) {
-    const { url, password } = config
     const sceneName = fill(config.scene, data)
-    const { sceneItemId } = await request(url, password, 'GetSceneItemId', { sceneName, sourceName: fill(config.source, data) })
+    const { sceneItemId } = await request('GetSceneItemId', { sceneName, sourceName: fill(config.source, data) })
     let enabled = config.visible === 'show'
-    if (config.visible === 'toggle') {
-      enabled = !(await request(url, password, 'GetSceneItemEnabled', { sceneName, sceneItemId })).sceneItemEnabled
-    }
-    await request(url, password, 'SetSceneItemEnabled', { sceneName, sceneItemId, sceneItemEnabled: enabled })
+    if (config.visible === 'toggle') enabled = !(await request('GetSceneItemEnabled', { sceneName, sceneItemId })).sceneItemEnabled
+    await request('SetSceneItemEnabled', { sceneName, sceneItemId, sceneItemEnabled: enabled })
     return data
   },
 }

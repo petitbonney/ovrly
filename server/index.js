@@ -4,8 +4,16 @@ import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
 import { nodes, fire, cancel, running, activity } from './engine.js'
 import * as twitch from './sources/twitch.js'
+import * as obs from './obs.js'
 import * as widgets from './widgets.js'
 import upgrade, { upgradeWidget } from './upgrade.js'
+
+// The OBS connection used to be set in each OBS node: the first one found becomes the OBS integration's settings
+// (the upgrade below then removes it from the nodes).
+if (!(await store.get('settings', 'obs'))) {
+  const node = (await store.list('workflows')).flatMap((w) => w.nodes ?? []).find((n) => n.data.type.startsWith('obs-') && n.data.config.url)
+  await store.save('settings', { id: 'obs', url: node?.data.config.url ?? 'ws://localhost:4455', password: node?.data.config.password ?? '' })
+}
 
 // Items saved by older versions are upgraded once, before anything reads them.
 const upgraded = (kind, item) => kind === 'workflows' ? upgrade(item)
@@ -74,6 +82,18 @@ app.put('/api/twitch', async (req, res) => {
   res.json(twitch.status)
 })
 
+// OBS integration: its settings and status (saving reconnects), and the scene and source lists for node settings.
+app.get('/api/obs', (req, res) => res.json(obs.status))
+app.put('/api/obs', async (req, res) => {
+  const settings = { url: String(req.body.url ?? '').trim(), password: String(req.body.password ?? '') }
+  await store.save('settings', { id: 'obs', ...settings })
+  obs.connect(settings)
+  res.json(obs.status)
+})
+app.get('/api/obs/scenes', (req, res) => obs.scenes().then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+app.get('/api/obs/sources', (req, res) =>
+  obs.sources(String(req.query.scene ?? '')).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+
 // Widget types for the UI (metadata plus action names, no functions).
 app.get('/api/widget-types', (req, res) =>
   res.json(Object.values(widgets.types).map(({ actions, output, playTime, fades, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
@@ -141,4 +161,5 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 twitch.connect((await store.get('settings', 'twitch'))?.channel || '')
+obs.connect((await store.get('settings', 'obs')) ?? {})
 app.listen(PORT, () => console.log(`Ovrly on http://localhost:${PORT}`))

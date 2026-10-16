@@ -1,10 +1,10 @@
-// App shell: left workflow list and Twitch connection, center workflow editor. While editing a workflow: right library
+// App shell: left workflow list and integrations (Twitch, OBS), center workflow editor. While editing a workflow: right library
 // (node and widget types to drag onto the graph) and bottom settings of the selected node; both toggle and resize.
 import { useEffect, useRef, useState } from 'react'
 import { ActionIcon, Affix, AppShell, Button, Center, Loader, Modal, NavLink, Stack, Switch, Text, Tooltip, useAppShellResize } from '@mantine/core'
 import { IconAlertOctagon, IconPlus, IconTool } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
-import { Twitch } from './Chat.jsx'
+import Integrations from './Integrations.jsx'
 import Heading from './Heading.jsx'
 import { icons, colors, widgetIcons } from './FlowNode.jsx'
 import templates from './templates.js'
@@ -212,7 +212,7 @@ export default function App() {
           </Tooltip>
         </AppShell.Section>
         <AppShell.Section pt="sm" style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}>
-          <Twitch />
+          <Integrations />
         </AppShell.Section>
       </AppShell.Navbar>
       {editing ? (
