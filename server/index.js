@@ -24,7 +24,7 @@ for (const kind of ['workflows', 'widgets']) {
   }
 }
 
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 6875 // OVRL on a phone keypad
 const app = express()
 app.use(express.json())
 

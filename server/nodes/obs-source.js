@@ -4,7 +4,7 @@ import { fill } from '../template.js'
 
 export default {
   type: 'obs-source',
-  label: 'OBS toggle source',
+  label: 'OBS - Toggle Source',
   category: 'action',
   description: 'Shows, hides or toggles a source in an OBS scene.',
   fields: {
