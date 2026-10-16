@@ -65,8 +65,21 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
 }
 
 // Every node is drawn by FlowNode ("step"); edges get an arrow like n8n.
-// Diamond connectors (handle "widget") only connect to each other.
-const isValidConnection = (c) => (c.sourceHandle === 'widget') === (c.targetHandle === 'widget')
+// A link is allowed if diamond connectors (handle "widget") only meet each other, and it doesn't close a loop: the
+// target must not already lead, through flow links, back to the source (or be the source itself).
+function isValidConnection(c, edges) {
+  if ((c.sourceHandle === 'widget') !== (c.targetHandle === 'widget')) return false
+  const seen = new Set()
+  const queue = [c.target]
+  while (queue.length) {
+    const id = queue.pop()
+    if (id === c.source) return false
+    if (seen.has(id)) continue
+    seen.add(id)
+    for (const e of edges) if (e.source === id && !isLink(e)) queue.push(e.target)
+  }
+  return true
+}
 const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '#9a9a9a' } }
 // Fitting the graph (on open and with the fit view button) never zooms past 100%, so a small graph isn't blown up.
 const fitOptions = { maxZoom: 1, padding: 0.3 }
@@ -412,7 +425,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          isValidConnection={isValidConnection}
+          isValidConnection={(c) => isValidConnection(c, edges)}
           nodesDraggable={!locked}
           nodesConnectable={!locked}
           deleteKeyCode={locked ? null : 'Backspace'}

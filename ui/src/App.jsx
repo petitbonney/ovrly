@@ -1,8 +1,11 @@
 // App shell: left workflow list and integrations (Twitch, OBS), center workflow editor. While editing a workflow: right library
 // (node and widget types to drag onto the graph) and bottom settings of the selected node; both toggle and resize.
 import { useEffect, useRef, useState } from 'react'
-import { ActionIcon, Affix, AppShell, Button, Center, Loader, Modal, NavLink, Stack, Switch, Text, Tooltip, useAppShellResize } from '@mantine/core'
-import { IconAlertOctagon, IconPlus, IconTool } from '@tabler/icons-react'
+import {
+  ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, SimpleGrid, Stack, Switch, Text,
+  Tooltip, UnstyledButton, useAppShellResize,
+} from '@mantine/core'
+import { IconAlertOctagon, IconChevronRight, IconFile, IconFileImport, IconPlus, IconTool } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
 import Integrations from './Integrations.jsx'
 import Heading from './Heading.jsx'
@@ -61,13 +64,35 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
   )
 }
 
+// A library section that folds open or closed from its title; this browser remembers which ones are closed.
+function Section({ title, children }) {
+  const key = `ovrly-library-${title}`
+  const [open, setOpen] = useState(() => {
+    try { return localStorage.getItem(key) !== 'closed' } catch { return true }
+  })
+  const toggle = () => {
+    try { localStorage.setItem(key, open ? 'closed' : 'open') } catch {}
+    setOpen(!open)
+  }
+  return (
+    <Stack gap={0} mb="md">
+      <UnstyledButton onClick={toggle} mb="xs" aria-expanded={open}>
+        <Group gap={4}>
+          <IconChevronRight size={14} color="var(--mantine-color-dimmed)" style={{ transform: open ? 'rotate(90deg)' : undefined, transition: 'transform 150ms' }} />
+          <Text size="xs" fw={700} tt="uppercase" c="dimmed">{title}</Text>
+        </Group>
+      </UnstyledButton>
+      <Collapse expanded={open}>{children}</Collapse>
+    </Stack>
+  )
+}
+
 // Drag a node type or a widget type onto the graph; each widget dropped is a new instance.
 function Library({ defs, types }) {
   return (
     <>
       {['trigger', 'logic', 'action'].map((category) => (
-        <Stack key={category} gap={0} mb="md">
-          <Heading title={category} />
+        <Section key={category} title={category}>
           {defs.filter((d) => d.category === category).map((d) => {
             const Icon = icons[d.type]
             return (
@@ -82,17 +107,17 @@ function Library({ defs, types }) {
               </Tooltip>
             )
           })}
-        </Stack>
+        </Section>
       ))}
-      <Stack gap={0} mb="md">
-        <Heading title="Widget" />
+      <Section title="Widget">
         {types.map((t) => {
           const Icon = widgetIcons[t.type]
           return (
-            <Tooltip key={t.type} label="Drag onto the graph to add a new overlay" position="left" openDelay={400}>
+            <Tooltip key={t.type} label={t.soon ? `Coming soon. ${t.description}` : t.description} position="left" openDelay={400} multiline w={240}>
               <NavLink
                 label={t.label}
                 leftSection={Icon && <Icon size={18} color={colors.widget} />}
+                rightSection={t.soon && <Badge size="xs" variant="light" color="yellow">Soon</Badge>}
                 draggable
                 style={{ cursor: 'grab' }}
                 onDragStart={(e) => e.dataTransfer.setData('application/ovrly-widget', t.type)}
@@ -100,29 +125,40 @@ function Library({ defs, types }) {
             </Tooltip>
           )
         })}
-      </Stack>
+      </Section>
     </>
   )
 }
 
-// "New workflow" modal: blank, from a template, or imported from a JSON file. Calls onDone with { kind, id }.
+// A choice in the "New workflow" modal: a title and a one-line description.
+function Choice({ title, description, icon: Icon, onClick }) {
+  return (
+    <Button variant="default" justify="start" h="auto" py="xs" onClick={onClick} leftSection={Icon && <Icon size={20} />}>
+      <div style={{ textAlign: 'left', whiteSpace: 'normal' }}>
+        <Text fw={700} size="sm">{title}</Text>
+        <Text size="xs" c="dimmed">{description}</Text>
+      </div>
+    </Button>
+  )
+}
+
+// "New workflow" modal: blank or imported from a JSON file side by side, then the templates. Calls onDone with
+// { kind, id }.
 function NewWorkflow({ opened, onDone, onClose }) {
   const blank = { workflows: [{ name: 'New workflow', nodes: [], edges: [] }] }
   return (
-    <Modal opened={opened} onClose={onClose} title="New workflow" size="sm">
+    <Modal opened={opened} onClose={onClose} title="New workflow" size="md">
       <Stack gap="xs">
-        <Button variant="default" justify="start" onClick={() => importBundle(blank).then(onDone)}>Blank</Button>
+        <SimpleGrid cols={2} spacing="xs">
+          <Choice title="Blank" description="Start from an empty graph." icon={IconFile} onClick={() => importBundle(blank).then(onDone)} />
+          <Choice title="Import JSON…" description="Open a workflow exported from Ovrly, with its widgets." icon={IconFileImport}
+            onClick={() => importFile().then(onDone, (err) => alert(`Import failed: ${err.message}`))} />
+        </SimpleGrid>
+        <Divider my="xs" />
+        <Heading title="Templates" />
         {templates.map((t) => (
-          <Button key={t.name} variant="default" justify="start" h="auto" py="xs" onClick={() => importBundle(t).then(onDone)}>
-            <div style={{ textAlign: 'left', whiteSpace: 'normal' }}>
-              <Text fw={700} size="sm">{t.name}</Text>
-              <Text size="xs" c="dimmed">{t.description}</Text>
-            </div>
-          </Button>
+          <Choice key={t.name} title={t.name} description={t.description} onClick={() => importBundle(t).then(onDone)} />
         ))}
-        <Button variant="default" justify="start" onClick={() => importFile().then(onDone, (err) => alert(`Import failed: ${err.message}`))}>
-          Import JSON…
-        </Button>
       </Stack>
     </Modal>
   )

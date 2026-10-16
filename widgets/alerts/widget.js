@@ -2,6 +2,7 @@
 export default {
   type: 'alerts',
   label: 'Alerts',
+  description: 'Shows a text banner for a few seconds, e.g. who just ran a command.',
   config: { duration: 5 },
   state: { text: '', at: 0 },
   inputs: { show: 'Text to show, e.g. {{user}} just ran !hype' }, // actions that take a value, and what it is
