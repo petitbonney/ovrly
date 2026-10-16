@@ -21,6 +21,7 @@ import FlowNode, { colors, icons, widgetIcons } from './FlowNode.jsx'
 import layout from './layout.js'
 import { ChatTest } from './Chat.jsx'
 import { exportWorkflow, download } from './share.js'
+import { get, json } from './api.js'
 
 const findWidget = (widgets, ref) => widgets.find((w) => w.id === ref || w.name === ref)
 // Widget links join a widget node's diamond to a Fire Widget node's diamond input; they carry no data.
@@ -64,7 +65,6 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
   return [...keys]
 }
 
-// Every node is drawn by FlowNode ("step"); edges get an arrow like n8n.
 // A link is allowed if diamond connectors (handle "widget") only meet each other, and it doesn't close a loop: the
 // target must not already lead, through flow links, back to the source (or be the source itself).
 function isValidConnection(c, edges) {
@@ -80,6 +80,7 @@ function isValidConnection(c, edges) {
   }
   return true
 }
+// Every node is drawn by FlowNode ("step"); edges get an arrow like n8n.
 const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '#9a9a9a' } }
 // Fitting the graph (on open and with the fit view button) never zooms past 100%, so a small graph isn't blown up.
 const fitOptions = { maxZoom: 1, padding: 0.3 }
@@ -138,8 +139,17 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   )
   const [edges, setEdges, onEdgesChange] = useEdgesState(workflow.edges)
   const { screenToFlowPosition, getViewport, setViewport, fitView, zoomIn, zoomOut } = useReactFlow()
+  // A node's type, from the library's node types.
+  const defOf = (n) => defs.find((d) => d.type === n?.data.type)
 
-  // Short feedback message (copy, paste) shown over the graph for a few seconds.
+  // Short feedback message (copy, paste, a node failing) shown over the graph for a few seconds.
+  const [toast, setToast] = useState(null)
+  const toastTimer = useRef()
+  const notify = (message, color = 'teal') => {
+    setToast({ message, color })
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 3000)
+  }
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Locked graph: nodes can't be moved, linked or deleted, but can still be clicked to open their settings.
   const [locked, setLocked] = useState(false)
@@ -179,14 +189,6 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   const shownEdges = edges.map((e) => (isLink(e) ? { ...e, markerEnd: undefined, animated: live.nodes[e.target] === 'running', className: 'widget-link' }
     : live.edges[e.id] ? { ...e, animated: true, className: 'run-flow' } : e))
 
-  const [toast, setToast] = useState(null)
-  const toastTimer = useRef()
-  const notify = (message, color = 'teal') => {
-    setToast({ message, color })
-    clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), 3000)
-  }
-
   // When a pane opens, closes or is resized, the graph area changes size: pan so the graph's center stays put.
   const flowRef = useRef()
   useEffect(() => {
@@ -205,7 +207,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   const nodeTypes = useMemo(() => ({
     step: function Step(props) {
       const ref = widgetRef(props, useNodes(), useEdges())
-      return <FlowNode {...props} def={defs.find((d) => d.type === props.data.type)} widget={ref && findWidget(widgets, ref)} />
+      return <FlowNode {...props} def={defOf(props)} widget={ref && findWidget(widgets, ref)} />
     },
   }), [defs, widgets])
 
@@ -219,11 +221,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   // Debounced autosave.
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetch(`/api/workflows/${workflow.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, ...graph }),
-      }).then(() => onRename())
+      fetch(`/api/workflows/${workflow.id}`, json('PUT', { name, ...graph })).then(() => onRename())
     }, 500)
     return () => clearTimeout(timer)
   }, [name, graphKey])
@@ -236,7 +234,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     const ids = new Set(list.filter((n) => n.data.type === 'widget').map((n) => n.data.config.widget))
     const missing = [...ids].filter((id) => knownWidgets[id] && !widgets.some((w) => w.id === id))
     for (const id of missing) {
-      await fetch(`/api/widgets/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(knownWidgets[id]) })
+      await fetch(`/api/widgets/${id}`, json('PUT', knownWidgets[id]))
     }
     if (missing.length) onWidgetChange()
   }
@@ -290,18 +288,14 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     if (!def) return
     let config = {}
     if (type) {
-      const res = await fetch('/api/widgets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: type.label, type: type.type, config: {} }),
-      })
+      const res = await fetch('/api/widgets', json('POST', { name: type.label, type: type.type, config: {} }))
       config = { widget: (await res.json()).id }
       onWidgetChange()
     }
     setNodes((ns) => ns.concat({ id: crypto.randomUUID(), type: 'step', position, data: { type: def.type, label: def.label, config } }))
   }
 
-  const nodeName = (n) => (n.data.type === 'widget' ? findWidget(widgets, n.data.config.widget)?.name : defs.find((d) => d.type === n.data.type)?.label) ?? n.data.label
+  const nodeName = (n) => (n.data.type === 'widget' ? findWidget(widgets, n.data.config.widget)?.name : defOf(n)?.label) ?? n.data.label
   const copy = (picked) => {
     const ids = picked.map((n) => n.id)
     clipboard = { nodes: picked, edges: edges.filter((ed) => ids.includes(ed.source) && ids.includes(ed.target)) }
@@ -356,7 +350,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   // Links follow switch cases: a moved case keeps its links, a renamed one too, and a removed one takes them along.
   const setConfig = (config) => {
     setNodes((ns) => ns.map((n) => (n.id === selected.id ? { ...n, data: { ...n.data, config } } : n)))
-    const def = defs.find((d) => d.type === selected.data.type)
+    const def = defOf(selected)
     const key = def?.outputsFrom
     const before = selected.data.config[key] ?? def?.config[key]
     const after = config[key] ?? def?.config[key]
@@ -455,7 +449,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       </AppShell.Main>
       <Config
         node={selected}
-        def={defs.find((d) => d.type === selected?.data.type)}
+        def={defOf(selected)}
         context={{
           vars: selected ? upstreamKeys(selected.id, { nodes, edges, defs, widgets, types }) : [],
           widget: findWidget(widgets, widgetRef(selected, nodes, edges) ?? ''),
@@ -472,7 +466,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
 export default function Workflow({ id, onChange, ...props }) {
   const [workflow, setWorkflow] = useState(null)
   useEffect(() => {
-    fetch(`/api/workflows/${id}`).then((r) => r.json()).then(setWorkflow)
+    get(`/api/workflows/${id}`).then(setWorkflow)
   }, [id])
 
   const onDelete = async () => {

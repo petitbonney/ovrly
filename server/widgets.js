@@ -25,6 +25,8 @@ const waiting = new Map() // run id -> resolve, until a page reports that action
 const playing = {} // widget id -> { run, stop } of the action still playing on it
 let runs = 0
 
+const pages = (widget) => clients[widget.id]?.size ?? 0 // pages showing this widget now
+
 function snapshot(widget) {
   const def = types[widget.type]
   return { config: { ...def.config, ...widget.config }, state: states[widget.id] ?? structuredClone(def.state), hidden: !!hidden[widget.id] }
@@ -55,7 +57,7 @@ export async function update(widget, { action, value = '', user = '' }) {
   if (def.fades.includes(action)) {
     hidden[widget.id] = action === 'hide'
     push(widget)
-    record('sse', 'widget', { widget: widget.name, action, pages: clients[widget.id]?.size ?? 0 })
+    record('sse', 'widget', { widget: widget.name, action, pages: pages(widget) })
     return { state: states[widget.id], done: new Promise((resolve) => setTimeout(resolve, 400, true)), output: {} }
   }
   playing[widget.id]?.stop()
@@ -77,15 +79,14 @@ export async function update(widget, { action, value = '', user = '' }) {
       resolve(true)
     }
     if (ms !== undefined) setTimeout(end, ms)
-    else if (clients[widget.id]?.size) {
+    else if (pages(widget)) {
       waiting.set(run, end)
       setTimeout(() => finish(run), 60_000)
     } else end()
   })
   push(widget, run)
   const output = def.output?.(states[widget.id], config) ?? {}
-  const pages = clients[widget.id]?.size ?? 0
-  record('sse', 'widget', { widget: widget.name, action, ...(value !== '' && { value }), ...(user && { user }), pages })
+  record('sse', 'widget', { widget: widget.name, action, ...(value !== '' && { value }), ...(user && { user }), pages: pages(widget) })
   done.then((played) => record('sse', played ? 'widget-done' : 'widget-cancelled', { widget: widget.name, action, ...(played && output) }))
   return { state: states[widget.id], done, output, run }
 }
@@ -115,7 +116,7 @@ export function cancel(widget, run) {
   // Marked in the state too, so a page opened (or reloaded) afterwards doesn't replay the cancelled animation.
   states[widget.id] = { ...snapshot(widget).state, cancelled: true }
   push(widget, undefined, true)
-  record('sse', 'widget', { widget: widget.name, action: 'cancel', pages: clients[widget.id]?.size ?? 0 })
+  record('sse', 'widget', { widget: widget.name, action: 'cancel', pages: pages(widget) })
   return states[widget.id]
 }
 

@@ -49,7 +49,6 @@ export const colors = {
   widget: 'var(--mantine-color-teal-4)',
 }
 
-// widget: a widget node's instance, or the one linked to a Fire Widget node (undefined if none, or deleted).
 // A node's outputs as [{ id, label }]: its type's fixed ones (if/else's true and false), after one per item of a list
 // setting if it has one (a switch's cases: labelled by the case, id = position from 1, so links survive renaming).
 export function outputsOf(def, config) {
@@ -62,6 +61,7 @@ export function nodeHeight(def, config) {
   return def?.type === 'widget' ? 90 : Math.max(90, outputsOf(def, config).length * 24)
 }
 
+// widget: a widget node's instance, or the one linked to a Fire Widget node (undefined if none, or deleted).
 export default function FlowNode({ id, data, selected, def, widget }) {
   const outputs = outputsOf(def, data.config)
   // Handles added or removed (a switch case) must be measured again, or links to them are misplaced.

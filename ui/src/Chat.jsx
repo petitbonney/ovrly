@@ -3,8 +3,7 @@ import { useState } from 'react'
 import { Button, Group, TextInput } from '@mantine/core'
 import { IconCheck, IconSend } from '@tabler/icons-react'
 import Heading from './Heading.jsx'
-
-const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+import { json } from './api.js'
 
 // Test form in a chat trigger's settings: fires a fake chat message, as if someone typed it on Twitch.
 export function ChatTest({ message: initial }) {

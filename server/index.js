@@ -38,8 +38,6 @@ app.post('/api/emit/:event', (req, res) => {
   res.sendStatus(204)
 })
 
-// Developer view: the recent events (chat, API calls, manual runs…), newest first. Browsers get a live table
-// (events.html), anything else the JSON; ?format=json forces JSON.
 // Live run feedback for the workflow editor: an SSE stream of the engine's node and link activity.
 app.get('/api/activity', (req, res) => {
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }).flushHeaders()
@@ -48,6 +46,8 @@ app.get('/api/activity', (req, res) => {
   activity.on('activity', send)
   req.on('close', () => activity.off('activity', send))
 })
+// Developer view: the recent events (chat, API calls, manual runs…), newest first. Browsers get a live table
+// (events.html), anything else the JSON; ?format=json forces JSON.
 app.get('/api/events', (req, res) => {
   if (req.query.format !== 'json' && req.accepts(['json', 'html']) === 'html') return res.sendFile('server/events.html', { root: '.' })
   res.type('json').send(JSON.stringify(recent, null, 2))

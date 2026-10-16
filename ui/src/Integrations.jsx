@@ -4,14 +4,13 @@ import { useEffect, useState } from 'react'
 import { Anchor, Button, Code, ColorSwatch, Group, Loader, Modal, NavLink, Paper, PasswordInput, SegmentedControl, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core'
 import { IconArrowUpRight, IconBrandTwitch, IconExternalLink, IconLogout } from '@tabler/icons-react'
 import Heading from './Heading.jsx'
-
-const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+import { get, json } from './api.js'
 
 // A connection's status, polled so the dot follows connects and disconnects.
 function useStatus(path) {
   const [status, setStatus] = useState(null)
   useEffect(() => {
-    const load = () => fetch(path).then((r) => r.json()).then(setStatus, () => {})
+    const load = () => get(path).then(setStatus, () => {})
     load()
     const timer = setInterval(load, 3000)
     return () => clearInterval(timer)
