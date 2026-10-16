@@ -5,9 +5,9 @@
 <style>.row.win { outline: 3px solid #ffb400; }</style>
 <div class="card"><h1 id="title"></h1><div id="status" class="muted"></div><div id="rows"></div><div id="winners" class="muted"></div></div>
 <script type="module">
-  import { subscribe, list, el } from '/widgets/lib.js'
+  import { subscribe, el } from '/widgets/lib.js'
   subscribe(({ config, state }) => {
-    const options = list(config.options)
+    const options = config.options
     const bets = Object.entries(state.bets)
     const won = state.winner >= 0
     document.getElementById('title').textContent = config.title

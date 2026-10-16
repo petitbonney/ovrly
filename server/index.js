@@ -5,12 +5,15 @@ import bus, { recent, record } from './bus.js'
 import { nodes, fire, cancel, running, activity } from './engine.js'
 import * as twitch from './sources/twitch.js'
 import * as widgets from './widgets.js'
-import upgrade from './upgrade.js'
+import upgrade, { upgradeWidget } from './upgrade.js'
 
-// Workflows saved by older versions are upgraded once, before anything reads them.
-for (const workflow of await store.list('workflows')) {
-  const upgraded = upgrade(workflow)
-  if (upgraded !== workflow) await store.save('workflows', upgraded)
+// Items saved by older versions are upgraded once, before anything reads them.
+const upgraded = (kind, item) => kind === 'workflows' ? upgrade(item)
+  : kind === 'widgets' && widgets.types[item.type] ? upgradeWidget(item, widgets.types[item.type].config) : item
+for (const kind of ['workflows', 'widgets']) {
+  for (const item of await store.list(kind)) {
+    if (upgraded(kind, item) !== item) await store.save(kind, upgraded(kind, item))
+  }
 }
 
 const PORT = process.env.PORT || 3000
@@ -96,7 +99,6 @@ app.get('/api/:kind/:id', async (req, res) => {
   const item = await store.get(req.params.kind, req.params.id)
   item ? res.json(item) : res.sendStatus(404)
 })
-const upgraded = (kind, item) => (kind === 'workflows' ? upgrade(item) : item)
 app.post('/api/:kind', async (req, res) => res.json(await store.save(req.params.kind, upgraded(req.params.kind, req.body))))
 app.put('/api/:kind/:id', async (req, res) => {
   // Workflow updates are merged, so the editor's autosave keeps fields it doesn't send (e.g. enabled).

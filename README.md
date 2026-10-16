@@ -21,6 +21,8 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   "how": one action on it, run in the flow. Link the widget node's diamond (top) to the diamond under each Fire Widget
   node that drives it; diamonds only connect to diamonds, and each Fire Widget node drives one widget. One widget node
   can drive several Fire Widget nodes, e.g. `!spin` spins the wheel and `!stop` cancels it in the same workflow.
+- **List settings** (poll and bets options, wheel options) are edited row by row: add, remove, move up or down.
+  Each wheel option has a label, a color and a weight: a bigger weight is a bigger section, so a likelier winner.
 - **Show, hide, cancel**: every widget has these actions. "show" and "hide" fade the whole overlay in or out without
   interrupting what it plays (the alert's own "show" shows a text, and the overlay with it). "cancel" stops its
   animation (the wheel freezes, an alert fades out) and stops the run waiting on it. Cancelling a workflow (switch off, Stop all) cancels the widget actions it is playing.
