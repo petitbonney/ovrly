@@ -23,7 +23,7 @@ export default {
     const widget = (await store.list('widgets')).find((w) => w.id === id || w.name === id)
     if (!widget) throw new Error(`Widget not found: ${id}`)
     const action = config.action || Object.keys(widgets.types[widget.type].actions)[0]
-    const { done, output, run } = widgets.update(widget, { action, value: fill(config.value, data), user: data.user })
+    const { done, output, run } = await widgets.update(widget, { action, value: fill(config.value, data), user: data.user })
     signal.addEventListener('abort', () => widgets.cancel(widget, run), { once: true })
     if (!(await done)) return null
     return { ...data, ...output }

@@ -13,9 +13,11 @@ function Test({ widget, type }) {
   const [action, setAction] = useState(type.actions[0])
   const [value, setValue] = useState('')
   const [user, setUser] = useState('tester')
-  const send = (e) => {
+  const [error, setError] = useState('')
+  const send = async (e) => {
     e.preventDefault()
-    fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, value, user }))
+    const res = await fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, value, user }))
+    setError(res.ok ? '' : (await res.json()).error)
   }
   return (
     <form onSubmit={send}>
@@ -26,6 +28,7 @@ function Test({ widget, type }) {
         <TextInput size="xs" w={100} placeholder="user" value={user} onChange={(e) => setUser(e.target.value)} />
         <Button size="xs" variant="default" type="submit">Send</Button>
       </Group>
+      {error && <Text size="xs" c="red" mt={4}>{error}</Text>}
     </form>
   )
 }
@@ -35,6 +38,11 @@ function Test({ widget, type }) {
 export default function WidgetSettings({ widget, type, onChange, onCopy }) {
   const [name, setName] = useState(widget.name)
   const [config, setConfig] = useState(widget.config)
+  // Whether Twitch features (options marked streamer) can run, for the settings to say so.
+  const [streamer, setStreamer] = useState(true)
+  useEffect(() => {
+    fetch('/api/twitch').then((r) => r.json()).then((s) => setStreamer(s.streamer), () => {})
+  }, [])
 
   // Debounced autosave; the server pushes the new config to open overlays.
   useEffect(() => {
@@ -56,6 +64,10 @@ export default function WidgetSettings({ widget, type, onChange, onCopy }) {
           </Tooltip>
         </Group>
         <TextInput size="xs" label="Name" description="Shared by every node that uses this widget" value={name} onChange={(e) => setName(e.target.value)} />
+        {/* A widget's mode (e.g. chat votes or a Twitch poll) shapes everything below, so it comes first. */}
+        {!type.soon && 'mode' in type.config && (
+          <Fields defaults={type.config} fields={type.fields} values={config} onChange={setConfig} context={{ streamer }} show={['mode']} />
+        )}
         <Divider />
         {type.soon ? (
           <Alert variant="light" color="yellow" icon={<IconHourglassHigh size={18} />} title="Coming soon">
@@ -63,7 +75,8 @@ export default function WidgetSettings({ widget, type, onChange, onCopy }) {
           </Alert>
         ) : (
           <>
-            <Fields defaults={type.config} values={config} onChange={setConfig} />
+            <Fields defaults={type.config} fields={type.fields} values={config} onChange={setConfig} context={{ streamer }}
+              show={Object.keys(type.config).filter((key) => key !== 'mode')} />
             <Divider />
             <Test widget={widget} type={type} />
           </>

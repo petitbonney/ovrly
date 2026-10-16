@@ -4,6 +4,8 @@ import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
 import { nodes, fire, cancel, running, activity } from './engine.js'
 import * as twitch from './sources/twitch.js'
+import * as twitchAuth from './sources/twitch-auth.js'
+import * as eventsub from './sources/twitch-eventsub.js'
 import * as obs from './obs.js'
 import * as widgets from './widgets.js'
 import upgrade, { upgradeWidget } from './upgrade.js'
@@ -73,13 +75,26 @@ app.all('/hooks/:path', (req, res) => {
   res.sendStatus(204)
 })
 
-// Twitch channel setting; saving it reconnects.
-app.get('/api/twitch', (req, res) => res.json(twitch.status))
+// Twitch: the mode (guest or streamer) and guest channel settings, saving them reconnects; and the streamer sign-in.
+const twitchStatus = () => ({ ...twitch.status, streamer: twitch.streamer(), account: twitchAuth.status, eventsub: eventsub.status })
+app.get('/api/twitch', (req, res) => res.json(twitchStatus()))
 app.put('/api/twitch', async (req, res) => {
-  const channel = String(req.body.channel || '').trim().toLowerCase().replace(/^#/, '')
-  await store.save('settings', { id: 'twitch', channel })
-  await twitch.connect(channel)
-  res.json(twitch.status)
+  const settings = { mode: req.body.mode === 'streamer' ? 'streamer' : 'guest', channel: String(req.body.channel || '').trim().toLowerCase().replace(/^#/, '') }
+  await store.save('settings', { id: 'twitch', ...settings })
+  await twitch.apply(settings)
+  res.json(twitchStatus())
+})
+// Starts a sign-in (the dialog then shows the code to approve), cancels a pending one, or signs out.
+app.post('/api/twitch/login', (req, res) =>
+  twitchAuth.start(() => twitch.apply()).then(() => res.json(twitchStatus()), (err) => res.status(502).json({ error: err.message })))
+app.post('/api/twitch/login/cancel', (req, res) => {
+  twitchAuth.cancel()
+  res.json(twitchStatus())
+})
+app.delete('/api/twitch/login', async (req, res) => {
+  await twitchAuth.logout()
+  await twitch.apply()
+  res.json(twitchStatus())
 })
 
 // OBS integration: its settings and status (saving reconnects), and the scene and source lists for node settings.
@@ -96,11 +111,12 @@ app.get('/api/obs/sources', (req, res) =>
 
 // Widget types for the UI (metadata plus action names, no functions).
 app.get('/api/widget-types', (req, res) =>
-  res.json(Object.values(widgets.types).map(({ actions, output, playTime, fades, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
+  res.json(Object.values(widgets.types).map(({ actions, output, playTime, fades, on, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
 // Run a widget action by hand, e.g. POST /api/widgets/<id>/action { action: 'vote', value: '1', user }.
 app.post('/api/widgets/:id/action', async (req, res) => {
   const widget = await store.get('widgets', req.params.id)
-  widget ? res.json(widgets.update(widget, req.body).state) : res.sendStatus(404)
+  if (!widget) return res.sendStatus(404)
+  widgets.update(widget, req.body).then(({ state }) => res.json(state), (err) => res.status(400).json({ error: err.message }))
 })
 
 // A widget instance lives as long as a workflow node refers to it (pasted nodes can share one across workflows).
@@ -160,6 +176,7 @@ if (process.env.NODE_ENV === 'production') {
   app.use(vite.middlewares)
 }
 
-twitch.connect((await store.get('settings', 'twitch'))?.channel || '')
+await twitchAuth.load()
+twitch.apply((await store.get('settings', 'twitch')) ?? {})
 obs.connect((await store.get('settings', 'obs')) ?? {})
 app.listen(PORT, () => console.log(`Ovrly on http://localhost:${PORT}`))

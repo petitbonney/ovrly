@@ -1,6 +1,8 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, presets, vars, multiline, hidden, type: 'json' | 'secret' | 'var' | 'keys' | 'action' | 'input' }.
+// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'secret' | 'var' | 'keys' | 'action' | 'input' }.
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
+// only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }.
+// An option { value, label, streamer: true } is a Twitch feature: it needs Twitch in Streamer mode (context.streamer).
 // A list default (e.g. a poll's options) gets a list editor, a color default ("#rrggbb") a color picker, and
 // { obs: 'scenes' | 'sources' } suggestions from OBS.
 import { useEffect, useRef, useState } from 'react'
@@ -193,14 +195,28 @@ function Field({ name, f, fallback, value, set, values, context }) {
     const hint = type?.inputs?.[values.action || type.actions[0]]
     return hint ? <VarInput {...props} description={hint} vars={context.vars ?? []} value={value} onChange={set} /> : null
   }
-  const options = f.type === 'action' ? type?.actions ?? [] : f.options
+  // Twitch features can't be picked unless Streamer mode is on; one picked earlier says why it won't run.
+  const options = f.type === 'action' ? type?.actions ?? [] : f.options?.map((o) => {
+    if (!o.streamer) return o
+    const { streamer, ...option } = o
+    return { ...option, disabled: !context.streamer }
+  })
+  // A disabled Twitch feature says why on hover (segmented buttons only: a Select needs text labels).
+  const explained = options?.map((o) => !o.disabled ? o : {
+    ...o,
+    label: <Tooltip label="Needs Twitch in Streamer mode, signed in (Integration → Twitch)" withinPortal><span>{o.label}</span></Tooltip>,
+  })
   if (f.type === 'action' && options.length <= 1) return null
+  if (f.options?.find((o) => o.value === value)?.streamer && !context.streamer) {
+    props.description = <Text span size="xs" c="yellow">Needs Twitch in Streamer mode, signed in (Integration → Twitch)</Text>
+  }
   if (options?.length <= 4) {
     return (
       <Stack gap={4}>
         <Text size="xs" fw={500}>{props.label}</Text>
+        {props.description && <Text size="xs" c="dimmed">{props.description}</Text>}
         {/* A Fire Widget node with no action set runs its widget's first one. */}
-        <SegmentedControl size="xs" data={options} value={f.type === 'action' ? value || options[0] : value} onChange={set} style={{ alignSelf: 'start' }} />
+        <SegmentedControl size="xs" data={explained} value={f.type === 'action' ? value || options[0] : value} onChange={set} style={{ alignSelf: 'start' }} />
       </Stack>
     )
   }
@@ -217,8 +233,10 @@ function Field({ name, f, fallback, value, set, values, context }) {
   return <TextInput {...props} value={value} onChange={(e) => set(e.target.value)} />
 }
 
-export default function Fields({ defaults, values, onChange, fields = {}, context = {} }) {
-  const keys = Object.keys(defaults).filter((key) => !fields[key]?.hidden)
+// show: the settings to show (all by default), e.g. to show some of them elsewhere in the pane.
+export default function Fields({ defaults, values, onChange, fields = {}, context = {}, show = Object.keys(defaults) }) {
+  const only = (f) => !f?.only || Object.entries(f.only).every(([k, v]) => (values[k] ?? defaults[k]) === v)
+  const keys = show.filter((key) => !fields[key]?.hidden && only(fields[key]))
   if (keys.length === 0) return <Text size="sm" c="dimmed">No settings</Text>
   return (
     <Stack gap="sm" maw={420}>

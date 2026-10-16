@@ -1,7 +1,8 @@
 // Widget runtime: loads widget types, keeps each widget's live state, and pushes it to /w/:id pages over SSE.
 // Each action is recorded as a `widget` event, and its end (with the output) as `widget-done` (GET /api/events).
 import fs from 'node:fs/promises'
-import { record } from './bus.js'
+import bus, { record } from './bus.js'
+import * as store from './store.js'
 
 // Load every widget type from ../widgets/<type>/widget.js, keyed by type. Every type also gets "show" and "hide" (fade
 // the whole overlay in or out; a type's own "show", like the alert's, also shows the overlay) and "cancel" (see cancel()).
@@ -44,7 +45,8 @@ export function push(widget, run, cancel) {
 // to false, so that run stops) and plays instead. The "cancel" action only stops what is playing; the built-in "show"
 // and "hide" only fade the overlay.
 // `output` is what the widget type's output(state, config) gives back to the workflow, e.g. { winner: 'Red' }.
-export function update(widget, { action, value = '', user = '' }) {
+// An action may be async (e.g. it starts a Twitch poll); if it throws, the state is kept and update rejects.
+export async function update(widget, { action, value = '', user = '' }) {
   const def = types[widget.type]
   const fn = def.actions[action]
   if (!fn) throw new Error(`${def.label}: unknown action "${action}"`)
@@ -58,7 +60,7 @@ export function update(widget, { action, value = '', user = '' }) {
   }
   playing[widget.id]?.stop()
   const { config, state } = snapshot(widget)
-  states[widget.id] = fn(state, { value: String(value).trim(), user }, config)
+  states[widget.id] = await fn(state, { value: String(value).trim(), user }, config)
   if (action === 'show') hidden[widget.id] = false // a type's own "show" (e.g. an alert) shows the overlay too
   const run = ++runs
   const ms = def.playTime?.(action, config)
@@ -86,6 +88,22 @@ export function update(widget, { action, value = '', user = '' }) {
   record('sse', 'widget', { widget: widget.name, action, ...(value !== '' && { value }), ...(user && { user }), pages })
   done.then((played) => record('sse', played ? 'widget-done' : 'widget-cancelled', { widget: widget.name, action, ...(played && output) }))
   return { state: states[widget.id], done, output, run }
+}
+
+// Bus events a widget type follows: its on: { event: (state, data, config) => state } handlers run for each of its
+// widgets, e.g. a Twitch poll's progress updating the Poll widget that started it. Returning the same state skips it.
+for (const def of Object.values(types)) {
+  for (const [event, handle] of Object.entries(def.on ?? {})) {
+    bus.on(event, async (data) => {
+      for (const widget of (await store.list('widgets')).filter((w) => w.type === def.type)) {
+        const { config, state } = snapshot(widget)
+        const next = handle(state, data, config)
+        if (next === state) continue
+        states[widget.id] = next
+        push(widget)
+      }
+    })
+  }
 }
 
 // Stops what is playing on a widget: its run stops waiting (`done` resolves to false) and pages stop their animation.

@@ -10,6 +10,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 
 - **Workflows**: node graphs of the form trigger → logic → action. Build one from scratch or start from a template.
 - **Widgets**: built-in browser-source overlays: alerts, poll, bets, spin wheel, TwitchPlays.
+- **Twitch features**: in Streamer mode, the poll can run a native Twitch poll and bets a Twitch prediction (channel points), with live results over EventSub. In Guest mode they count chat votes and bets.
 - **Multiple instances**: run several widgets and workflows side by side.
 - **Triggers**: Twitch chat (any message or a `!command`), an API call to `http://localhost:6875/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual Trigger).
 - **Logic**: filter (continues only if a comparison holds, like if/else), delay (in seconds), if/else, switch (a list
@@ -59,7 +60,7 @@ To show a widget in OBS, select its node and copy the browser-source link from t
 └──────────┴──────────────────────────────┴───────────┘
 ```
 
-- **Left**: workflow list (**+** opens the template picker; the switch next to each name turns a workflow off: what it is running is cancelled and its triggers ignore chat and API calls, while ▶ Run still works; **EMERGENCY** below the list turns them all off at once), and **Integration**: one row each for Twitch and OBS, with a settings button (Twitch channel; OBS WebSocket URL and password) and a status dot (green connected, red not). OBS nodes use that one OBS connection, and their scene and source settings suggest the names from OBS while it is connected.
+- **Left**: workflow list (**+** opens the template picker; the switch next to each name turns a workflow off: what it is running is cancelled and its triggers ignore chat and API calls, while ▶ Run still works; **EMERGENCY** below the list turns them all off at once), and **Integration**: one row each for Twitch and OBS; clicking a row opens its settings (Twitch: **Guest** reads any channel's chat with no sign-in, **Streamer** signs in as the channel owner with a code to approve on twitch.tv/activate, for Twitch features; OBS: WebSocket URL and password) and a status dot (green connected, red not). OBS nodes use that one OBS connection, and their scene and source settings suggest the names from OBS while it is connected.
 - **Center**: the node graph of the selected workflow. The toolbar has undo/redo, the name, run manual triggers (▶), then export and delete, then show/hide the library. Chat triggers have a test form in their settings that sends a fake chat message.
 - **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance and its widget node, set up from the node's settings: instance ID, name, OBS link, settings, test and live preview. Deleting the node deletes the instance. A Fire Widget node's settings show its linked widget (name and instance ID), then the action to run.
 - **Copy/paste**: Ctrl/⌘+C and Ctrl/⌘+V copy the selected nodes, also into another workflow. Pasted widget nodes share the same instance (once per workflow); it is deleted once no workflow uses it anymore. Each instance has its own id, shown in its node's settings with a button that copies the node.
@@ -151,6 +152,8 @@ export default {
   },
 }
 ```
+
+Actions may be async (e.g. to call the Twitch API), and `on: { 'channel.poll.progress': (state, data, config) => state }` updates a widget's state from bus events, such as Twitch EventSub notifications. `fields` gives settings hints, as for nodes (see `ui/src/Fields.jsx`); a duration lists its usual values, e.g. `duration: { unit: 's', presets: [3, 5, 10] }`, shown as buttons next to an input for any other value.
 
 The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs a widget's actions with Fire Widget nodes linked to its widget node (drag the widget type from the library, link it, then pick the action). `inputs` lists the actions that take a value and describes it, e.g. `{ show: 'Text to show' }`; other actions get no Value field. A widget type can also give data back to the workflow: `output(state, config)` returns e.g. `{ winner: 'Red' }`, merged into the data for the next nodes, and `adds: ['winner']` lists those keys for the `{ }` menu. The wheel outputs `winner`, bets `winner` and `winners`, the poll `leader` and `votes`. The Fire Widget node waits until the action has finished playing before the next nodes run. If the widget type knows how long an action plays, it says so with `playTime(action, config)` (ms) and the server waits that long, whether or not an overlay page is open (the wheel and alerts do). Otherwise the page reports the end: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays.
 
