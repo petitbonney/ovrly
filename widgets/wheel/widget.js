@@ -14,6 +14,7 @@ export default {
     duration: 5,
     pointerColor: '#ffffff', // the pointer above the wheel
   },
+  fields: { duration: { unit: 's', presets: [3, 5, 8, 12], hint: 'How long a spin lasts' } },
   state: { winner: -1, at: 0 },
   adds: ['winner'],
   output: (state, config) => ({ winner: config.options[state.winner]?.label ?? '' }),
