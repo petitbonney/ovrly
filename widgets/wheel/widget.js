@@ -2,7 +2,7 @@
 // Each option has a label, a color and a weight; the page animates the wheel onto the winner. Outputs { winner }.
 export default {
   type: 'wheel',
-  label: 'Spin wheel',
+  label: 'Spin Wheel',
   description: 'Spins a wheel of weighted, colored options and picks a winner.',
   config: {
     options: [

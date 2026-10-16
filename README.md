@@ -11,7 +11,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 - **Workflows**: node graphs of the form trigger → logic → action. Build one from scratch or start from a template.
 - **Widgets**: built-in browser-source overlays: alerts, poll, bets, spin wheel, TwitchPlays.
 - **Multiple instances**: run several widgets and workflows side by side.
-- **Triggers**: Twitch chat (any message or a `!command`), an API call to `http://localhost:3000/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual trigger).
+- **Triggers**: Twitch chat (any message or a `!command`), an API call to `http://localhost:6875/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual Trigger).
 - **Logic**: filter (continues only if a comparison holds, like if/else), delay (in seconds), if/else, switch (a list
   of cases, one output each, labelled by the case; links follow their case when cases move or are removed), wait for all (continues once every incoming link has delivered),
   cooldown (lets data through, then sends the next to "blocked" for a while, for everyone or per viewer) and
@@ -41,9 +41,9 @@ pnpm install
 pnpm dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:6875.
 
-To show a widget in OBS, select its node and copy the browser-source link from the settings pane (`http://localhost:3000/w/<widget-id>`), then add an OBS **Browser Source** with it.
+To show a widget in OBS, select its node and copy the browser-source link from the settings pane (`http://localhost:6875/w/<widget-id>`), then add an OBS **Browser Source** with it.
 
 ## UI
 
@@ -75,8 +75,8 @@ To show a widget in OBS, select its node and copy the browser-source link from t
 ```
 Twitch chat ──► Event bus ──► Workflow engine ──► Actions
                                                     ├─ Widget (SSE → browser source)
-                                                    ├─ Key press (nut.js)
-                                                    ├─ HTTP request
+                                                    ├─ Key Press (nut.js)
+                                                    ├─ HTTP Request
                                                     └─ WebSocket client (OBS)
 ```
 
@@ -92,7 +92,7 @@ Twitch chat ──► Event bus ──► Workflow engine ──► Actions
 | UI        | React, ReactFlow, Vite        |
 | Twitch    | tmi.js (chat)                 |
 | OBS       | obs-websocket v5 (built-in WebSocket) |
-| Key press | @nut-tree/nut-js              |
+| Key Press | @nut-tree/nut-js              |
 | Storage   | JSON files in `./data`        |
 
 ## Project layout
