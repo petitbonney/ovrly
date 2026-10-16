@@ -11,7 +11,8 @@ import {
 import '@xyflow/react/dist/style.css'
 import { ActionIcon, AppShell, Button, Code, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip } from '@mantine/core'
 import {
-  IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconPlayerPlay, IconSitemap,
+  IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
+  IconPlayerPlay, IconPlus, IconSitemap,
   IconTrash,
 } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
@@ -121,7 +122,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     workflow.nodes.map((n) => ({ ...n, type: 'step', selected: n.id === openNode })),
   )
   const [edges, setEdges, onEdgesChange] = useEdgesState(workflow.edges)
-  const { screenToFlowPosition, getViewport, setViewport, fitView } = useReactFlow()
+  const { screenToFlowPosition, getViewport, setViewport, fitView, zoomIn, zoomOut } = useReactFlow()
 
   // Short feedback message (copy, paste) shown over the graph for a few seconds.
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -402,7 +403,11 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#555" gap={20} />
-          <Controls position="top-left" fitViewOptions={fitOptions} showInteractive={false}>
+          {/* All graph controls use the same outline icons (ReactFlow's own zoom and fit icons are filled). */}
+          <Controls position="top-left" showZoom={false} showFitView={false} showInteractive={false}>
+            <ControlButton onClick={() => zoomIn()} title="Zoom in"><IconPlus /></ControlButton>
+            <ControlButton onClick={() => zoomOut()} title="Zoom out"><IconMinus /></ControlButton>
+            <ControlButton onClick={() => fitView({ ...fitOptions, duration: 300 })} title="Fit view"><IconMaximize /></ControlButton>
             <ControlButton onClick={() => setLocked((l) => !l)} title={locked ? 'Unlock the graph' : 'Lock node positions'}>
               {locked ? <IconLock /> : <IconLockOpen />}
             </ControlButton>
