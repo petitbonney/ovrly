@@ -12,13 +12,14 @@ const TRACK = 186, POCKET = 128 // ball radius in px: on the track, in a pocket
 const BALL_SPEED = 900, ROTOR_SPEED = 90 // degrees per second at the start of a draw
 const LAUNCH = 300, DROP = 1500, WIN = 700 // ms: onto the track, down into a pocket, the win
 
-// Canvases are 880px for 440px on screen; c is their center.
+// Canvases are drawn in 880 units (2x the 440px on screen, scaled to the resolution); c is their center.
 const c = 440
 const rad = (deg) => ((deg - 90) * Math.PI) / 180 // canvas angle of a clockwise angle from the top
 
-function canvas(className) {
+function canvas(className, res) {
   const node = el('canvas', className)
-  node.width = node.height = 880
+  node.width = node.height = 440 * res
+  node.getContext('2d').setTransform(res / 2, 0, 0, res / 2, 0, 0)
   return node
 }
 
@@ -62,8 +63,8 @@ function drawRotor(ctx, dim = 0, winner = -1) {
   ctx.beginPath(); ctx.arc(c, c, 40, 0, 2 * Math.PI); ctx.fill(); ctx.stroke()
 }
 
-export default function roulette(stage) {
-  const bowl = canvas('roulette-bowl'), rotor = canvas('roulette-rotor')
+export default function roulette(stage, config, res) {
+  const bowl = canvas('roulette-bowl', res), rotor = canvas('roulette-rotor', res)
   const ball = el('div', 'roulette-ball')
   const arm = el('div', 'roulette-arm', ball) // carries the ball around; the ball itself only pops (anime owns its transform)
   stage.append(bowl, rotor, arm)
@@ -100,6 +101,5 @@ export default function roulette(stage) {
     },
     stop() { tl?.pause() },
     destroy() { this.stop() },
-    tint: (winner) => color(winner),
   }
 }
