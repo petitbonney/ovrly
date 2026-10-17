@@ -15,20 +15,23 @@
   }
 </script>
 <style>
-  #stage { position: relative; width: 440px; height: 440px; margin: 16px; }
+  /* Layouts are designed at 440px; the frame around the stage is scaled to fill the page (--k, set below). */
+  #frame { position: absolute; left: 50%; top: 50%; width: 476px; height: 440px; translate: -50% -50%; scale: var(--k, 1); }
+  #stage { position: relative; width: 440px; height: 440px; } /* the frame is 36px wider: room for the wheel's pin */
   #stage > * { position: absolute; }
-  #result { width: 440px; margin: 0 16px; display: flex; justify-content: center; opacity: 0; }
-  #result span { padding: 6px 22px; border-radius: 999px; background: #16161acc; font-size: 34px; }
   /* Slot cabinet bulbs: chase while drawing, flash on the win (slots.js). */
   .light { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #ffe08a; box-shadow: 0 0 10px #ffb400; opacity: .35; }
   .light.alt { background: #ffd0e4; box-shadow: 0 0 10px #ff4f8b; }
 
   /* Wheel */
-  .wheel-disc { inset: 10px; width: 420px; height: 420px; border-radius: 50%; }
-  .wheel-rim { inset: 0; border-radius: 50%; border: 10px solid #fff; }
-  .wheel-hub { left: 194px; top: 194px; width: 36px; height: 36px; border-radius: 50%; border: 8px solid #fff; background: #16161a; }
-  .wheel-pointer { left: 198px; top: -14px; width: 44px; height: 58px; transform-origin: 50% 12px; z-index: 1; background: linear-gradient(#fff, #ddd);
-    clip-path: polygon(0 0, 100% 0, 100% 30%, 50% 100%, 0 30%); filter: drop-shadow(0 3px 3px #0009); }
+  .wheel-disc { inset: 0; width: 440px; height: 440px; } /* the wheel is 420px: the margin lets the winner's section pop out */
+  /* On the right, pointing left: the winning label reads level next to it. */
+  /* A red map pin on the right, its tip in the wheel pointing at the center (wheel.js draws it); it pivots on its head. */
+  .wheel-pin { left: 420px; top: 200px; width: 54px; height: 40px; transform-origin: 34px 50%; filter: drop-shadow(0 2px 3px #0006); }
+  /* An orange-gold dot in relief on the center: lit from the top left, shaded below. */
+  .wheel-hub { left: 210px; top: 210px; width: 20px; height: 20px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffe2b0, #ffa21f 35%, #d0680a 75%, #8a3f00);
+    box-shadow: inset 0 -1.5px 2px #0006, inset 0 1.5px 1.5px #fffa; }
 
   /* Roulette */
   .roulette-bowl, .roulette-rotor { inset: 0; width: 440px; height: 440px; }
@@ -56,58 +59,51 @@
   /* Dice (three.js) */
   .three { inset: 0; width: 440px; height: 440px; }
 </style>
-<div id="stage"></div>
-<div id="result"><span></span></div>
+<div id="frame"><div id="stage"></div></div>
 <script type="module">
-  import { animate, engine } from 'animejs'
+  import { engine } from 'animejs'
   import { subscribe, wait } from '/widgets/lib.js'
-  import { choices, playMs } from '/widgets/lottery/widget.js'
+  import { playMs } from '/widgets/lottery/widget.js'
   import wheel from '/widgets/lottery/wheel.js'
   import roulette from '/widgets/lottery/roulette.js'
   import slots from '/widgets/lottery/slots.js'
   import dice from '/widgets/lottery/dice.js'
   const layouts = { wheel, roulette, slots, dice }
   const stage = document.getElementById('stage')
-  const result = document.getElementById('result')
 
   // OBS may hide the source: draws keep time with the server instead of pausing.
   engine.pauseOnDocumentHidden = false
 
-  // The winner's label pops in under the stage once the draw is over.
-  let timer
-  function reveal(label, tint) {
-    result.firstChild.textContent = label
-    result.firstChild.style.background = tint ?? ''
-    animate(result, { opacity: [0, 1], scale: [0.4, 1], translateY: [24, 0], duration: 900, ease: 'outElastic(1, .55)' })
+  // Fill the page, whatever the browser source's size. Canvases are drawn at the scaled size (res: pixels per design
+  // px), so they stay sharp; a resize only rescales until the next rebuild.
+  let k = 1
+  const fit = () => {
+    k = Math.min(innerWidth / 476, innerHeight / 440)
+    document.documentElement.style.setProperty('--k', k)
   }
-  function hide() {
-    clearTimeout(timer)
-    result.style.opacity = 0
-  }
+  fit()
+  addEventListener('resize', fit)
 
-  // Each layout builds itself in the stage: { play(winner, ms) → anime timeline that ends on the winner, stop(), destroy(),
-  // tint(winner)? the result's color }. It is rebuilt whenever the settings change.
+  // Each layout builds itself in the stage, at a resolution: { play(winner, ms) → anime timeline that ends on the winner,
+  // stop(), destroy() }. It is rebuilt whenever the settings change. The page shows no result text: the winner is in the
+  // workflow's data ({{winner}}), for an alert or a chat message to announce it.
   let layout, key, lastSpin = 0
   subscribe(({ config, state }) => {
     if (JSON.stringify(config) !== key) {
       key = JSON.stringify(config)
       layout?.destroy()
       stage.replaceChildren()
-      hide()
-      layout = layouts[config.layout](stage, config)
+      layout = layouts[config.layout](stage, config, Math.max(2, k * devicePixelRatio))
     }
     if (state.winner < 0 || state.at === lastSpin || state.cancelled || state.layout !== config.layout) return
     lastSpin = state.at
     const ms = playMs(config)
     const played = Math.min(Math.max(Date.now() - state.at, 0), ms) // a page opened mid-draw catches up
-    hide()
     layout.stop()
     layout.play(state.winner, ms).seek(played)
-    timer = setTimeout(() => reveal(choices(config)[state.winner]?.label ?? '', layout.tint?.(state.winner)), ms - played)
     return wait(ms - played) // finished once the draw is over
   }, () => {
-    // Cancel: the draw freezes where it is, with no result.
+    // Cancel: the draw freezes where it is.
     layout?.stop()
-    hide()
   })
 </script>

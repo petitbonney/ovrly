@@ -70,9 +70,9 @@ function simulate() {
   return up < 0 ? null : { frames, up }
 }
 
-export default function dice(stage, config) {
+export default function dice(stage, config, res) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-  renderer.setPixelRatio(2)
+  renderer.setPixelRatio(res)
   renderer.setSize(440, 440)
   renderer.domElement.className = 'three'
   stage.append(renderer.domElement)

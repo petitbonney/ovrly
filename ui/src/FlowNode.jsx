@@ -4,7 +4,7 @@
 import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
-  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconChartBar, IconClock, IconClockPause, IconCode, IconCoin, IconDeviceGamepad2, IconDice5, IconEdit,
+  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconCoin, IconDeviceGamepad2, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
   IconMessageCode, IconMovie, IconNotes, IconPlugConnected, IconSubtask, IconVariable, IconWebhook, IconWorld,
 } from '@tabler/icons-react'
@@ -45,7 +45,7 @@ export const widgetIcons = {
   alerts: IconBell,
   poll: IconChartBar,
   bets: IconCoin,
-  lottery: IconDice5,
+  lottery: IconClover,
   'twitch-plays': IconDeviceGamepad2,
 }
 
