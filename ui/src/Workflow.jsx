@@ -9,7 +9,7 @@ import {
   useNodesState, useEdgesState, addEdge, useReactFlow, useNodes, useEdges,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ActionIcon, AppShell, Button, Code, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import { ActionIcon, AppShell, Badge, Button, Code, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip } from '@mantine/core'
 import {
   IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
   IconPlayerPlay, IconPlus, IconSitemap,
@@ -57,6 +57,7 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
       const def = defs.find((d) => d.type === node?.data.type)
       const type = def?.widgetInput && types.find((t) => t.type === findWidget(widgets, widgetRef(node, nodes, edges))?.type)
       for (const k of [...(def?.adds ?? []), ...(type?.adds ?? [])]) keys.add(k)
+      for (const item of node.data.config[def?.addsFrom] ?? def?.config[def?.addsFrom] ?? []) if (item.name) keys.add(item.name)
       if (def?.type === 'manual') {
         try { Object.keys(JSON.parse(node.data.config.data ?? def.config.data)).forEach((k) => keys.add(k)) } catch {}
       }
@@ -85,10 +86,52 @@ const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '#9a9a9a
 // Fitting the graph (on open and with the fit view button) never zooms past 100%, so a small graph isn't blown up.
 const fitOptions = { maxZoom: 1, padding: 0.3 }
 
+// Settings of every node but triggers, handled by the engine (retries and failures).
+const errorConfig = { onError: 'stop', retries: 0, retryWait: 1 }
+const errorFields = {
+  onError: { label: 'On error', options: [{ value: 'stop', label: 'Stop' }, { value: 'continue', label: 'Continue' }], hint: 'Continue passes the data on with {{error}}' },
+  retries: { label: 'Retries' },
+  retryWait: { label: 'Wait between retries', unit: 's' },
+}
+
+const pretty = (v) => JSON.stringify(v, null, 2) ?? 'nothing'
+
+// What the node got and returned the last time it ran, from the run history. `state` (the live state of the node)
+// changing means it just ran, so it is read again.
+function LastRun({ workflow, node, state }) {
+  const [last, setLast] = useState(null)
+  useEffect(() => {
+    if (state === 'running' || state === 'waiting') return
+    get(`/api/runs?workflow=${workflow}`).then((runs) => {
+      const run = runs.find((r) => r.nodes.some((n) => n.node === node))
+      setLast(run && { at: run.at, ...run.nodes.findLast((n) => n.node === node) })
+    })
+  }, [workflow, node, state])
+  if (!last) return <Text size="xs" c="dimmed" mt="md">Not run yet since the server started.</Text>
+  return (
+    <Stack gap={4} mt="md">
+      <Group gap="xs">
+        <Text size="sm" fw={500}>Last run</Text>
+        <Text size="xs" c="dimmed">{new Date(last.at).toLocaleTimeString()} · {last.ms} ms</Text>
+        {last.error && <Badge color="red" variant="light">{last.error}</Badge>}
+        {last.output === null && <Badge color="gray" variant="light">stopped here</Badge>}
+      </Group>
+      <Group gap="xs" align="start" grow wrap="nowrap">
+        {[['Input', last.input], ['Output', last.output]].map(([title, v]) => (
+          <Stack key={title} gap={2} miw={0}>
+            <Text size="xs" c="dimmed">{title}</Text>
+            <Code block mah={180} style={{ overflow: 'auto' }}>{pretty(v)}</Code>
+          </Stack>
+        ))}
+      </Group>
+    </Stack>
+  )
+}
+
 // Settings of the selected node: title, description, then a form built from the node type's fields.
 // A widget node shows its widget instance's settings and preview; a Fire Widget node its linked widget, then the
 // action to run on it (context.widget).
-function Config({ node, def, context, onChange, onWidgetChange, onCopy }) {
+function Config({ node, def, context, state, onChange, onWidgetChange, onCopy }) {
   if (!node || !def) return null
   const isWidget = def.type === 'widget'
   const widget = context.widget
@@ -120,6 +163,13 @@ function Config({ node, def, context, onChange, onWidgetChange, onCopy }) {
               </Stack>
             )}
             {fields}
+            <LastRun key={node.id} workflow={context.workflow} node={node.id} state={state} />
+            {def.category !== 'trigger' && (
+              <Stack mt="md">
+                <Text size="sm" fw={500}>Error handling</Text>
+                <Fields defaults={errorConfig} values={node.data.config} fields={errorFields} onChange={onChange} />
+              </Stack>
+            )}
           </>
         )}
         {def.event === 'chat' && (
@@ -450,7 +500,9 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       <Config
         node={selected}
         def={defOf(selected)}
+        state={live.nodes[selected?.id]}
         context={{
+          workflow: workflow.id,
           vars: selected ? upstreamKeys(selected.id, { nodes, edges, defs, widgets, types }) : [],
           widget: findWidget(widgets, widgetRef(selected, nodes, edges) ?? ''),
           types,

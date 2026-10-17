@@ -1,12 +1,29 @@
 // Logic: sends data to "true" or "false" by comparing two values ({{key}} placeholders filled from data).
 import { fill } from '../template.js'
 
-// Also used by the filter node.
+// Also used by the filter node. The text tests ignore case unless "Match case" is on; `matches` is a regular expression.
 export const tests = {
-  equals: (a, b) => a.toLowerCase() === b.toLowerCase(),
-  contains: (a, b) => a.toLowerCase().includes(b.toLowerCase()),
+  equals: (a, b) => a === b,
+  'not equals': (a, b) => a !== b,
+  contains: (a, b) => a.includes(b),
+  'not contains': (a, b) => !a.includes(b),
+  'starts with': (a, b) => a.startsWith(b),
+  'ends with': (a, b) => a.endsWith(b),
+  matches: (a, b, flags) => new RegExp(b, flags).test(a),
   '>': (a, b) => Number(a) > Number(b),
   '<': (a, b) => Number(a) < Number(b),
+  '>=': (a, b) => Number(a) >= Number(b),
+  '<=': (a, b) => Number(a) <= Number(b),
+  'is empty': (a) => a === '',
+  'not empty': (a) => a !== '',
+}
+
+// Whether the node's comparison holds on the data; `who` names the node in errors.
+export function compare(who, config, data) {
+  const test = tests[config.operator]
+  if (!test) throw new Error(`${who}: unknown operator "${config.operator}", use ${Object.keys(tests).join(', ')}`)
+  const same = (text) => (config.matchCase || config.operator === 'matches' ? text : text.toLowerCase())
+  return test(same(fill(config.value, data)), same(fill(config.compare, data)), config.matchCase ? '' : 'i')
 }
 
 export default {
@@ -18,12 +35,9 @@ export default {
     value: { vars: true },
     operator: { options: Object.keys(tests) },
     compare: { label: 'Compare with', vars: true },
+    matchCase: { label: 'Match case' },
   },
   outputs: ['true', 'false'],
-  config: { value: '{{message}}', operator: 'contains', compare: '' },
-  run({ config, data }) {
-    const test = tests[config.operator]
-    if (!test) throw new Error(`If / Else: unknown operator "${config.operator}", use ${Object.keys(tests).join(', ')}`)
-    return { [test(fill(config.value, data), fill(config.compare, data))]: data }
-  },
+  config: { value: '{{message}}', operator: 'contains', compare: '', matchCase: false },
+  run: ({ config, data }) => ({ [compare('If / Else', config, data)]: data }),
 }
