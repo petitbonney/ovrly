@@ -6,7 +6,7 @@ import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
   IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconCoin, IconDeviceGamepad2, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
-  IconMessageCode, IconMovie, IconNotes, IconPlugConnected, IconSubtask, IconVariable, IconWebhook, IconWorld,
+  IconMessageCode, IconMovie, IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVariable, IconWebhook, IconWorld,
 } from '@tabler/icons-react'
 
 // If/else branches left to right, like the graph.
@@ -46,6 +46,7 @@ export const widgetIcons = {
   poll: IconChartBar,
   bets: IconCoin,
   lottery: IconClover,
+  image: IconPhoto,
   'twitch-plays': IconDeviceGamepad2,
 }
 

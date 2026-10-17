@@ -9,7 +9,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 ## Features
 
 - **Workflows**: node graphs of the form trigger → logic → action. Build one from scratch or start from a template.
-- **Widgets**: built-in browser-source overlays: alerts, poll, bets, lottery, TwitchPlays. The lottery draws a winner with one of
+- **Widgets**: built-in browser-source overlays: alerts, image/GIF, poll, bets, lottery, TwitchPlays. The image/GIF widget shows an uploaded image (kept in `data/media`) or a GIF picked from Giphy (once the Giphy integration has an API key), with entry and exit effects (fade, slide, rotation, scale). The lottery draws a winner with one of
   four layouts: wheel (weighted, colored options), roulette, slot (one reel) or dice.
 - **Twitch features**: in Streamer mode, the poll can run a native Twitch poll and bets a Twitch prediction (channel points), with live results over EventSub. In Guest mode they count chat votes and bets.
 - **Multiple instances**: run several widgets and workflows side by side.
@@ -74,7 +74,7 @@ To show a widget in OBS, select its node and copy the browser-source link from t
 └──────────┴──────────────────────────────┴───────────┘
 ```
 
-- **Left**: **Integration** on top: one row each for Twitch and OBS; clicking a row opens its settings (Twitch: **Guest** reads any channel's chat with no sign-in, **Streamer** signs in as the channel owner with a code to approve on twitch.tv/activate, for Twitch features; OBS: WebSocket URL and password) and a status dot (green connected, red not). Below it the workflow list (**+** opens the template picker; the switch next to each name turns a workflow off: what it is running is cancelled and its triggers ignore chat and API calls, while ▶ Run still works; the red **SOS** button below the list turns them all off at once). OBS nodes use that one OBS connection, and their scene and source settings suggest the names from OBS while it is connected.
+- **Left**: **Integration** on top: one row each for Twitch, OBS and Giphy; clicking a row opens its settings (Twitch: **Guest** reads any channel's chat with no sign-in, **Streamer** signs in as the channel owner with a code to approve on twitch.tv/activate, for Twitch features; OBS: WebSocket URL and password; Giphy: API key, checked on save) and a status dot (green connected, red not). Below it the workflow list (**+** opens the template picker; the switch next to each name turns a workflow off: what it is running is cancelled and its triggers ignore chat and API calls, while ▶ Run still works; the red **SOS** button below the list turns them all off at once). OBS nodes use that one OBS connection, and their scene and source settings suggest the names from OBS while it is connected.
 - **Center**: the node graph of the selected workflow. The toolbar has undo/redo, the name, run manual triggers (▶), then export and delete, then show/hide the library. Chat triggers have a test form in their settings that sends a fake chat message.
 - **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance and its widget node, set up from the node's settings: instance ID, name, OBS link, settings, test and live preview. Deleting the node deletes the instance. A Fire Widget node's settings show its linked widget (name and instance ID), then the action to run.
 - **Copy/paste**: Ctrl/⌘+C and Ctrl/⌘+V copy the selected nodes, also into another workflow. Pasted widget nodes share the same instance (once per workflow); it is deleted once no workflow uses it anymore. Each instance has its own id, shown in its node's settings with a button that copies the node.
@@ -124,7 +124,7 @@ server/
 ui/               React app (Vite)
 widgets/          one folder per widget type (index.html + widget.js)
 templates/        starter workflows
-data/             your widgets and workflows (gitignored)
+data/             your widgets, workflows and uploaded images (gitignored)
 ```
 
 ## Writing a node

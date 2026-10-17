@@ -1,4 +1,6 @@
 // Server entry: REST API over the store, widget pages, plus the UI (Vite in dev, ./dist in production).
+import fs from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import express from 'express'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
@@ -7,6 +9,7 @@ import * as twitch from './sources/twitch.js'
 import * as twitchAuth from './sources/twitch-auth.js'
 import * as eventsub from './sources/twitch-eventsub.js'
 import * as obs from './obs.js'
+import * as giphy from './giphy.js'
 import * as widgets from './widgets.js'
 import upgrade, { upgradeWidget } from './upgrade.js'
 
@@ -110,6 +113,31 @@ app.get('/api/obs/scenes', (req, res) => obs.scenes().then((list) => res.json(li
 app.get('/api/obs/sources', (req, res) =>
   obs.sources(String(req.query.scene ?? '')).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
 
+// Giphy integration: its API key and status (saving re-checks the key).
+app.get('/api/giphy', (req, res) => res.json(giphy.status))
+app.put('/api/giphy', async (req, res) => {
+  const settings = { key: String(req.body.key ?? '').trim() }
+  await store.save('settings', { id: 'giphy', ...settings })
+  await giphy.connect(settings)
+  res.json(giphy.status)
+})
+
+app.get('/api/giphy/search', (req, res) =>
+  giphy.search(String(req.query.q ?? ''), Number(req.query.offset) || 0).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+
+// Images uploaded for the Image widget: kept as they are in ./data/media and served at /media/<file>.
+// No SVG: opened directly, it could run scripts on Ovrly's origin.
+const IMAGE_TYPES = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp', 'image/avif': '.avif', 'image/apng': '.png' }
+app.use('/media', express.static('data/media'))
+app.post('/api/media', express.raw({ type: Object.keys(IMAGE_TYPES), limit: '25mb' }), async (req, res) => {
+  const ext = IMAGE_TYPES[req.get('content-type')]
+  if (!ext || !req.body?.length) return res.status(415).json({ error: 'Send a PNG, JPEG, GIF, WebP or AVIF image' })
+  const name = `${randomUUID()}${ext}`
+  await fs.mkdir('data/media', { recursive: true })
+  await fs.writeFile(`data/media/${name}`, req.body)
+  res.json({ url: `/media/${name}` })
+})
+
 // Widget types for the UI (metadata plus action names, no functions).
 app.get('/api/widget-types', (req, res) =>
   res.json(Object.values(widgets.types).map(({ actions, output, playTime, fades, on, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
@@ -184,4 +212,5 @@ if (process.env.NODE_ENV === 'production') {
 await twitchAuth.load()
 twitch.apply((await store.get('settings', 'twitch')) ?? {})
 obs.connect((await store.get('settings', 'obs')) ?? {})
+giphy.connect((await store.get('settings', 'giphy')) ?? {})
 app.listen(PORT, () => console.log(`Ovrly on http://localhost:${PORT}`))
