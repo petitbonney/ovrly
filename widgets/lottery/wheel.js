@@ -41,10 +41,6 @@ export default function wheel(stage, { options }) {
       ctx.restore()
       if (dim && i !== winner) { ctx.fillStyle = `rgba(0, 0, 0, ${dim * 0.6})`; ctx.fill() }
     })
-    // Depth: a soft shade towards the rim.
-    const shade = ctx.createRadialGradient(c, c, c * 0.2, c, c, c)
-    shade.addColorStop(0, '#0000'); shade.addColorStop(1, '#0004')
-    ctx.fillStyle = shade; ctx.fillRect(0, 0, 840, 840)
   }
   draw()
 
