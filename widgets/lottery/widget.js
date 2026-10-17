@@ -5,6 +5,10 @@
 // European roulette: 0 is green; the reds, the rest black.
 export const REDS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]
 
+// ms a draw lasts: the duration setting, except for the dice, whose throw follows physics and always takes DICE_MS.
+export const DICE_MS = 3500
+export const playMs = (config) => (config.layout === 'dice' ? DICE_MS : config.duration * 1000)
+
 // What can win with this layout, as [{ label, weight }]; index = winner.
 export function choices(config) {
   if (config.layout === 'roulette') return Array.from({ length: 37 }, (_, n) => ({ label: String(n), weight: 1 }))
@@ -42,13 +46,13 @@ export default {
     dice: { label: 'Faces', fixed: true, only: { layout: 'dice' }, hint: 'A number from 1 to 6 shows as dots' },
     diceColor: { label: 'Dice color', only: { layout: 'dice' } },
     dotColor: { label: 'Dots color', only: { layout: 'dice' }, hint: 'Also the text of faces that are not 1 to 6' },
-    duration: { unit: 's', presets: [3, 5, 8, 12], hint: 'How long a draw lasts' },
+    duration: { unit: 's', presets: [3, 5, 8, 12], hint: 'How long a draw lasts', only: { layout: ['wheel', 'roulette', 'slots'] } },
   },
   state: { winner: -1, at: 0 },
   adds: ['winner'],
   output: (state, config) => ({ winner: choices(config)[state.winner]?.label ?? '' }),
   inputs: {}, // no action takes a value
-  playTime: (action, config) => config.duration * 1000, // ms a draw lasts; the workflow waits for it
+  playTime: (action, config) => playMs(config), // the workflow waits for the draw to end
   actions: {
     spin(state, input, config) {
       const weights = choices(config).map((o) => Math.max(0, Number(o.weight) || 0))

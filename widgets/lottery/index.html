@@ -2,14 +2,15 @@
 <meta charset="utf-8">
 <title>Lottery</title>
 <link rel="stylesheet" href="/widgets/base.css">
-<!-- anime.js and three.js, served from node_modules by the server (/vendor). -->
+<!-- anime.js, three.js and cannon-es, served from node_modules by the server (/vendor). -->
 <script type="importmap">
   {
     "imports": {
       "animejs": "/vendor/animejs/index.js",
       "animejs/adapters/three": "/vendor/animejs/adapters/three/index.js",
       "three": "/vendor/three/build/three.module.js",
-      "three/addons/": "/vendor/three/examples/jsm/"
+      "three/addons/": "/vendor/three/examples/jsm/",
+      "cannon-es": "/vendor/cannon-es/cannon-es.js"
     }
   }
 </script>
@@ -60,7 +61,7 @@
 <script type="module">
   import { animate, engine } from 'animejs'
   import { subscribe, wait } from '/widgets/lib.js'
-  import { choices } from '/widgets/lottery/widget.js'
+  import { choices, playMs } from '/widgets/lottery/widget.js'
   import wheel from '/widgets/lottery/wheel.js'
   import roulette from '/widgets/lottery/roulette.js'
   import slots from '/widgets/lottery/slots.js'
@@ -97,7 +98,7 @@
     }
     if (state.winner < 0 || state.at === lastSpin || state.cancelled || state.layout !== config.layout) return
     lastSpin = state.at
-    const ms = config.duration * 1000
+    const ms = playMs(config)
     const played = Math.min(Math.max(Date.now() - state.at, 0), ms) // a page opened mid-draw catches up
     hide()
     layout.stop()
