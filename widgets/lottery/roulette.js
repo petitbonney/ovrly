@@ -9,6 +9,8 @@ const ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23
 const STEP = 360 / 37
 const color = (n) => (n === 0 ? '#0e9f4d' : REDS.includes(n) ? '#d0202e' : '#141418')
 const TRACK = 186, POCKET = 128 // ball radius in px: on the track, in a pocket
+const BALL_SPEED = 900, ROTOR_SPEED = 90 // degrees per second at the start of a draw
+const LAUNCH = 300, DROP = 1500, WIN = 700 // ms: onto the track, down into a pocket, the win
 
 // Canvases are 880px for 440px on screen; c is their center.
 const c = 440
@@ -78,18 +80,22 @@ export default function roulette(stage) {
   let tl
   return {
     play(winner, ms) {
+      // Fixed-length moves (ms); a longer draw only means more laps at the same speeds.
+      const k = Math.min(1, ms / (LAUNCH + DROP + WIN)) // a very short draw speeds them up
+      const [launch, drop, win] = [LAUNCH * k, DROP * k, WIN * k]
+      const land = ms - win // the ball rests in its pocket
       const pocket = ORDER.indexOf(winner) * STEP
-      const laps = Math.max(3, Math.round(ms / 1000)) // counter-clockwise, around the rotor
-      const rel = pocket + 360 * Math.floor((s.rel - 360 * laps - pocket) / 360)
+      // The ball races counter-clockwise round the rotor and slows down (outCubic covers a third of v0 × time).
+      const rel = pocket + 360 * Math.floor((s.rel - (BALL_SPEED * land) / 3000 - pocket) / 360)
       tl = createTimeline()
         .add(s, { dim: 0, duration: 1, onUpdate: () => drawRotor(rotor.getContext('2d')) }, 0)
-        .add(ball, { opacity: 1, duration: ms * 0.06 }, 0)
-        .add(s, { rotor: s.rotor + 300 + Math.random() * 120, duration: ms * 0.92, ease: 'outQuad', onUpdate: place }, 0)
-        .add(s, { rel, duration: ms * 0.84, ease: 'outCubic', onUpdate: place }, 0)
+        .add(ball, { opacity: 1, duration: launch }, 0)
+        .add(s, { rotor: s.rotor + (ROTOR_SPEED * ms) / 2000, duration: ms, ease: 'outQuad', onUpdate: place }, 0)
+        .add(s, { rel, duration: land, ease: 'outCubic', onUpdate: place }, 0)
         // Out of the last pocket onto the track, round and round, then down across the frets.
-        .add(s, { r: [{ to: TRACK, duration: ms * 0.08, ease: 'outQuad' }, { to: TRACK, duration: ms * 0.4 }, { to: POCKET, duration: ms * 0.3, ease: 'outBounce' }], onUpdate: place }, 0)
-        .add(s, { dim: 1, duration: ms * 0.1, ease: 'outQuad', onUpdate: () => drawRotor(rotor.getContext('2d'), s.dim, winner) }, ms * 0.88)
-        .add(ball, { scale: [1, 1.6, 1], duration: ms * 0.12, ease: 'outElastic(1, .5)' }, ms * 0.88)
+        .add(s, { r: [{ to: TRACK, duration: launch, ease: 'outQuad' }, { to: TRACK, duration: land - launch - drop }, { to: POCKET, duration: drop, ease: 'outBounce' }], onUpdate: place }, 0)
+        .add(s, { dim: 1, duration: win * 0.6, ease: 'outQuad', onUpdate: () => drawRotor(rotor.getContext('2d'), s.dim, winner) }, land)
+        .add(ball, { scale: [1, 1.6, 1], duration: win, ease: 'outElastic(1, .5)' }, land)
       return tl
     },
     stop() { tl?.pause() },

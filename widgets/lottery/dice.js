@@ -7,6 +7,7 @@ import { createTimeline, utils } from 'animejs'
 import 'animejs/adapters/three' // lets anime.js animate three.js objects (x, y, rotateX, scale…)
 
 const SIZE = 2.5
+const THROW = 2600 // ms from the crouch to the end of the pop
 // Box faces are +x, -x, +y, -y, +z, -z. Face i of the options goes where real dice put it (opposite faces add up
 // to 7), and UP[slot] is the turn (degrees around x and z) that brings that slot on top.
 const SLOT = [0, 2, 4, 5, 3, 1]
@@ -73,21 +74,34 @@ export default function dice(stage, config) {
       const [x, z] = UP[SLOT[winner]]
       const deg = (r) => r * (180 / Math.PI)
       const ahead = (from, to, turns) => from - (from % 360) + 360 * turns + to // the angle `to`, some turns further
-      const t = (f) => ms * f
+      // The throw has fixed timings (ms); a longer draw rattles the die on the spot first, as if shaken.
+      const k = Math.min(1, ms / THROW) // a very short draw speeds the throw up
+      const t = (d) => d * k
+      const rattle = Math.max(0, ms - THROW)
+      const hops = Math.floor(rattle / 260)
+      const throwAt = rattle // the throw starts once the rattle is over
+      const air = t(450 + 420 + 480 + 240) // up, down and two bounces
+      const land = throwAt + t(220) + air
       tl = createTimeline()
-        .add(root, { scaleY: [{ to: 0.72, duration: t(0.1), ease: 'outQuad' }, { to: 1.15, duration: t(0.05), ease: 'outQuad' }, { to: 1, duration: t(0.08) }] }, 0)
-        .add(root, { scaleX: [{ to: 1.15, duration: t(0.1), ease: 'outQuad' }, { to: 1, duration: t(0.1) }] }, 0)
-        // Toss and two bounces, each landing a little squash.
+      if (hops) {
+        // Little hops with a wiggle, one every 260ms.
+        tl.add(root, { y: Array.from({ length: hops }, () => [{ to: 0.5, duration: 130, ease: 'outQuad' }, { to: 0, duration: 130, ease: 'inQuad' }]).flat() }, 0)
+          .add(spin, { rotateY: Array.from({ length: hops }, (_, i) => ({ to: deg(spin.rotation.y) + (i % 2 ? -14 : 14), duration: 260, ease: 'inOutSine' })) }, 0)
+      }
+      tl
+        // Crouch, then toss and two bounces, each landing a little squash.
+        .add(root, { scaleY: [{ to: 0.72, duration: t(220), ease: 'outQuad' }, { to: 1.15, duration: t(110), ease: 'outQuad' }, { to: 1, duration: t(180) }] }, throwAt)
+        .add(root, { scaleX: [{ to: 1.15, duration: t(220), ease: 'outQuad' }, { to: 1, duration: t(220) }] }, throwAt)
         .add(root, {
-          y: [{ to: 6, duration: t(0.17), ease: 'outQuad' }, { to: 0, duration: t(0.17), ease: 'inQuad' },
-            { to: 2, duration: t(0.09), ease: 'outQuad' }, { to: 0, duration: t(0.09), ease: 'inQuad' },
-            { to: 0.6, duration: t(0.05), ease: 'outQuad' }, { to: 0, duration: t(0.05), ease: 'inQuad' }],
-        }, t(0.12))
-        .add(root, { scaleY: [{ to: 0.8, duration: t(0.03) }, { to: 1, duration: t(0.06), ease: 'outBack(3)' }] }, t(0.46))
-        .add(die, { rotateX: ahead(deg(die.rotation.x), x, 3), rotateZ: ahead(deg(die.rotation.z), z, 2), duration: t(0.66), ease: 'outCubic' }, t(0.12))
-        .add(spin, { rotateY: deg(spin.rotation.y) + utils.random(180, 540), duration: t(0.7), ease: 'outCubic' }, t(0.12))
+          y: [{ to: 6, duration: t(450), ease: 'outQuad' }, { to: 0, duration: t(420), ease: 'inQuad' },
+            { to: 2, duration: t(240), ease: 'outQuad' }, { to: 0, duration: t(240), ease: 'inQuad' },
+            { to: 0.6, duration: t(120), ease: 'outQuad' }, { to: 0, duration: t(120), ease: 'inQuad' }],
+        }, throwAt + t(220))
+        .add(root, { scaleY: [{ to: 0.8, duration: t(70) }, { to: 1, duration: t(160), ease: 'outBack(3)' }] }, throwAt + t(220 + 450 + 420))
+        .add(die, { rotateX: ahead(deg(die.rotation.x), x, 3), rotateZ: ahead(deg(die.rotation.z), z, 2), duration: air, ease: 'outCubic' }, throwAt + t(220))
+        .add(spin, { rotateY: deg(spin.rotation.y) + utils.random(180, 540), duration: air + t(100), ease: 'outCubic' }, throwAt + t(220))
         // Pop: the result face is up.
-        .add(root, { scale: [1, 1.3, 1], duration: t(0.14), ease: 'outElastic(1, .5)' }, t(0.86))
+        .add(root, { scale: [1, 1.3, 1], duration: ms - land, ease: 'outElastic(1, .5)' }, land)
       return tl
     },
     stop() { tl?.pause() },
