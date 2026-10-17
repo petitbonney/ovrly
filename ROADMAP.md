@@ -59,10 +59,20 @@ Small steps; each milestone should be usable on its own.
 - [x] Twitch connection in the sidebar, chat test in chat triggers' settings
 - [x] Twitch Guest/Streamer modes (Device Code sign-in, EventSub over WebSocket); Twitch poll and prediction modes in Poll and Bets
 
+## M8: Engine
+
+- [x] Expressions: `{{ path }}` and `{{ js }}`, earlier nodes' outputs (`$node`), variables (`$vars`)
+- [x] Edit Data, Edit Variable and Code nodes; more comparison operators; HTTP headers and parsed JSON response
+- [x] Schedule trigger
+- [x] Per-node retries and continue-on-error, Error Trigger
+- [x] Run history: `GET /api/runs`, last input and output in each node's settings
+- [x] Execute Workflow with a Called By Workflow trigger
+
 ## Later
 
 - Twitch EventSub triggers (follows, subs, bits, redeems; Streamer mode)
 - Other platforms (YouTube, Kick) and software (Streamlabs)
 - TypeScript
-- Workflow run logs and debugging view
+- Run history that survives restarts, and a view of all runs
+- Loop over lists (items) and Merge modes
 - Custom widget authoring

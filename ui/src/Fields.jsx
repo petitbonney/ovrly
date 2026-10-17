@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'secret' | 'var' | 'keys' | 'action' | 'input' }.
+// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' }.
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }.
 // An option { value, label, streamer: true } is a Twitch feature: it needs Twitch in Streamer mode (context.streamer).
@@ -11,6 +11,7 @@ import {
   Select, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
 } from '@mantine/core'
 import { IconBraces, IconGripVertical, IconPlus, IconX } from '@tabler/icons-react'
+import { get } from './api.js'
 
 // "case1" -> "Case1", "sceneName" -> "Scene name"
 const humanize = (key) => key[0].toUpperCase() + key.slice(1).replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`)
@@ -62,6 +63,15 @@ function ObsInput({ list, scene, ...props }) {
     }, () => setError('OBS is not reachable'))
   }, [path, skip])
   return <VarInput {...props} data={names} description={error || props.description} placeholder={names.length ? 'Pick or type a name' : undefined} />
+}
+
+// A saved workflow, picked by id.
+function WorkflowSelect({ value, onChange, ...props }) {
+  const [list, setList] = useState([])
+  useEffect(() => {
+    get('/api/workflows').then((all) => setList(all.map((w) => ({ value: w.id, label: w.name || w.id }))))
+  }, [])
+  return <Select {...props} data={list} value={value} onChange={onChange} placeholder="Pick a workflow" />
 }
 
 // "90 s" -> "1m30", "300 s" -> "5m": presets read faster in minutes.
@@ -223,6 +233,10 @@ function Field({ name, f, fallback, value, set, values, context }) {
   if (options) return <Select {...props} data={options} value={value} onChange={set} allowDeselect={false} />
   if (f.type === 'var') return <Autocomplete {...props} data={context.vars ?? []} value={value} onChange={set} />
   if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} />
+  if (f.type === 'code') {
+    return <Textarea {...props} value={value} onChange={(e) => set(e.target.value)} autosize minRows={4} spellCheck={false} styles={{ input: { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 } }} />
+  }
+  if (f.type === 'workflow') return <WorkflowSelect {...props} value={value} onChange={set} />
   if (f.type === 'secret') return <PasswordInput {...props} value={value} onChange={(e) => set(e.target.value)} />
   if (isColor(fallback)) return <ColorInput {...props} swatches={swatches} value={value} onChange={set} />
   if (typeof fallback === 'boolean') return <Switch {...props} checked={value} onChange={(e) => set(e.target.checked)} />

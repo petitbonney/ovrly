@@ -4,9 +4,9 @@
 import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
-  IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconChartBar, IconClockPause, IconCoin, IconDeviceGamepad2,
+  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconChartBar, IconClock, IconClockPause, IconCode, IconCoin, IconDeviceGamepad2, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
-  IconMessageCode, IconMovie, IconNotes, IconPlugConnected, IconWebhook, IconWheel, IconWorld,
+  IconMessageCode, IconMovie, IconNotes, IconPlugConnected, IconSubtask, IconVariable, IconWebhook, IconWheel, IconWorld,
 } from '@tabler/icons-react'
 
 // If/else branches left to right, like the graph.
@@ -16,6 +16,13 @@ export const icons = {
   'chat-command': IconMessageCode,
   'chat-message': IconMessage,
   webhook: IconWebhook,
+  schedule: IconClock,
+  'error-trigger': IconAlertTriangle,
+  'workflow-call': IconArrowBarToRight,
+  'edit-data': IconEdit,
+  code: IconCode,
+  'edit-variable': IconVariable,
+  'execute-workflow': IconSubtask,
   manual: IconHandClick,
   delay: IconHourglass,
   filter: IconFilter,
@@ -82,8 +89,9 @@ export default function FlowNode({ id, data, selected, def, widget }) {
   const trigger = def?.category === 'trigger'
   // Subtitle like n8n's "mode: Rules": the node's first setting. A Fire Widget node shows its widget and action.
   const [key, value] = Object.entries({ ...def?.config, ...data.config })[0] ?? []
+  const shown = Array.isArray(value) ? value.map((v) => v?.name ?? v).join(', ') : value
   const sub = def?.widgetInput ? [widget?.name ?? 'no widget', data.config.action].filter(Boolean).join(': ')
-    : key && value !== '' && `${key}: ${value}`
+    : key && shown !== '' && `${key}: ${shown}`
   return (
     <div className={`flow-node${trigger ? ' trigger' : ''}${def?.widgetInput ? ' fires' : ''}${selected ? ' selected' : ''}`} style={{ height: nodeHeight(def, data.config) }}>
       {trigger && <IconBolt className="bolt" size={18} fill="currentColor" />}
