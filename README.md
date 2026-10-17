@@ -9,7 +9,8 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 ## Features
 
 - **Workflows**: node graphs of the form trigger → logic → action. Build one from scratch or start from a template.
-- **Widgets**: built-in browser-source overlays: alerts, poll, bets, spin wheel, TwitchPlays.
+- **Widgets**: built-in browser-source overlays: alerts, poll, bets, lottery, TwitchPlays. The lottery draws a winner with one of
+  four layouts: wheel (weighted, colored options), roulette, slot (one reel) or dice.
 - **Twitch features**: in Streamer mode, the poll can run a native Twitch poll and bets a Twitch prediction (channel points), with live results over EventSub. In Guest mode they count chat votes and bets.
 - **Multiple instances**: run several widgets and workflows side by side.
 - **Triggers**: a schedule, Twitch chat (any message or a `!command`), an API call to `http://localhost:6875/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual Trigger).
@@ -33,12 +34,13 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 - **Widgets in a workflow**: a widget node (circle) is the "what": one overlay instance. A Fire Widget node is the
   "how": one action on it, run in the flow. Link the widget node's diamond (top) to the diamond under each Fire Widget
   node that drives it; diamonds only connect to diamonds, and each Fire Widget node drives one widget. One widget node
-  can drive several Fire Widget nodes, e.g. `!spin` spins the wheel and `!stop` cancels it in the same workflow.
-- **List settings** (poll and bets options, wheel options) are edited row by row: add, remove, move up or down.
-  Each wheel option has a label, a color and a weight: a bigger weight is a bigger section, so a likelier winner.
+  can drive several Fire Widget nodes, e.g. `!spin` spins the lottery and `!stop` cancels it in the same workflow.
+- **List settings** (poll and bets options, lottery options) are edited row by row: add, remove, move up or down.
+  Each lottery option (wheel, slot) has a label, a color and a weight: a bigger weight is a likelier winner.
+  The die's six faces are renamed in place (a face labelled 1 to 6 shows as dots); its color and dots color are settings.
 - **Show, hide, cancel**: every widget has these actions. "show" and "hide" fade the whole overlay in or out without
   interrupting what it plays (the alert's own "show" shows a text, and the overlay with it). "cancel" stops its
-  animation (the wheel freezes, an alert fades out) and stops the run waiting on it. Cancelling a workflow (switch off, Stop all) cancels the widget actions it is playing.
+  animation (the lottery freezes, an alert fades out) and stops the run waiting on it. Cancelling a workflow (switch off, Stop all) cancels the widget actions it is playing.
 - **Actions**:
   - run an action on a widget overlay (web source) with a **Fire Widget** node
   - press a key on the broadcaster's machine
@@ -166,7 +168,7 @@ export default {
 
 Actions may be async (e.g. to call the Twitch API), and `on: { 'channel.poll.progress': (state, data, config) => state }` updates a widget's state from bus events, such as Twitch EventSub notifications. `fields` gives settings hints, as for nodes (see `ui/src/Fields.jsx`); a duration lists its usual values, e.g. `duration: { unit: 's', presets: [3, 5, 10] }`, shown as buttons next to an input for any other value.
 
-The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs a widget's actions with Fire Widget nodes linked to its widget node (drag the widget type from the library, link it, then pick the action). `inputs` lists the actions that take a value and describes it, e.g. `{ show: 'Text to show' }`; other actions get no Value field. A widget type can also give data back to the workflow: `output(state, config)` returns e.g. `{ winner: 'Red' }`, merged into the data for the next nodes, and `adds: ['winner']` lists those keys for the `{ }` menu. The wheel outputs `winner`, bets `winner` and `winners`, the poll `leader` and `votes`. The Fire Widget node waits until the action has finished playing before the next nodes run. If the widget type knows how long an action plays, it says so with `playTime(action, config)` (ms) and the server waits that long, whether or not an overlay page is open (the wheel and alerts do). Otherwise the page reports the end: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays.
+The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs a widget's actions with Fire Widget nodes linked to its widget node (drag the widget type from the library, link it, then pick the action). `inputs` lists the actions that take a value and describes it, e.g. `{ show: 'Text to show' }`; other actions get no Value field. A widget type can also give data back to the workflow: `output(state, config)` returns e.g. `{ winner: 'Red' }`, merged into the data for the next nodes, and `adds: ['winner']` lists those keys for the `{ }` menu. The lottery outputs `winner`, bets `winner` and `winners`, the poll `leader` and `votes`. The Fire Widget node waits until the action has finished playing before the next nodes run. If the widget type knows how long an action plays, it says so with `playTime(action, config)` (ms) and the server waits that long, whether or not an overlay page is open (the lottery and alerts do). Otherwise the page reports the end: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays.
 
 ## Import / export
 

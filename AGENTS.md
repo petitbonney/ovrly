@@ -7,11 +7,12 @@ Ovrly is a local, node-based automation tool for live stream interactions. See [
 - **Simple, short, readable.** Use the fewest lines that stay clear. No clever tricks.
 - **Document the why.** Start each file with a one-line header comment saying what it does. Comment only where the code isn't obvious.
 - **No premature abstraction.** Write it inline first, and extract only on the third use.
-- **Few dependencies.** Ask before adding one.
 
 ## Stack
 
 Plain JavaScript (ESM), no TypeScript. pnpm, single package. Express + `ws` on the server; React + ReactFlow + Mantine + Vite for the UI.
+
+**Motion: anime.js (v4) is the animation standard** for the whole app, widget pages and UI alike. 3D goes through three.js, animated with anime.js's Three.js adapter (`animejs/adapters/three`). Widget pages load both from `/vendor/` (see `widgets/lottery/index.html` for the import map).
 
 ## Commands
 

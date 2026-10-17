@@ -4,9 +4,9 @@
 import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
-  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconChartBar, IconClock, IconClockPause, IconCode, IconCoin, IconDeviceGamepad2, IconEdit,
+  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconChartBar, IconClock, IconClockPause, IconCode, IconCoin, IconDeviceGamepad2, IconDice5, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
-  IconMessageCode, IconMovie, IconNotes, IconPlugConnected, IconSubtask, IconVariable, IconWebhook, IconWheel, IconWorld,
+  IconMessageCode, IconMovie, IconNotes, IconPlugConnected, IconSubtask, IconVariable, IconWebhook, IconWorld,
 } from '@tabler/icons-react'
 
 // If/else branches left to right, like the graph.
@@ -45,7 +45,7 @@ export const widgetIcons = {
   alerts: IconBell,
   poll: IconChartBar,
   bets: IconCoin,
-  wheel: IconWheel,
+  lottery: IconDice5,
   'twitch-plays': IconDeviceGamepad2,
 }
 

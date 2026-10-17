@@ -1,0 +1,112 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Lottery</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<!-- anime.js and three.js, served from node_modules by the server (/vendor). -->
+<script type="importmap">
+  {
+    "imports": {
+      "animejs": "/vendor/animejs/index.js",
+      "animejs/adapters/three": "/vendor/animejs/adapters/three/index.js",
+      "three": "/vendor/three/build/three.module.js",
+      "three/addons/": "/vendor/three/examples/jsm/"
+    }
+  }
+</script>
+<style>
+  #stage { position: relative; width: 440px; height: 440px; margin: 16px; }
+  #stage > * { position: absolute; }
+  #result { width: 440px; margin: 0 16px; display: flex; justify-content: center; opacity: 0; }
+  #result span { padding: 6px 22px; border-radius: 999px; background: #16161acc; font-size: 34px; }
+  /* Slot cabinet bulbs: chase while drawing, flash on the win (slots.js). */
+  .light { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #ffe08a; box-shadow: 0 0 10px #ffb400; opacity: .35; }
+  .light.alt { background: #ffd0e4; box-shadow: 0 0 10px #ff4f8b; }
+
+  /* Wheel */
+  .wheel-disc { inset: 10px; width: 420px; height: 420px; border-radius: 50%; }
+  .wheel-rim { inset: 0; border-radius: 50%; border: 12px solid #16161a; box-shadow: 0 10px 30px #000a, inset 0 0 0 3px #ffb400; }
+  .wheel-hub { left: 185px; top: 185px; width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff6d0, #ffb400 45%, #a86f00); box-shadow: 0 4px 12px #0009; }
+  .wheel-pointer { left: 198px; top: -14px; width: 44px; height: 58px; transform-origin: 50% 12px; z-index: 1; background: linear-gradient(#fff, #ddd);
+    clip-path: polygon(0 0, 100% 0, 100% 30%, 50% 100%, 0 30%); filter: drop-shadow(0 3px 3px #0009); }
+
+  /* Roulette */
+  .roulette-bowl, .roulette-rotor { inset: 0; width: 440px; height: 440px; }
+  .roulette-arm { left: 211px; top: 211px; }
+  .roulette-ball { width: 18px; height: 18px; border-radius: 50%; opacity: 0;
+    background: radial-gradient(circle at 35% 30%, #fff, #ddd 50%, #888); box-shadow: 0 2px 4px #000c; }
+
+  /* Slot */
+  .slots-cabinet { left: 20px; top: 10px; width: 340px; height: 420px; border-radius: 30px; background: linear-gradient(160deg, #b51d4a, #5c0c3a);
+    box-shadow: 0 12px 30px #000a, inset 0 0 0 4px #ffb400, inset 0 -10px 30px #0006; }
+  .slots-window { position: absolute; left: 40px; top: 60px; width: 260px; height: 300px; overflow: hidden; border-radius: 16px; background: #0f0f14;
+    box-shadow: inset 0 0 0 3px #000; }
+  .slots-window::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(#000d, #0000 30%, #0000 70%, #000d); }
+  .slots-strip { position: absolute; left: 0; top: 6px; width: 100%; display: flex; flex-direction: column; gap: 12px; }
+  .slots-tile { flex: none; height: 88px; margin: 0 12px; border-radius: 14px; display: grid; place-items: center; font-size: 30px;
+    box-shadow: inset 0 -8px 0 #0004, inset 0 4px 0 #fff4; }
+  .slots-payline { position: absolute; top: 196px; width: 0; height: 0; border: 14px solid transparent; filter: drop-shadow(0 0 6px #ffb400); }
+  .slots-payline.left { left: 16px; border-left: 20px solid #ffb400; }
+  .slots-payline.right { right: 16px; border-right: 20px solid #ffb400; }
+  .slots-stick { left: 374px; top: 90px; width: 12px; height: 110px; border-radius: 6px; transform-origin: 50% 100%; background: linear-gradient(90deg, #888, #eee, #888); }
+  .slots-knob { left: 362px; top: 66px; width: 36px; height: 36px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff9db8, #e0144f 55%, #6e0022); box-shadow: 0 3px 8px #0009; }
+  .slots-base { left: 360px; top: 196px; width: 40px; height: 30px; border-radius: 8px; background: #2a2a30; }
+
+  /* Dice (three.js) */
+  .three { inset: 0; width: 440px; height: 440px; }
+</style>
+<div id="stage"></div>
+<div id="result"><span></span></div>
+<script type="module">
+  import { animate, engine } from 'animejs'
+  import { subscribe, wait } from '/widgets/lib.js'
+  import { choices } from '/widgets/lottery/widget.js'
+  import wheel from '/widgets/lottery/wheel.js'
+  import roulette from '/widgets/lottery/roulette.js'
+  import slots from '/widgets/lottery/slots.js'
+  import dice from '/widgets/lottery/dice.js'
+  const layouts = { wheel, roulette, slots, dice }
+  const stage = document.getElementById('stage')
+  const result = document.getElementById('result')
+
+  // OBS may hide the source: draws keep time with the server instead of pausing.
+  engine.pauseOnDocumentHidden = false
+
+  // The winner's label pops in under the stage once the draw is over.
+  let timer
+  function reveal(label, tint) {
+    result.firstChild.textContent = label
+    result.firstChild.style.background = tint ?? ''
+    animate(result, { opacity: [0, 1], scale: [0.4, 1], translateY: [24, 0], duration: 900, ease: 'outElastic(1, .55)' })
+  }
+  function hide() {
+    clearTimeout(timer)
+    result.style.opacity = 0
+  }
+
+  // Each layout builds itself in the stage: { play(winner, ms) → anime timeline that ends on the winner, stop(), destroy(),
+  // tint(winner)? the result's color }. It is rebuilt whenever the settings change.
+  let layout, key, lastSpin = 0
+  subscribe(({ config, state }) => {
+    if (JSON.stringify(config) !== key) {
+      key = JSON.stringify(config)
+      layout?.destroy()
+      stage.replaceChildren()
+      hide()
+      layout = layouts[config.layout](stage, config)
+    }
+    if (state.winner < 0 || state.at === lastSpin || state.cancelled || state.layout !== config.layout) return
+    lastSpin = state.at
+    const ms = config.duration * 1000
+    const played = Math.min(Math.max(Date.now() - state.at, 0), ms) // a page opened mid-draw catches up
+    hide()
+    layout.stop()
+    layout.play(state.winner, ms).seek(played)
+    timer = setTimeout(() => reveal(choices(config)[state.winner]?.label ?? '', layout.tint?.(state.winner)), ms - played)
+    return wait(ms - played) // finished once the draw is over
+  }, () => {
+    // Cancel: the draw freezes where it is, with no result.
+    layout?.stop()
+    hide()
+  })
+</script>

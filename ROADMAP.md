@@ -35,12 +35,12 @@ Small steps; each milestone should be usable on its own.
 - [x] Widget runtime: `/w/:id` page plus live state updates (SSE)
 - [x] `widget-update` action node
 - [x] Widget config panel (center pane)
-- [x] Built-ins: alerts → poll → spin wheel → bets → TwitchPlays
+- [x] Built-ins: alerts → poll → lottery → bets → TwitchPlays
 
 ## M5: Templates & sharing
 
 - [x] "New workflow" modal: blank or from a template
-- [x] Starter templates (e.g. `!spin` → wheel, chat poll)
+- [x] Starter templates (e.g. `!spin` → lottery, chat poll)
 - [x] Import/export of workflows and widgets as JSON
 
 ## M6: More nodes
