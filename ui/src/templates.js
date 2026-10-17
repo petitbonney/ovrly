@@ -22,8 +22,8 @@ function command(name, description, command, widget, action, value) {
 }
 
 export default [
-  command('!spin → wheel', 'Spins a wheel when chat types !spin.', '!spin',
-    { name: 'Spin wheel', type: 'wheel', config: {} }, 'spin', ''),
+  command('!spin → lottery', 'Spins a lottery wheel when chat types !spin.', '!spin',
+    { name: 'Lottery', type: 'lottery', config: {} }, 'spin', ''),
   command('Chat poll', 'Viewers vote with !vote 1 or !vote yes.', '!vote',
     { name: 'Poll', type: 'poll', config: {} }, 'vote', '{{args}}'),
   command('!hype alert', 'Shows a banner when someone types !hype.', '!hype',

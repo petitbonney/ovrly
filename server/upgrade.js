@@ -77,7 +77,19 @@ function upgradeWidgetNodes(workflow) {
 
 // Widget settings that are now lists used to be comma-separated text: "Yes, No" becomes ['Yes', 'No'], or, when the
 // type's list holds objects (the wheel's { label, color, weight }), items copied from its defaults with that label.
-export function upgradeWidget(widget, defaults) {
+// The Spin Wheel became the Lottery, whose wheel is one layout; its pointer color setting is gone. The lottery's coin
+// flip layout is gone too: it falls back to the wheel.
+export function upgradeWidget(widget, types) {
+  if (widget.type === 'wheel') {
+    const { pointerColor, ...config } = widget.config ?? {}
+    widget = { ...widget, type: 'lottery', config: { ...config, layout: 'wheel' } }
+  }
+  if (widget.type === 'lottery' && 'coin' in (widget.config ?? {})) {
+    const { coin, ...config } = widget.config
+    widget = { ...widget, config: { ...config, ...(config.layout === 'coin' && { layout: 'wheel' }) } }
+  }
+  const defaults = types[widget.type]?.config
+  if (!defaults) return widget
   const old = Object.keys(widget.config ?? {}).filter((k) => Array.isArray(defaults[k]) && typeof widget.config[k] === 'string')
   if (!old.length) return widget
   const config = { ...widget.config }
