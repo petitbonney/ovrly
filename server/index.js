@@ -157,9 +157,10 @@ app.use('/api', (err, req, res, next) => res.status(400).json({ error: err.messa
 
 // Widget pages for OBS browser sources: /w/<id> serves its type's page, /w/<id>/events streams its state.
 app.use('/widgets', express.static('widgets'))
-// Animation libraries for widget pages (anime.js, three.js), mapped by the pages' import maps.
+// Animation and physics libraries for widget pages (anime.js, three.js, cannon-es), mapped by the pages' import maps.
 app.use('/vendor/animejs', express.static('node_modules/animejs/dist/modules'))
 app.use('/vendor/three', express.static('node_modules/three'))
+app.use('/vendor/cannon-es', express.static('node_modules/cannon-es/dist'))
 // The page reports that it finished playing an action, e.g. { run: 12 }.
 app.post('/w/:id/done', (req, res) => {
   widgets.finish(req.body.run)

@@ -38,6 +38,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 - **List settings** (poll and bets options, lottery options) are edited row by row: add, remove, move up or down.
   Each lottery option (wheel, slot) has a label, a color and a weight: a bigger weight is a likelier winner.
   The die's six faces are renamed in place (a face labelled 1 to 6 shows as dots); its color and dots color are settings.
+  The dice throw is real physics (cannon-es), so it ignores the duration setting: a roll always takes 3.5s.
 - **Show, hide, cancel**: every widget has these actions. "show" and "hide" fade the whole overlay in or out without
   interrupting what it plays (the alert's own "show" shows a text, and the overlay with it). "cancel" stops its
   animation (the lottery freezes, an alert fades out) and stops the run waiting on it. Cancelling a workflow (switch off, Stop all) cancels the widget actions it is playing.
