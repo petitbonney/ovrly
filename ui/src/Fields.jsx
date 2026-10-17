@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' }.
+// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' | 'image' }.
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
 // (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
@@ -8,11 +8,12 @@
 // { obs: 'scenes' | 'sources' } suggestions from OBS.
 import { useEffect, useRef, useState } from 'react'
 import {
-  ActionIcon, Autocomplete, Button, ColorInput, Group, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
+  ActionIcon, Autocomplete, Button, ColorInput, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
   Select, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
 } from '@mantine/core'
-import { IconBraces, IconGripVertical, IconPlus, IconX } from '@tabler/icons-react'
+import { IconBraces, IconGripVertical, IconPlus, IconUpload, IconX } from '@tabler/icons-react'
 import { get } from './api.js'
+import GiphyPicker from './GiphyPicker.jsx'
 
 // "case1" -> "Case1", "sceneName" -> "Scene name"
 const humanize = (key) => key[0].toUpperCase() + key.slice(1).replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`)
@@ -90,6 +91,46 @@ function PresetInput({ label, description, unit, presets, value, onChange }) {
         ))}
         <NumberInput size="xs" w={90} min={0} aria-label={`Custom ${label.toLowerCase()}`} suffix={unit && ` ${unit}`} value={value} onChange={(v) => onChange(Number(v))} />
       </Group>
+    </Stack>
+  )
+}
+
+// An image: a preview, an upload button, a Giphy picker once the Giphy integration has a working key, and a field to
+// paste a URL. The value is the image's URL (an uploaded file's /media/… path, a Giphy URL, or the pasted one).
+function ImageInput({ label, description, value, onChange }) {
+  const [giphy, setGiphy] = useState(false) // whether Giphy is set up
+  const [picking, setPicking] = useState(false)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    get('/api/giphy').then((s) => setGiphy(s.connected), () => {})
+  }, [])
+  const upload = async (e) => {
+    const file = e.target.files[0]
+    e.target.value = '' // so the same file can be picked again
+    if (!file) return
+    const res = await fetch('/api/media', { method: 'POST', headers: { 'Content-Type': file.type }, body: file })
+    const body = await res.json()
+    setError(res.ok ? '' : body.error)
+    if (res.ok) onChange(body.url)
+  }
+  return (
+    <Stack gap={4}>
+      <Text size="xs" fw={500}>{label}</Text>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
+      {value && <Image src={value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
+      <Group gap="xs">
+        <Button size="xs" variant="default" component="label" leftSection={<IconUpload size={14} />}>
+          Upload
+          <input type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/avif" hidden onChange={upload} />
+        </Button>
+        <Tooltip label="Set up Giphy first (Integration → Giphy)" disabled={giphy}>
+          <Button size="xs" variant="default" data-disabled={!giphy || undefined} onClick={() => giphy && setPicking(true)}>Giphy</Button>
+        </Tooltip>
+        {value && <Button size="xs" variant="subtle" color="red" onClick={() => onChange('')}>Clear</Button>}
+      </Group>
+      <TextInput size="xs" placeholder="or paste an image URL" value={value} onChange={(e) => onChange(e.target.value)} />
+      {error && <Text size="xs" c="red">{error}</Text>}
+      <GiphyPicker opened={picking} onClose={() => setPicking(false)} onPick={onChange} />
     </Stack>
   )
 }
@@ -240,6 +281,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
     return <Textarea {...props} value={value} onChange={(e) => set(e.target.value)} autosize minRows={4} spellCheck={false} styles={{ input: { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 } }} />
   }
   if (f.type === 'workflow') return <WorkflowSelect {...props} value={value} onChange={set} />
+  if (f.type === 'image') return <ImageInput {...props} value={value} onChange={set} />
   if (f.type === 'secret') return <PasswordInput {...props} value={value} onChange={(e) => set(e.target.value)} />
   if (isColor(fallback)) return <ColorInput {...props} swatches={swatches} value={value} onChange={set} />
   if (typeof fallback === 'boolean') return <Switch {...props} checked={value} onChange={(e) => set(e.target.checked)} />

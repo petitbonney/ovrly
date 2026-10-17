@@ -1,4 +1,4 @@
-// Sidebar "Integration" section: one row per connection (Twitch, OBS), clicked to open its settings, with a
+// Sidebar "Integration" section: one row per connection (Twitch, OBS, Giphy), clicked to open its settings, with a
 // status dot (green connected, red not). The settings open in a dialog; saving reconnects.
 import { useEffect, useState } from 'react'
 import { Anchor, Button, Code, ColorSwatch, Group, Loader, Modal, NavLink, Paper, PasswordInput, SegmentedControl, Stack, Text, TextInput, ThemeIcon, Tooltip } from '@mantine/core'
@@ -178,12 +178,36 @@ function Obs() {
   )
 }
 
+function Giphy() {
+  const [status, setStatus] = useStatus('/api/giphy')
+  const [open, setOpen] = useState(false)
+  const [key, setKey] = useState('')
+  const edit = () => {
+    setKey(status?.key ?? '')
+    setOpen(true)
+  }
+  const save = async () => setStatus(await (await fetch('/api/giphy', json('PUT', { key }))).json())
+  const tip = status?.connected ? 'API key accepted' : status?.error || 'Checking…'
+  return (
+    <>
+      <Row name="Giphy" connected={status?.connected} tip={tip} onSettings={edit} />
+      <Settings title="Giphy" opened={open} onClose={() => setOpen(false)} onSave={save} status={{ connected: status?.connected, text: tip }}>
+        <Text size="xs" c="dimmed">
+          Create an app of type API at <Anchor size="xs" href="https://developers.giphy.com/dashboard/" target="_blank">developers.giphy.com</Anchor>, then paste its API key.
+        </Text>
+        <PasswordInput size="xs" label="API key" value={key} onChange={(e) => setKey(e.target.value)} data-autofocus />
+      </Settings>
+    </>
+  )
+}
+
 export default function Integrations() {
   return (
     <Stack gap={0}>
       <Heading title="Integration" />
       <Twitch />
       <Obs />
+      <Giphy />
     </Stack>
   )
 }
