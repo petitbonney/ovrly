@@ -15,26 +15,27 @@
   }
 </script>
 <style>
-  /* Layouts are designed at 440px; the frame around the stage is scaled to fill the page (--k, set below). */
-  #frame { position: absolute; left: 50%; top: 50%; width: 476px; height: 440px; translate: -50% -50%; scale: var(--k, 1); }
-  #stage { position: relative; width: 440px; height: 440px; } /* the frame is 36px wider: room for the wheel's pin */
-  #stage > * { position: absolute; }
+  /* The stage fills the page; its canvases (.fill) too. Pieces made of HTML go on the board: 440px, the size layouts
+     are designed at, centered and scaled to fit the page (--k, set below). Canvases draw at the same scale. */
+  #stage { position: fixed; inset: 0; overflow: hidden; }
+  #stage > *, #board > * { position: absolute; }
+  #board { left: 50%; top: 50%; width: 440px; height: 440px; translate: -50% -50%; scale: var(--k, 1); }
+  .fill { inset: 0; width: 100%; height: 100%; }
   /* Slot cabinet bulbs: chase while drawing, flash on the win (slots.js). */
   .light { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #ffe08a; box-shadow: 0 0 10px #ffb400; opacity: .35; }
   .light.alt { background: #ffd0e4; box-shadow: 0 0 10px #ff4f8b; }
 
   /* Wheel */
-  .wheel-disc { inset: 0; width: 440px; height: 440px; } /* the wheel is 420px: the margin lets the winner's section pop out */
+  /* The wheel is 380px (wheel.js): room for the pin, and for the winner to pop out. */
   /* On the right, pointing left: the winning label reads level next to it. */
   /* A red map pin on the right, its tip in the wheel pointing at the center (wheel.js draws it); it pivots on its head. */
-  .wheel-pin { left: 420px; top: 200px; width: 54px; height: 40px; transform-origin: 34px 50%; filter: drop-shadow(0 2px 3px #0006); }
+  .wheel-pin { left: 386px; top: 200px; width: 54px; height: 40px; transform-origin: 34px 50%; filter: drop-shadow(0 2px 3px #0006); }
   /* An orange-gold dot in relief on the center: lit from the top left, shaded below. */
   .wheel-hub { left: 210px; top: 210px; width: 20px; height: 20px; border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #ffe2b0, #ffa21f 35%, #d0680a 75%, #8a3f00);
     box-shadow: inset 0 -1.5px 2px #0006, inset 0 1.5px 1.5px #fffa; }
 
   /* Roulette */
-  .roulette-bowl, .roulette-rotor { inset: 0; width: 440px; height: 440px; }
   .roulette-arm { left: 211px; top: 211px; }
   .roulette-ball { width: 18px; height: 18px; border-radius: 50%; opacity: 0;
     background: radial-gradient(circle at 35% 30%, #fff, #ddd 50%, #888); box-shadow: 0 2px 4px #000c; }
@@ -55,11 +56,8 @@
   .slots-stick { left: 374px; top: 90px; width: 12px; height: 110px; border-radius: 6px; transform-origin: 50% 100%; background: linear-gradient(90deg, #888, #eee, #888); }
   .slots-knob { left: 362px; top: 66px; width: 36px; height: 36px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff9db8, #e0144f 55%, #6e0022); box-shadow: 0 3px 8px #0009; }
   .slots-base { left: 360px; top: 196px; width: 40px; height: 30px; border-radius: 8px; background: #2a2a30; }
-
-  /* Dice (three.js) */
-  .three { inset: 0; width: 440px; height: 440px; }
 </style>
-<div id="frame"><div id="stage"></div></div>
+<div id="stage"></div>
 <script type="module">
   import { engine } from 'animejs'
   import { subscribe, wait } from '/widgets/lib.js'
@@ -74,26 +72,29 @@
   // OBS may hide the source: draws keep time with the server instead of pausing.
   engine.pauseOnDocumentHidden = false
 
-  // Fill the page, whatever the browser source's size. Canvases are drawn at the scaled size (res: pixels per design
-  // px), so they stay sharp; a resize only rescales until the next rebuild.
-  let k = 1
-  const fit = () => {
-    k = Math.min(innerWidth / 476, innerHeight / 440)
-    document.documentElement.style.setProperty('--k', k)
-  }
-  fit()
-  addEventListener('resize', fit)
+  const board = Object.assign(document.createElement('div'), { id: 'board' })
 
-  // Each layout builds itself in the stage, at a resolution: { play(winner, ms) → anime timeline that ends on the winner,
-  // stop(), destroy() }. It is rebuilt whenever the settings change. The page shows no result text: the winner is in the
-  // workflow's data ({{winner}}), for an alert or a chat message to announce it.
-  let layout, key, lastSpin = 0
+  // Each layout builds itself: canvases in the stage, HTML pieces on the board, drawn at res (device pixels per design
+  // px). It returns { play(winner, ms) → anime timeline that ends on the winner, stop(), destroy() }. It is rebuilt when
+  // the settings change or the page is resized. The page shows no result text: the winner is in the workflow's data
+  // ({{winner}}), for an alert or a chat message to announce it.
+  let layout, key, lastSpin = 0, shown
+  function build(config) {
+    const k = Math.min(innerWidth, innerHeight) / 440 // the board's scale: as big as the page allows
+    document.documentElement.style.setProperty('--k', k)
+    layout?.destroy()
+    stage.replaceChildren()
+    board.replaceChildren()
+    layout = layouts[config.layout](stage, board, config, k * devicePixelRatio)
+    stage.append(board) // over the canvases
+    shown = config
+  }
+  addEventListener('resize', () => shown && build(shown))
+
   subscribe(({ config, state }) => {
     if (JSON.stringify(config) !== key) {
       key = JSON.stringify(config)
-      layout?.destroy()
-      stage.replaceChildren()
-      layout = layouts[config.layout](stage, config, Math.max(2, k * devicePixelRatio))
+      build(config)
     }
     if (state.winner < 0 || state.at === lastSpin || state.cancelled || state.layout !== config.layout) return
     lastSpin = state.at

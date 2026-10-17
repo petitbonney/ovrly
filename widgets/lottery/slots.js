@@ -71,7 +71,7 @@ function lightShow(lights) {
   }
 }
 
-export default function slots(stage, { options }) {
+export default function slots(stage, board, { options }) {
   const n = options.length
   const option = (i) => options[((i % n) + n) % n]
   // Five tiles, repainted as the reel turns: the strip never grows, however long the draw.
@@ -83,7 +83,7 @@ export default function slots(stage, { options }) {
   const blur = defs.querySelector('feGaussianBlur')
   const lights = bulbs(FRAME)
   const knob = el('div', 'slots-knob'), stick = el('div', 'slots-stick')
-  stage.append(
+  board.append(
     defs,
     el('div', 'slots-cabinet', ...lights, el('div', 'slots-window', strip), el('div', 'slots-payline left'), el('div', 'slots-payline right')),
     el('div', 'slots-base'), stick, knob,

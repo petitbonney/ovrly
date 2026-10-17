@@ -16,24 +16,27 @@ function sections(options) {
   })
 }
 
-export default function wheel(stage, { options }, res) {
+export default function wheel(stage, board, { options }, res) {
   const parts = sections(options)
-  const disc = el('canvas', 'wheel-disc')
-  disc.width = disc.height = 440 * res
-  disc.getContext('2d').setTransform(res / 2, 0, 0, res / 2, 0, 0) // drawn in 880 units (2x)
+  // The canvas fills the page; the wheel is drawn in 880 units (2x the board), centered. It turns around the center.
+  const disc = el('canvas', 'fill')
+  disc.width = innerWidth * devicePixelRatio
+  disc.height = innerHeight * devicePixelRatio
+  disc.getContext('2d').setTransform(res / 2, 0, 0, res / 2, (disc.width - 440 * res) / 2, (disc.height - 440 * res) / 2)
   // A stubby map pin: a round head (with a white hole) and its tip 32px to the left; a white edge keeps it visible over a
   // red section.
   const pin = el('div', 'wheel-pin')
   pin.innerHTML = `<svg viewBox="-34 -20 54 40" width="54" height="40">
     <path d="M-10.1 -14.9 A18 18 0 1 1 -10.1 14.9 L-32 0 Z" fill="#e8202a" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
     <circle r="7" fill="#fff"/></svg>`
-  stage.append(disc, el('div', 'wheel-hub'), pin)
+  stage.append(disc)
+  board.append(el('div', 'wheel-hub'), pin)
 
   // dim: 0..1, how much the sections other than the winner darken; pop: 0..1, how far the winner's section grows out.
   // The winner is drawn last, over its neighbours.
   function draw(dim = 0, winner = -1, pop = 0) {
     const ctx = disc.getContext('2d')
-    const c = 440, R = 420
+    const c = 440, R = 380
     ctx.clearRect(0, 0, 880, 880)
     const order = parts.map((_, i) => i).sort((i, j) => (i === winner) - (j === winner))
     for (const i of order) {
