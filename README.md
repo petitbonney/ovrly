@@ -12,11 +12,22 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 - **Widgets**: built-in browser-source overlays: alerts, poll, bets, spin wheel, TwitchPlays.
 - **Twitch features**: in Streamer mode, the poll can run a native Twitch poll and bets a Twitch prediction (channel points), with live results over EventSub. In Guest mode they count chat votes and bets.
 - **Multiple instances**: run several widgets and workflows side by side.
-- **Triggers**: Twitch chat (any message or a `!command`), an API call to `http://localhost:6875/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual Trigger).
-- **Logic**: filter (continues only if a comparison holds, like if/else), delay (in seconds), if/else, switch (a list
+- **Triggers**: a schedule, Twitch chat (any message or a `!command`), an API call to `http://localhost:6875/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual Trigger).
+- **Logic**: filter (continues only if a comparison holds, like if/else; 13 operators: equals, contains, regex, numbers, empty…), delay (in seconds), if/else, switch (a list
   of cases, one output each, labelled by the case; links follow their case when cases move or are removed), wait for all (continues once every incoming link has delivered),
   cooldown (lets data through, then sends the next to "blocked" for a while, for everyone or per viewer) and
   queue (what follows runs one firing at a time, the next wait in line).
+- **Expressions**: any text setting takes `{{ ... }}`: a path (`{{user}}`, `{{json.items.0.name}}`, `{{$vars.score}}`,
+  `{{$node.http-request.status}}` for the output of an earlier node, by type or id) or a JavaScript expression
+  (`{{ score * 2 }}`). Expressions and the Code node run as code: only import workflows you trust.
+- **Data vs variables**: *data* is the payload that travels from node to node during one run (`{{user}}`), gone when
+  the run ends. *Variables* are shared by all workflows and kept across runs and restarts (`{{$vars.score}}`).
+  Edit Data changes data; Edit Variable sets, adds to or deletes a variable.
+- **More nodes**: Code (JavaScript on the data), Schedule (a trigger every N seconds, minutes or hours),
+  Execute Workflow (runs another workflow, which starts with a Called By Workflow trigger, and merges its result in).
+- **Errors and history**: every node but triggers can retry on failure and then either stop or continue with
+  `{{error}}`. An Error Trigger workflow runs when a node fails in another one. Each node's settings show its input and
+  output from its last run; `GET /api/runs` has the last 100 firings (in memory).
 - **Widget concurrency**: an action sent to a widget that is still playing one (e.g. a second `!spin`) cancels it and
   plays the new one; the cancelled run stops there. Put a queue node before the widget to play them in turn instead.
 - **Widgets in a workflow**: a widget node (circle) is the "what": one overlay instance. A Fire Widget node is the

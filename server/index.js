@@ -2,7 +2,7 @@
 import express from 'express'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
-import { nodes, fire, cancel, running, activity } from './engine.js'
+import { nodes, fire, cancel, running, activity, history } from './engine.js'
 import * as twitch from './sources/twitch.js'
 import * as twitchAuth from './sources/twitch-auth.js'
 import * as eventsub from './sources/twitch-eventsub.js'
@@ -52,6 +52,8 @@ app.get('/api/events', (req, res) => {
   if (req.query.format !== 'json' && req.accepts(['json', 'html']) === 'html') return res.sendFile('server/events.html', { root: '.' })
   res.type('json').send(JSON.stringify(recent, null, 2))
 })
+// Run history: the recent firings with what each node got and returned, newest first; ?workflow=<id> for one workflow.
+app.get('/api/runs', (req, res) => res.json(history.filter((r) => !req.query.workflow || r.workflow === req.query.workflow)))
 // Runs a workflow's manual triggers now (the Run button in the editor).
 app.post('/api/workflows/:id/run', async (req, res) => {
   const workflow = await store.get('workflows', req.params.id).catch(() => null)
