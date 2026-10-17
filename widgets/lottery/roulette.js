@@ -1,0 +1,107 @@
+// Roulette layout (European, 0-36): the rotor turns one way, the ball races the other way on the track, drops,
+// bounces across the frets into the winning pocket, then the other pockets dim.
+import { createTimeline } from 'animejs'
+import { el } from '/widgets/lib.js'
+import { REDS } from '/widgets/lottery/widget.js'
+
+// Pocket order around the wheel, clockwise from the top.
+const ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26]
+const STEP = 360 / 37
+const color = (n) => (n === 0 ? '#0e9f4d' : REDS.includes(n) ? '#d0202e' : '#141418')
+const TRACK = 186, POCKET = 128 // ball radius in px: on the track, in a pocket
+const BALL_SPEED = 900, ROTOR_SPEED = 90 // degrees per second at the start of a draw
+const LAUNCH = 300, DROP = 1500, WIN = 700 // ms: onto the track, down into a pocket, the win
+
+// Canvases fill the page; the wheel is drawn in 880 units (2x the 440px board), centered; c is its center.
+const c = 440
+const rad = (deg) => ((deg - 90) * Math.PI) / 180 // canvas angle of a clockwise angle from the top
+
+function canvas(res) {
+  const node = el('canvas', 'fill')
+  node.width = innerWidth * devicePixelRatio
+  node.height = innerHeight * devicePixelRatio
+  node.getContext('2d').setTransform(res / 2, 0, 0, res / 2, (node.width - 440 * res) / 2, (node.height - 440 * res) / 2)
+  return node
+}
+
+// The static bowl: a wooden rim and the polished ball track.
+function drawBowl(ctx) {
+  const wood = ctx.createRadialGradient(c, c, 380, c, c, 440)
+  wood.addColorStop(0, '#3b1d0c'); wood.addColorStop(0.5, '#8a4b22'); wood.addColorStop(1, '#4a230d')
+  ctx.beginPath(); ctx.arc(c, c, 436, 0, 2 * Math.PI); ctx.fillStyle = wood; ctx.fill()
+  ctx.beginPath(); ctx.arc(c, c, 396, 0, 2 * Math.PI); ctx.fillStyle = '#1b1b20'; ctx.fill()
+  ctx.strokeStyle = '#ffb40088'; ctx.lineWidth = 4; ctx.stroke()
+}
+
+// The rotor: numbered ring, pockets with golden frets, the cone and its turret. dim darkens all but the winner's pocket.
+function drawRotor(ctx, dim = 0, winner = -1) {
+  ctx.clearRect(0, 0, 880, 880)
+  ORDER.forEach((n, i) => {
+    const a = rad(i * STEP - STEP / 2), b = rad(i * STEP + STEP / 2)
+    ctx.beginPath(); ctx.arc(c, c, 340, a, b); ctx.arc(c, c, 230, b, a, true); ctx.closePath()
+    ctx.fillStyle = color(n); ctx.fill()
+    ctx.strokeStyle = '#d9a640'; ctx.lineWidth = 3; ctx.stroke()
+    ctx.save(); ctx.translate(c, c); ctx.rotate(rad(i * STEP) + Math.PI / 2)
+    ctx.fillStyle = '#fff'; ctx.font = '800 26px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText(n, 0, -312)
+    ctx.restore()
+    if (dim && n !== winner) { ctx.fillStyle = `rgba(0, 0, 0, ${dim * 0.65})`; ctx.fill() }
+  })
+  // Pocket floor: a shadowed band where the ball lands.
+  ctx.beginPath(); ctx.arc(c, c, 286, 0, 2 * Math.PI); ctx.arc(c, c, 230, 0, 2 * Math.PI, true)
+  ctx.fillStyle = '#0005'; ctx.fill()
+  const cone = ctx.createRadialGradient(c - 40, c - 40, 20, c, c, 230)
+  cone.addColorStop(0, '#c98a4b'); cone.addColorStop(1, '#5a2d10')
+  ctx.beginPath(); ctx.arc(c, c, 230, 0, 2 * Math.PI); ctx.fillStyle = cone; ctx.fill()
+  ctx.strokeStyle = '#d9a640'; ctx.lineWidth = 6; ctx.stroke()
+  // Turret: a golden cross.
+  ctx.fillStyle = '#e8b84a'; ctx.strokeStyle = '#7a5410'; ctx.lineWidth = 3
+  for (let k = 0; k < 4; k++) {
+    ctx.save(); ctx.translate(c, c); ctx.rotate((k * Math.PI) / 2)
+    ctx.beginPath(); ctx.roundRect(-10, -150, 20, 150, 10); ctx.fill(); ctx.stroke()
+    ctx.restore()
+  }
+  ctx.beginPath(); ctx.arc(c, c, 40, 0, 2 * Math.PI); ctx.fill(); ctx.stroke()
+}
+
+export default function roulette(stage, board, config, res) {
+  const bowl = canvas(res), rotor = canvas(res)
+  const ball = el('div', 'roulette-ball')
+  const arm = el('div', 'roulette-arm', ball) // carries the ball around; the ball itself only pops (anime owns its transform)
+  stage.append(bowl, rotor)
+  board.append(arm)
+  drawBowl(bowl.getContext('2d'))
+  drawRotor(rotor.getContext('2d'))
+
+  // The ball's angle is the rotor's plus rel, so once in its pocket it turns with the rotor.
+  const s = { rotor: 0, rel: 0, r: TRACK, dim: 0 }
+  const place = () => {
+    rotor.style.rotate = `${s.rotor}deg`
+    arm.style.transform = `rotate(${s.rotor + s.rel}deg) translateY(${-s.r}px)`
+  }
+
+  let tl
+  return {
+    play(winner, ms) {
+      // Fixed-length moves (ms); a longer draw only means more laps at the same speeds.
+      const k = Math.min(1, ms / (LAUNCH + DROP + WIN)) // a very short draw speeds them up
+      const [launch, drop, win] = [LAUNCH * k, DROP * k, WIN * k]
+      const land = ms - win // the ball rests in its pocket
+      const pocket = ORDER.indexOf(winner) * STEP
+      // The ball races counter-clockwise round the rotor and slows down (outCubic covers a third of v0 × time).
+      const rel = pocket + 360 * Math.floor((s.rel - (BALL_SPEED * land) / 3000 - pocket) / 360)
+      tl = createTimeline()
+        .add(s, { dim: 0, duration: 1, onUpdate: () => drawRotor(rotor.getContext('2d')) }, 0)
+        .add(ball, { opacity: 1, duration: launch }, 0)
+        .add(s, { rotor: s.rotor + (ROTOR_SPEED * ms) / 2000, duration: ms, ease: 'outQuad', onUpdate: place }, 0)
+        .add(s, { rel, duration: land, ease: 'outCubic', onUpdate: place }, 0)
+        // Out of the last pocket onto the track, round and round, then down across the frets.
+        .add(s, { r: [{ to: TRACK, duration: launch, ease: 'outQuad' }, { to: TRACK, duration: land - launch - drop }, { to: POCKET, duration: drop, ease: 'outBounce' }], onUpdate: place }, 0)
+        .add(s, { dim: 1, duration: win * 0.6, ease: 'outQuad', onUpdate: () => drawRotor(rotor.getContext('2d'), s.dim, winner) }, land)
+        .add(ball, { scale: [1, 1.6, 1], duration: win, ease: 'outElastic(1, .5)' }, land)
+      return tl
+    },
+    stop() { tl?.pause() },
+    destroy() { this.stop() },
+  }
+}

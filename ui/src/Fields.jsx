@@ -1,7 +1,8 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
 // { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' }.
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
-// only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }.
+// only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
+// (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
 // An option { value, label, streamer: true } is a Twitch feature: it needs Twitch in Streamer mode (context.streamer).
 // A list default (e.g. a poll's options) gets a list editor, a color default ("#rrggbb") a color picker, and
 // { obs: 'scenes' | 'sources' } suggestions from OBS.
@@ -114,7 +115,7 @@ function ItemInput({ item, shape, onChange }) {
 // A list setting: one row per item, reordered by dragging its grip (dropped above the row it lands on) or removed,
 // and an Add button. A new item is empty
 // text, or shaped like the default items with empty text and, for colors, the first swatch not used yet.
-function ListInput({ label, description, value, defaults, onChange }) {
+function ListInput({ label, description, value, defaults, fixed, onChange }) {
   const shape = defaults[0]
   const set = (i, item) => onChange(value.map((v, j) => (j === i ? item : v)))
   const [drag, setDrag] = useState(null) // { from, over }: the row being dragged and the row it is over
@@ -161,7 +162,7 @@ function ListInput({ label, description, value, defaults, onChange }) {
             if (drag) drop()
           }}
         >
-          <ActionIcon
+          {!fixed && <ActionIcon
             variant="subtle"
             color="gray"
             size="sm"
@@ -177,16 +178,18 @@ function ListInput({ label, description, value, defaults, onChange }) {
             onDragEnd={() => setDrag(null)}
           >
             <IconGripVertical size={14} />
-          </ActionIcon>
+          </ActionIcon>}
           <ItemInput item={item} shape={shape} onChange={(v) => set(i, v)} />
-          <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label="Remove"><IconX size={14} /></ActionIcon>
+          {!fixed && <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label="Remove"><IconX size={14} /></ActionIcon>}
         </Group>
       ))}
       {drag?.over === value.length && <div style={{ height: 2, marginTop: -2, background: 'var(--mantine-color-blue-5)' }} />}
-      <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} fullWidth
-        onClick={() => onChange([...value, blank()])}>
-        Add
-      </Button>
+      {!fixed && (
+        <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} fullWidth
+          onClick={() => onChange([...value, blank()])}>
+          Add
+        </Button>
+      )}
     </Stack>
   )
 }
@@ -194,7 +197,7 @@ function ListInput({ label, description, value, defaults, onChange }) {
 // One setting; context: { vars: data keys available here, widget: the linked widget, types } for the dynamic types.
 function Field({ name, f, fallback, value, set, values, context }) {
   const props = { label: f.label ?? humanize(name), description: f.hint, size: 'xs' }
-  if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} onChange={set} />
+  if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} onChange={set} />
   if (f.type === 'keys') {
     return <TagsInput {...props} data={f.options} value={value ? value.split('+') : []} onChange={(v) => set(v.join('+'))} />
   }
@@ -249,7 +252,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
 
 // show: the settings to show (all by default), e.g. to show some of them elsewhere in the pane.
 export default function Fields({ defaults, values, onChange, fields = {}, context = {}, show = Object.keys(defaults) }) {
-  const only = (f) => !f?.only || Object.entries(f.only).every(([k, v]) => (values[k] ?? defaults[k]) === v)
+  const only = (f) => !f?.only || Object.entries(f.only).every(([k, v]) => [v].flat().includes(values[k] ?? defaults[k]))
   const keys = show.filter((key) => !fields[key]?.hidden && only(fields[key]))
   if (keys.length === 0) return <Text size="sm" c="dimmed">No settings</Text>
   return (

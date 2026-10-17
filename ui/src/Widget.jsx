@@ -51,6 +51,7 @@ export default function WidgetSettings({ widget, type, onChange, onCopy }) {
   }, [name, config])
 
   const url = `${location.origin}/w/${widget.id}`
+  const first = ['mode', 'layout'].filter((key) => key in type.config)
   return (
     // Settings on the left scroll; the preview on the right never does, it shrinks to fit the pane's height.
     <Group className="widget-split" align="stretch" gap="xl" wrap="nowrap">
@@ -63,9 +64,9 @@ export default function WidgetSettings({ widget, type, onChange, onCopy }) {
           </Tooltip>
         </Group>
         <TextInput size="xs" label="Name" description="Shared by every node that uses this widget" value={name} onChange={(e) => setName(e.target.value)} />
-        {/* A widget's mode (e.g. chat votes or a Twitch poll) shapes everything below, so it comes first. */}
-        {!type.soon && 'mode' in type.config && (
-          <Fields defaults={type.config} fields={type.fields} values={config} onChange={setConfig} context={{ streamer }} show={['mode']} />
+        {/* A widget's mode (e.g. chat votes or a Twitch poll) or layout shapes everything below, so it comes first. */}
+        {!type.soon && first.length > 0 && (
+          <Fields defaults={type.config} fields={type.fields} values={config} onChange={setConfig} context={{ streamer }} show={first} />
         )}
         <Divider />
         {type.soon ? (
@@ -75,7 +76,7 @@ export default function WidgetSettings({ widget, type, onChange, onCopy }) {
         ) : (
           <>
             <Fields defaults={type.config} fields={type.fields} values={config} onChange={setConfig} context={{ streamer }}
-              show={Object.keys(type.config).filter((key) => key !== 'mode')} />
+              show={Object.keys(type.config).filter((key) => !first.includes(key))} />
             <Divider />
             <Test widget={widget} type={type} />
           </>
