@@ -1,4 +1,4 @@
-// Widget instance settings, shown in a widget node's settings pane: id, name, main action, OBS link, settings and
+// Widget instance settings, shown in a widget node's settings pane: id, name, main action's value, OBS link, settings and
 // preview.
 // Autosaved; the instance itself is created when its widget is dropped onto the graph.
 import { useEffect, useState } from 'react'
@@ -7,9 +7,9 @@ import { IconCheck, IconCopy, IconHourglassHigh } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import { get, json } from './api.js'
 
-// A widget node's settings: the instance's id and name, the node's main action (`main`), then its settings. A widget
+// A widget node's settings: the instance's id and name, the value the node runs its main action with, if it takes one, then its settings. A widget
 // type marked `soon` shows a "Coming soon" note instead of settings. onCopy copies the node for pasting.
-export default function WidgetSettings({ widget, type, main, onChange, onCopy }) {
+export default function WidgetSettings({ widget, type, value, onChange, onCopy }) {
   const [name, setName] = useState(widget.name)
   const [config, setConfig] = useState(widget.config)
   // Whether Twitch features (options marked streamer) can run, for the settings to say so.
@@ -39,7 +39,7 @@ export default function WidgetSettings({ widget, type, main, onChange, onCopy })
           </Tooltip>
         </Group>
         <TextInput size="xs" label="Name" description="Shared by every node that uses this widget" value={name} onChange={(e) => setName(e.target.value)} />
-        {main}
+        {value}
         {/* A widget's mode (e.g. chat votes or a Twitch poll) or layout shapes everything below, so it comes first. */}
         {!type.soon && first.length > 0 && (
           <Fields defaults={type.config} fields={type.fields} values={config} onChange={setConfig} context={{ streamer }} show={first} />

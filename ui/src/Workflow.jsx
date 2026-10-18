@@ -9,7 +9,7 @@ import {
   useNodesState, useEdgesState, addEdge, useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ActionIcon, AppShell, Button, Code, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import { ActionIcon, AppShell, Button, Divider, Group, Modal, Notification, Text, TextInput, Tooltip } from '@mantine/core'
 import {
   IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
   IconPlayerPlay, IconPlus, IconSitemap,
@@ -87,16 +87,6 @@ function Config({ node, def, context, onChange, onWidgetChange, onCopy }) {
   const type = widget && context.types.find((t) => t.type === widget.type)
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[def.type]) ?? icons.log
   const fields = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={context} onChange={onChange} />
-  // What a widget node does when the flow reaches it: its main action, with a value if that action takes one.
-  const main = type && (
-    <Stack gap="xs">
-      <Group gap={6}>
-        <Text size="xs" c="dimmed">Main action</Text>
-        <Code>{type.main}</Code>
-      </Group>
-      {type.inputs?.[type.main] && fields}
-    </Stack>
-  )
   return (
     <AppShell.Footer>
       <div className={isWidget && type ? 'pane split' : 'pane'}>
@@ -106,7 +96,7 @@ function Config({ node, def, context, onChange, onWidgetChange, onCopy }) {
         </Group>
         <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
         {isWidget ? (
-          type ? <WidgetSettings key={widget.id} widget={widget} type={type} main={main} onChange={onWidgetChange} onCopy={onCopy} />
+          type ? <WidgetSettings key={widget.id} widget={widget} type={type} value={type.inputs?.[type.main] && fields} onChange={onWidgetChange} onCopy={onCopy} />
             : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>
         ) : fields}
       </div>
