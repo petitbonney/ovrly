@@ -9,7 +9,7 @@ import {
   useNodesState, useEdgesState, addEdge, useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ActionIcon, AppShell, Badge, Button, Code, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import { ActionIcon, AppShell, Button, Code, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip } from '@mantine/core'
 import {
   IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
   IconPlayerPlay, IconPlus, IconSitemap,
@@ -19,7 +19,6 @@ import Fields from './Fields.jsx'
 import WidgetSettings from './Widget.jsx'
 import FlowNode, { colors, icons, widgetIcons } from './FlowNode.jsx'
 import layout from './layout.js'
-import { ChatTest } from './Chat.jsx'
 import { exportWorkflow, download } from './share.js'
 import { get, json } from './api.js'
 
@@ -77,70 +76,17 @@ const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '#9a9a9a
 // Fitting the graph (on open and with the fit view button) never zooms past 100%, so a small graph isn't blown up.
 const fitOptions = { maxZoom: 1, padding: 0.3 }
 
-// Settings of every node but triggers, handled by the engine (retries and failures).
-const errorConfig = { onError: 'stop', retries: 0, retryWait: 1 }
-const errorFields = {
-  onError: { label: 'On error', options: [{ value: 'stop', label: 'Stop' }, { value: 'continue', label: 'Continue' }], hint: 'Continue passes the data on with {{error}}' },
-  retries: { label: 'Retries' },
-  retryWait: { label: 'Wait between retries', unit: 's' },
-}
-
-const pretty = (v) => JSON.stringify(v, null, 2) ?? 'nothing'
-
-// What the node got and returned the last time it ran, from the run history. `state` (the live state of the node)
-// changing means it just ran, so it is read again.
-function LastRun({ workflow, node, state }) {
-  const [last, setLast] = useState(null)
-  useEffect(() => {
-    if (state === 'running' || state === 'waiting') return
-    get(`/api/runs?workflow=${workflow}`).then((runs) => {
-      const run = runs.find((r) => r.nodes.some((n) => n.node === node))
-      setLast(run && { at: run.at, ...run.nodes.findLast((n) => n.node === node) })
-    })
-  }, [workflow, node, state])
-  if (!last) return <Text size="xs" c="dimmed" mt="md">Not run yet since the server started.</Text>
-  return (
-    <Stack gap={4} mt="md">
-      <Group gap="xs">
-        <Text size="sm" fw={500}>Last run</Text>
-        <Text size="xs" c="dimmed">{new Date(last.at).toLocaleTimeString()} · {last.ms} ms</Text>
-        {last.error && <Badge color="red" variant="light">{last.error}</Badge>}
-        {last.output === null && <Badge color="gray" variant="light">stopped here</Badge>}
-      </Group>
-      <Group gap="xs" align="start" grow wrap="nowrap">
-        {[['Input', last.input], ['Output', last.output]].map(([title, v]) => (
-          <Stack key={title} gap={2} miw={0}>
-            <Text size="xs" c="dimmed">{title}</Text>
-            <Code block mah={180} style={{ overflow: 'auto' }}>{pretty(v)}</Code>
-          </Stack>
-        ))}
-      </Group>
-    </Stack>
-  )
-}
-
 // Settings of the selected node: title, description, then a form built from the node type's fields.
 // A widget node shows its widget instance's settings and preview, with the main action's value; a Widget Callback node
 // picks a widget node of this workflow (context.instances), then the action to run on it. context.widget is the
 // widget the node points to.
-function Config({ node, def, context, state, onChange, onWidgetChange, onCopy }) {
+function Config({ node, def, context, onChange, onWidgetChange, onCopy }) {
   if (!node || !def) return null
   const isWidget = def.type === 'widget'
   const { widget } = context
   const type = widget && context.types.find((t) => t.type === widget.type)
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[def.type]) ?? icons.log
   const fields = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={context} onChange={onChange} />
-  const lastRun = (
-    <>
-      <LastRun key={node.id} workflow={context.workflow} node={node.id} state={state} />
-      {def.category !== 'trigger' && (
-        <Stack mt="md">
-          <Text size="sm" fw={500}>Error handling</Text>
-          <Fields defaults={errorConfig} values={node.data.config} fields={errorFields} onChange={onChange} />
-        </Stack>
-      )}
-    </>
-  )
   // What a widget node does when the flow reaches it: its main action, with a value if that action takes one.
   const main = type && (
     <Stack gap="xs">
@@ -160,18 +106,9 @@ function Config({ node, def, context, state, onChange, onWidgetChange, onCopy })
         </Group>
         <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
         {isWidget ? (
-          type ? <WidgetSettings key={widget.id} widget={widget} type={type} main={main} onChange={onWidgetChange} onCopy={onCopy}>{lastRun}</WidgetSettings>
+          type ? <WidgetSettings key={widget.id} widget={widget} type={type} main={main} onChange={onWidgetChange} onCopy={onCopy} />
             : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>
-        ) : (
-          <>
-            {fields}
-            {lastRun}
-          </>
-        )}
-        {def.event === 'chat' && (
-          // A !command trigger's test message starts with its command.
-          <Stack mt="md"><ChatTest key={node.id} message={def.type === 'chat-command' ? `${node.data.config.command ?? def.config.command} ` : 'hello'} /></Stack>
-        )}
+        ) : fields}
       </div>
     </AppShell.Footer>
   )
@@ -482,9 +419,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       <Config
         node={selected}
         def={defOf(selected)}
-        state={live.nodes[selected?.id]}
         context={{
-          workflow: workflow.id,
           vars: selected ? upstreamKeys(selected.id, { nodes, edges, defs, widgets, types }) : [],
           widget: findWidget(widgets, selected?.data.config.widget),
           // The widgets a Widget Callback node can pick: those with a widget node here.

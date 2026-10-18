@@ -97,7 +97,7 @@ function PresetInput({ label, description, unit, presets, value, onChange }) {
 
 // An image: a preview, an upload button, a Giphy picker once the Giphy integration has a working key, and a field to
 // paste a URL. The value is the image's URL (an uploaded file's /media/… path, a Giphy URL, or the pasted one).
-function ImageInput({ label, description, value, onChange }) {
+function ImageInput({ label, description, value, onChange, vars }) {
   const [giphy, setGiphy] = useState(false) // whether Giphy is set up
   const [picking, setPicking] = useState(false)
   const [error, setError] = useState('')
@@ -117,7 +117,7 @@ function ImageInput({ label, description, value, onChange }) {
     <Stack gap={4}>
       <Text size="xs" fw={500}>{label}</Text>
       {description && <Text size="xs" c="dimmed">{description}</Text>}
-      {value && <Image src={value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
+      {value && !value.includes('{{') && <Image src={value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
       <Group gap="xs">
         <Button size="xs" variant="default" component="label" leftSection={<IconUpload size={14} />}>
           Upload
@@ -128,7 +128,7 @@ function ImageInput({ label, description, value, onChange }) {
         </Tooltip>
         {value && <Button size="xs" variant="subtle" color="red" onClick={() => onChange('')}>Clear</Button>}
       </Group>
-      <TextInput size="xs" placeholder="or paste an image URL" value={value} onChange={(e) => onChange(e.target.value)} />
+      <VarInput size="xs" placeholder="or paste an image URL" vars={vars} value={value} onChange={onChange} />
       {error && <Text size="xs" c="red">{error}</Text>}
       <GiphyPicker opened={picking} onClose={() => setPicking(false)} onPick={onChange} />
     </Stack>
@@ -245,10 +245,12 @@ function Field({ name, f, fallback, value, set, values, context }) {
   }
   // A widget's actions come from its type (nothing to pick if there is only one); short option lists are buttons.
   const type = context.types?.find((t) => t.type === context.widget?.type)
-  // A widget action's value is only asked for if the action takes one; the widget type says what it is.
+  // A widget action's value is only asked for if the action takes one; the widget type says what it is: a hint, or
+  // { type: 'image', hint } for an image picker.
   if (f.type === 'input') {
-    const hint = type?.inputs?.[values.action || type.main]
-    return hint ? <VarInput {...props} description={hint} vars={context.vars ?? []} value={value} onChange={set} /> : null
+    const input = type?.inputs?.[values.action || type.main]
+    if (input?.type === 'image') return <ImageInput {...props} label="Image" description={input.hint} vars={context.vars ?? []} value={value} onChange={set} />
+    return input ? <VarInput {...props} description={input} vars={context.vars ?? []} value={value} onChange={set} /> : null
   }
   // Twitch features can't be picked unless Streamer mode is on; one picked earlier says why it won't run.
   const options = f.type === 'action' ? type?.actions ?? [] : f.options?.map((o) => {

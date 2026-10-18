@@ -21,7 +21,7 @@ Small steps; each milestone should be usable on its own.
 
 - [x] tmi.js connection (channel name in settings, anonymous read)
 - [x] Triggers: chat message, `!command`
-- [x] Chat test panel to fire fake events without going live
+- [x] Fake chat events without going live (`POST /api/emit/chat`)
 
 ## M3: Actions
 
@@ -56,7 +56,7 @@ Small steps; each milestone should be usable on its own.
 - [x] Widgets in the library: dropping a widget type creates an instance (own id), set up in its node's settings
 - [x] Undo/redo of graph edits (buttons and shortcuts)
 - [x] Copy/paste nodes across workflows, with feedback; pasted widget nodes share their instance (once per workflow), deleted with its last node
-- [x] Twitch connection in the sidebar, chat test in chat triggers' settings
+- [x] Twitch connection in the sidebar
 - [x] Twitch Guest/Streamer modes (Device Code sign-in, EventSub over WebSocket); Twitch poll and prediction modes in Poll and Bets
 
 ## M8: Engine
@@ -64,7 +64,7 @@ Small steps; each milestone should be usable on its own.
 - [x] Expressions: `{{ path }}` and `{{ js }}`, earlier nodes' outputs (`$node`), variables (`$vars`)
 - [x] Edit Data, Edit Variable and Code nodes; more comparison operators; HTTP headers and parsed JSON response
 - [x] Schedule trigger
-- [x] Per-node retries and continue-on-error, Error Trigger
+- [x] Error Trigger
 - [x] Run history: `GET /api/runs`, last input and output in each node's settings
 - [x] Execute Workflow with a Called By Workflow trigger
 

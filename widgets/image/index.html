@@ -13,34 +13,19 @@
   import { subscribe, wait } from '/widgets/lib.js'
   const img = document.getElementById('img')
   const IN = 300, OUT = 300
-  // Where each effect starts when the image comes in (it ends at rest, and goes out reversed). Every play animates all
-  // of them, so whatever the last effect left behind (e.g. a rotation) is reset.
-  const rest = { translateY: 0, rotate: 0, scale: 1 }
-  const effects = {
-    fade: {},
-    slide: { translateY: -80 },
-    rotate: { rotate: -180, scale: 0.3 },
-    scale: { scale: 0.2 },
-  }
   let timer
-  const play = (effect, out) => {
-    const props = Object.fromEntries(Object.entries(rest).map(([k, to]) => {
-      const from = effects[effect]?.[k] ?? to
-      return [k, out ? [to, from] : [from, to]]
-    }))
-    return animate(img, { ...props, opacity: out ? [1, 0] : [0, 1], duration: out ? OUT : IN, ease: out ? 'inQuad' : 'outQuad' })
-  }
+  const fade = (out) => animate(img, { opacity: out ? [1, 0] : [0, 1], duration: out ? OUT : IN, ease: out ? 'inQuad' : 'outQuad' })
   subscribe(async ({ config, state }) => {
     clearTimeout(timer)
     const left = state.cancelled || !state.url ? 0 : state.at + config.duration * 1000 - Date.now()
     if (left <= 0) return void (img.style.opacity = 0)
     if (img.getAttribute('src') !== state.url) img.src = state.url
-    play(config.effect, false)
-    timer = setTimeout(() => play(config.effect, true), Math.max(left - OUT, 0))
+    fade(false)
+    timer = setTimeout(() => fade(true), Math.max(left - OUT, 0))
     return wait(left + OUT)
   }, () => {
     // Cancel: the image goes out now.
     clearTimeout(timer)
-    play('fade', true)
+    fade(true)
   })
 </script>

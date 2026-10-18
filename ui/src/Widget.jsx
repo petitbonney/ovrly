@@ -1,42 +1,15 @@
-// Widget instance settings, shown in a widget node's settings pane: id, name, main action, OBS link, settings, test
-// and preview.
+// Widget instance settings, shown in a widget node's settings pane: id, name, main action, OBS link, settings and
+// preview.
 // Autosaved; the instance itself is created when its widget is dropped onto the graph.
 import { useEffect, useState } from 'react'
-import { ActionIcon, Alert, Anchor, Button, Code, CopyButton, Divider, Group, SegmentedControl, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import { ActionIcon, Alert, Anchor, Code, CopyButton, Divider, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core'
 import { IconCheck, IconCopy, IconHourglassHigh } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
-import Heading from './Heading.jsx'
 import { get, json } from './api.js'
 
-// Fires one widget action by hand, like a widget node would. The value box only shows for actions that take one.
-function Test({ widget, type }) {
-  const [action, setAction] = useState(type.main)
-  const [value, setValue] = useState('')
-  const [user, setUser] = useState('tester')
-  const [error, setError] = useState('')
-  const send = async (e) => {
-    e.preventDefault()
-    const res = await fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, value, user }))
-    setError(res.ok ? '' : (await res.json()).error)
-  }
-  return (
-    <form onSubmit={send}>
-      <Heading title="Test" />
-      <Group gap="xs">
-        {type.actions.length > 1 && <SegmentedControl size="xs" data={type.actions} value={action} onChange={setAction} />}
-        {type.inputs?.[action] && <TextInput size="xs" w={120} placeholder="value" value={value} onChange={(e) => setValue(e.target.value)} />}
-        <TextInput size="xs" w={100} placeholder="user" value={user} onChange={(e) => setUser(e.target.value)} />
-        <Button size="xs" variant="default" type="submit">Send</Button>
-      </Group>
-      {error && <Text size="xs" c="red" mt={4}>{error}</Text>}
-    </form>
-  )
-}
-
-// A widget node's settings, in sections: the instance's id and name, the node's main action (`main`), its settings, its
-// test, then the node's last run and error handling (children). A widget type marked `soon` shows a "Coming soon" note
-// instead of settings and test. onCopy copies the node for pasting.
-export default function WidgetSettings({ widget, type, main, onChange, onCopy, children }) {
+// A widget node's settings: the instance's id and name, the node's main action (`main`), then its settings. A widget
+// type marked `soon` shows a "Coming soon" note instead of settings. onCopy copies the node for pasting.
+export default function WidgetSettings({ widget, type, main, onChange, onCopy }) {
   const [name, setName] = useState(widget.name)
   const [config, setConfig] = useState(widget.config)
   // Whether Twitch features (options marked streamer) can run, for the settings to say so.
@@ -77,14 +50,9 @@ export default function WidgetSettings({ widget, type, main, onChange, onCopy, c
             This widget is a work in progress: its settings will come in a later version.
           </Alert>
         ) : (
-          <>
-            <Fields defaults={type.config} fields={type.fields} values={config} onChange={setConfig} context={{ streamer }}
-              show={Object.keys(type.config).filter((key) => !first.includes(key))} />
-            <Divider />
-            <Test widget={widget} type={type} />
-          </>
+          <Fields defaults={type.config} fields={type.fields} values={config} onChange={setConfig} context={{ streamer }}
+            show={Object.keys(type.config).filter((key) => !first.includes(key))} />
         )}
-        {children}
       </Stack>
       <Stack gap={0} flex="1 1 320px" miw={0}>
         <Group gap={6} mb="xs" wrap="nowrap">
