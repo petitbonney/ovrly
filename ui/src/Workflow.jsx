@@ -247,7 +247,10 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     if (!def) return
     let config = {}
     if (type) {
-      const res = await fetch('/api/widgets', json('POST', { name: type.label, type: type.type, config: {} }))
+      // Signed in to Twitch (Streamer mode): a widget with a Twitch mode (Poll, Bets) starts in it.
+      const twitch = type.fields?.mode?.options?.find((o) => o.streamer)
+      const mode = twitch && (await get('/api/twitch')).streamer ? { mode: twitch.value } : {}
+      const res = await fetch('/api/widgets', json('POST', { name: type.label, type: type.type, config: mode }))
       config = { widget: (await res.json()).id }
       onWidgetChange()
     }
