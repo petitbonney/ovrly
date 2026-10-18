@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' | 'image' }.
+// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' | 'image' | 'widget' }.
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
 // (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
@@ -97,7 +97,7 @@ function PresetInput({ label, description, unit, presets, value, onChange }) {
 
 // An image: a preview, an upload button, a Giphy picker once the Giphy integration has a working key, and a field to
 // paste a URL. The value is the image's URL (an uploaded file's /media/… path, a Giphy URL, or the pasted one).
-function ImageInput({ label, description, value, onChange }) {
+function ImageInput({ label, description, value, onChange, vars }) {
   const [giphy, setGiphy] = useState(false) // whether Giphy is set up
   const [picking, setPicking] = useState(false)
   const [error, setError] = useState('')
@@ -117,7 +117,7 @@ function ImageInput({ label, description, value, onChange }) {
     <Stack gap={4}>
       <Text size="xs" fw={500}>{label}</Text>
       {description && <Text size="xs" c="dimmed">{description}</Text>}
-      {value && <Image src={value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
+      {value && !value.includes('{{') && <Image src={value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
       <Group gap="xs">
         <Button size="xs" variant="default" component="label" leftSection={<IconUpload size={14} />}>
           Upload
@@ -128,7 +128,7 @@ function ImageInput({ label, description, value, onChange }) {
         </Tooltip>
         {value && <Button size="xs" variant="subtle" color="red" onClick={() => onChange('')}>Clear</Button>}
       </Group>
-      <TextInput size="xs" placeholder="or paste an image URL" value={value} onChange={(e) => onChange(e.target.value)} />
+      <VarInput size="xs" placeholder="or paste an image URL" vars={vars} value={value} onChange={onChange} />
       {error && <Text size="xs" c="red">{error}</Text>}
       <GiphyPicker opened={picking} onClose={() => setPicking(false)} onPick={onChange} />
     </Stack>
@@ -235,7 +235,8 @@ function ListInput({ label, description, value, defaults, fixed, onChange }) {
   )
 }
 
-// One setting; context: { vars: data keys available here, widget: the linked widget, types } for the dynamic types.
+// One setting; context: { vars: data keys available here, widget: the node's widget, instances: the widgets to pick
+// from, types } for the dynamic types.
 function Field({ name, f, fallback, value, set, values, context }) {
   const props = { label: f.label ?? humanize(name), description: f.hint, size: 'xs' }
   if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} onChange={set} />
@@ -244,10 +245,12 @@ function Field({ name, f, fallback, value, set, values, context }) {
   }
   // A widget's actions come from its type (nothing to pick if there is only one); short option lists are buttons.
   const type = context.types?.find((t) => t.type === context.widget?.type)
-  // A widget action's value is only asked for if the action takes one; the widget type says what it is.
+  // A widget action's value is only asked for if the action takes one; the widget type says what it is: a hint, or
+  // { type: 'image', hint } for an image picker.
   if (f.type === 'input') {
-    const hint = type?.inputs?.[values.action || type.actions[0]]
-    return hint ? <VarInput {...props} description={hint} vars={context.vars ?? []} value={value} onChange={set} /> : null
+    const input = type?.inputs?.[values.action || type.main]
+    if (input?.type === 'image') return <ImageInput {...props} label="Image" description={input.hint} vars={context.vars ?? []} value={value} onChange={set} />
+    return input ? <VarInput {...props} description={input} vars={context.vars ?? []} value={value} onChange={set} /> : null
   }
   // Twitch features can't be picked unless Streamer mode is on; one picked earlier says why it won't run.
   const options = f.type === 'action' ? type?.actions ?? [] : f.options?.map((o) => {
@@ -269,12 +272,16 @@ function Field({ name, f, fallback, value, set, values, context }) {
       <Stack gap={4}>
         <Text size="xs" fw={500}>{props.label}</Text>
         {props.description && <Text size="xs" c="dimmed">{props.description}</Text>}
-        {/* A Fire Widget node with no action set runs its widget's first one. */}
-        <SegmentedControl size="xs" data={explained} value={f.type === 'action' ? value || options[0] : value} onChange={set} style={{ alignSelf: 'start' }} />
+        {/* A Widget Callback node with no action set runs its widget's main one. */}
+        <SegmentedControl size="xs" data={explained} value={f.type === 'action' ? value || type.main : value} onChange={set} style={{ alignSelf: 'start' }} />
       </Stack>
     )
   }
-  if (options) return <Select {...props} data={options} value={value} onChange={set} allowDeselect={false} />
+  if (options) return <Select {...props} data={options} value={f.type === 'action' ? value || type.main : value} onChange={set} allowDeselect={false} />
+  if (f.type === 'widget') {
+    return <Select {...props} searchable data={context.instances ?? []} value={value || null} onChange={set} allowDeselect={false}
+      placeholder="Search a widget" nothingFoundMessage="No widget node in this workflow" />
+  }
   if (f.type === 'var') return <Autocomplete {...props} data={context.vars ?? []} value={value} onChange={set} />
   if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} />
   if (f.type === 'code') {

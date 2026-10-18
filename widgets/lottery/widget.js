@@ -51,6 +51,7 @@ export default {
   state: { winner: -1, at: 0 },
   adds: ['winner'],
   output: (state, config) => ({ winner: choices(config)[state.winner]?.label ?? '' }),
+  main: 'spin', // what a widget node runs; other actions go through Widget Callback nodes
   inputs: {}, // no action takes a value
   playTime: (action, config) => playMs(config), // the workflow waits for the draw to end
   actions: {

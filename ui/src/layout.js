@@ -1,8 +1,7 @@
 // One-shot left-to-right layout: each node goes in the column of its longest path from a root (a node with no input),
 // and each column is ordered by where its links come from, to keep crossings down. Each node sits level with the
 // output it comes from (so a chain of links is straight), pushed down only as much as needed for the nodes above it,
-// by their real height (a switch grows with its cases). Widget nodes (no flow links) go in a row under the
-// graph, each below the first Fire Widget node it drives (or the next free spot right). Returns { id: { x, y } }.
+// by their real height (a switch grows with its cases). Returns { id: { x, y } }.
 import { nodeHeight, outputsOf } from './FlowNode.jsx'
 
 const COLUMN = 240 // node box (90px) plus its caption (160px wide), with room for links
@@ -10,11 +9,9 @@ const CAPTION = 50 // the two caption lines under a node
 const GAP = 20 // between a caption and the next node
 
 // defs: node types, for node heights and output order (if/else's "true" goes above "false", a switch's cases in order).
-export default function layout(all, links, defs) {
+export default function layout(nodes, edges, defs) {
   const def = (n) => defs.find((d) => d.type === n?.data.type)
   const height = (n) => nodeHeight(def(n), n.data.config)
-  const nodes = all.filter((n) => n.data.type !== 'widget')
-  const edges = links.filter((e) => e.sourceHandle !== 'widget')
   // Longest path from a root; relaxing at most once per node also stops on a loop.
   const depth = Object.fromEntries(nodes.map((n) => [n.id, 0]))
   for (let i = 0; i < nodes.length; i++) {
@@ -59,17 +56,6 @@ export default function layout(all, links, defs) {
     }
     const push = column.reduce((sum, n) => sum + positions[n.id].y + height(n) / 2 - wanted[n.id], 0) / column.length
     for (const n of column) positions[n.id].y -= push
-  }
-  // A widget whose spot is taken moves right, so links don't run behind other widgets. Widgets of the lowest nodes
-  // go first: a link from a node higher up then runs beside the nodes under it, not through them.
-  const bottom = Math.max(0, ...nodes.map((n) => positions[n.id].y + height(n))) + CAPTION + GAP
-  const driven = (w) => positions[links.find((e) => e.source === w.id && e.sourceHandle === 'widget')?.target]
-  const taken = new Set()
-  for (const w of all.filter((n) => n.data.type === 'widget').sort((a, b) => (driven(b)?.y ?? 0) - (driven(a)?.y ?? 0))) {
-    let x = driven(w)?.x ?? 0
-    while (taken.has(x)) x += COLUMN
-    taken.add(x)
-    positions[w.id] = { x, y: bottom }
   }
   return positions
 }

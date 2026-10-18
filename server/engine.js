@@ -30,19 +30,6 @@ const runs = {}
 export const history = []
 let lastRun = 0
 
-// Waits ms, or less if the firing is cancelled.
-const sleep = (ms, signal) => new Promise((resolve) => {
-  const timer = setTimeout(resolve, ms)
-  signal.addEventListener('abort', () => resolve(clearTimeout(timer)), { once: true })
-})
-
-// Widget links join a widget node's diamond (sourceHandle "widget") to a Fire Widget node's diamond input
-// (targetHandle "widget"). They carry no data: they say which widget instance the node drives.
-function linkedWidget(workflow, node) {
-  const link = workflow.edges.find((e) => e.target === node.id && e.targetHandle === 'widget')
-  return workflow.nodes.find((n) => n.id === link?.source)?.data.config.widget
-}
-
 // Runs one node, then the nodes connected to its outputs. A null result stops the branch.
 // `run` is the state of one trigger firing: its abort signal and the data waiting at "wait for all" (join) nodes.
 async function walk(workflow, node, data, run) {
@@ -52,7 +39,7 @@ async function walk(workflow, node, data, run) {
   if (def.join) {
     const arrived = (run.joins[node.id] ??= [])
     arrived.push(data)
-    if (arrived.length < workflow.edges.filter((e) => e.target === node.id && e.targetHandle !== 'widget').length) return status('waiting')
+    if (arrived.length < workflow.edges.filter((e) => e.target === node.id).length) return status('waiting')
     data = Object.assign({}, ...arrived)
   }
   // `id` keys a node's memory across firings (cooldown).
@@ -100,42 +87,29 @@ async function step(workflow, node, data, run, { def, config, id, status }) {
   }
   const began = Date.now()
   const log = (extra) => run.record.nodes.push({ node: node.id, type: def.type, input: data, ...extra, ms: Date.now() - began })
-  // Failures are retried `retries` times, waiting `retryWait` seconds; then the firing stops there, or with
-  // onError "continue" the data goes on with { error }.
-  let out, failed
-  for (let attempt = 0; ; attempt++) {
-    try {
-      out = await def.run({ config, data, id, signal: run.signal, widget: linkedWidget(workflow, node), depth: run.depth })
-      break
-    } catch (err) {
-      if (run.signal.aborted) return end('stopped') // e.g. an HTTP request cut short by cancel()
-      if (attempt < (config.retries ?? 0)) {
-        await sleep((config.retryWait ?? 1) * 1000, run.signal)
-        continue
-      }
-      log({ error: err.message })
-      if (config.onError !== 'continue') {
-        run.failedNode = def.label
-        end('error', { error: err.message })
-        throw err
-      }
-      failed = err
-      out = { ...data, error: err.message }
-      break
-    }
+  // A failure stops the firing there.
+  let out
+  try {
+    out = await def.run({ config, data, id, signal: run.signal, depth: run.depth })
+  } catch (err) {
+    if (run.signal.aborted) return end('stopped') // e.g. an HTTP request cut short by cancel()
+    log({ error: err.message })
+    run.failedNode = def.label
+    end('error', { error: err.message })
+    throw err
   }
   if (out == null || run.signal.aborted) {
     if (!trigger) log({ output: null })
     return end('stopped')
   }
   if (trigger) run.start()
-  if (!failed) log({ output: out })
-  end(failed ? 'error' : 'done', failed && { error: failed.message })
+  log({ output: out })
+  end('done')
   // Nodes with several outputs (if/else, switch) return { [output]: data }; only those outputs continue.
   const multi = def.outputs || def.outputsFrom
   run.last = multi ? Object.values(out)[0] : out
   run.outputs[def.type] = run.outputs[node.id] = run.last
-  const next = workflow.edges.filter((e) => e.source === node.id && e.sourceHandle !== 'widget' && (!multi || e.sourceHandle in out))
+  const next = workflow.edges.filter((e) => e.source === node.id && (!multi || e.sourceHandle in out))
   await Promise.all(next.map((e) => {
     const target = workflow.nodes.find((n) => n.id === e.target)
     if (target) activity.emit('activity', { workflow: workflow.id, edge: e.id, target: e.target })

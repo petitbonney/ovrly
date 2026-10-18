@@ -45,33 +45,58 @@ export default function upgrade(old) {
     changed = true
     return { ...n, data: { ...n.data, config } }
   })
-  return upgradeWidgetNodes(changed ? { ...workflow, nodes } : workflow)
+  return upgradeFireWidget(upgradeWidgetNodes(changed ? { ...workflow, nodes } : workflow))
 }
 
 // Widgets used to run inside the flow ("widget-update" nodes, and "event-bus" nodes that sent actions to any widget):
-// each becomes a Fire Widget node (same id, links and action) linked to one widget node per instance, placed below.
+// each becomes a Widget Callback node (same id, links and action), plus one widget node per instance, placed below.
 const OLD = ['widget-update', 'event-bus']
 
 function upgradeWidgetNodes(workflow) {
   if (!workflow.nodes?.some((n) => OLD.includes(n.data.type))) return workflow
   const nodes = []
-  const edges = [...(workflow.edges ?? [])]
-  const widgetNodes = {} // instance id -> its widget node id
+  const placed = new Set() // instances that have their widget node
   for (const n of workflow.nodes) {
     if (!OLD.includes(n.data.type)) {
       nodes.push(n)
       continue
     }
-    const { widget, ...config } = n.data.config
-    nodes.push({ ...n, data: { ...n.data, type: 'fire-widget', label: 'Fire Widget', config } })
-    if (!widget) continue
-    if (!widgetNodes[widget]) {
-      widgetNodes[widget] = `${n.id}-widget`
-      const position = { x: n.position.x, y: n.position.y + 200 }
-      nodes.push({ id: widgetNodes[widget], type: n.type, position, data: { type: 'widget', label: 'Widget', config: { widget } } })
-    }
-    edges.push({ id: `${widgetNodes[widget]}-${n.id}`, source: widgetNodes[widget], sourceHandle: 'widget', target: n.id, targetHandle: 'widget' })
+    nodes.push({ ...n, data: { ...n.data, type: 'widget-callback', label: 'Widget Callback' } })
+    const { widget } = n.data.config
+    if (!widget || placed.has(widget)) continue
+    placed.add(widget)
+    nodes.push({ id: `${n.id}-widget`, type: n.type, position: { x: n.position.x, y: n.position.y + 200 }, data: { type: 'widget', label: 'Widget', config: { widget } } })
   }
+  return { ...workflow, nodes }
+}
+
+// Fire Widget nodes ran actions on the widget nodes linked to their diamond connector; widget nodes now run their main
+// action themselves. Each Fire Widget node becomes a Widget Callback node per linked widget, with that widget's action
+// and value: several run side by side and meet at a Wait For All node (with the Fire Widget node's id), as before.
+// Widget nodes stay, unlinked.
+function upgradeFireWidget(workflow) {
+  if (!workflow.nodes?.some((n) => n.data.type === 'fire-widget')) return workflow
+  const links = workflow.edges.filter((e) => e.sourceHandle === 'widget')
+  let edges = workflow.edges.filter((e) => e.sourceHandle !== 'widget')
+  const nodes = workflow.nodes.flatMap((n) => {
+    if (n.data.type !== 'fire-widget') return [n]
+    const { widgets, action, value, ...config } = n.data.config
+    const refs = links.filter((e) => e.target === n.id).map((e) => workflow.nodes.find((w) => w.id === e.source)?.data.config.widget).filter(Boolean)
+    const callback = (id, widget, i) => {
+      const own = widgets?.[widget] ?? { action, value }
+      const position = { x: n.position.x, y: n.position.y + i * 140 }
+      return { ...n, id, position, data: { type: 'widget-callback', label: 'Widget Callback', config: { ...config, widget, action: own.action ?? '', value: own.value ?? '' } } }
+    }
+    if (refs.length <= 1) return [callback(n.id, refs[0] ?? '', 0)]
+    const ids = refs.map((r, i) => `${n.id}-${i}`)
+    const into = edges.filter((e) => e.target === n.id)
+    edges = edges.filter((e) => e.target !== n.id).concat(
+      ids.flatMap((id) => into.map((e) => ({ ...e, id: `${e.id}-${id}`, target: id }))),
+      ids.map((id) => ({ id: `${id}-join`, source: id, target: n.id })),
+    )
+    const join = { ...n, position: { x: n.position.x + 240, y: n.position.y }, data: { type: 'wait-all', label: 'Wait For All', config: {} } }
+    return [...refs.map((r, i) => callback(ids[i], r, i)), join]
+  })
   return { ...workflow, nodes, edges }
 }
 

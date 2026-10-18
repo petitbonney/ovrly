@@ -1,15 +1,15 @@
 // Workflow editor: ReactFlow graph (center) and selected node settings (bottom), autosaved.
 // Nodes are dropped from the library: node types, or widget types (each drop creates a widget instance and its widget
-// node). A widget node's diamond links to Fire Widget nodes' diamond inputs: the widget node is the "what", each
-// Fire Widget node a "how" (an action). Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; pasted
+// node). A widget node runs its widget's main action; a Widget Callback node runs any action on a widget node of the
+// same workflow, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; pasted
 // widget nodes share the same instance, which has one widget node per workflow. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y) undo and redo graph edits.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, ControlButton, MarkerType,
-  useNodesState, useEdgesState, addEdge, useReactFlow, useNodes, useEdges,
+  useNodesState, useEdgesState, addEdge, useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ActionIcon, AppShell, Badge, Button, Code, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import { ActionIcon, AppShell, Button, Divider, Group, Modal, Notification, Text, TextInput, Tooltip } from '@mantine/core'
 import {
   IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
   IconPlayerPlay, IconPlus, IconSitemap,
@@ -19,20 +19,10 @@ import Fields from './Fields.jsx'
 import WidgetSettings from './Widget.jsx'
 import FlowNode, { colors, icons, widgetIcons } from './FlowNode.jsx'
 import layout from './layout.js'
-import { ChatTest } from './Chat.jsx'
 import { exportWorkflow, download } from './share.js'
 import { get, json } from './api.js'
 
 const findWidget = (widgets, ref) => widgets.find((w) => w.id === ref || w.name === ref)
-// Widget links join a widget node's diamond to a Fire Widget node's diamond input; they carry no data.
-const isLink = (e) => e.sourceHandle === 'widget'
-// The widget instance a node drives: a widget node's own, or the one linked to a Fire Widget node's diamond input.
-function widgetRef(node, nodes, edges) {
-  if (node?.data.type === 'widget') return node.data.config.widget
-  const link = edges.find((e) => e.target === node?.id && e.targetHandle === 'widget')
-  return nodes.find((n) => n.id === link?.source)?.data.config.widget
-}
-
 // Copied nodes and the edges between them; kept in memory so they can be pasted into another workflow.
 let clipboard = null
 // Workflow id -> its last view (pan and zoom), so coming back to a workflow shows it where it was left.
@@ -42,21 +32,22 @@ const views = {}
 const knownWidgets = {}
 
 // Data keys a node can use as {{key}}: what every node upstream of it adds (a manual trigger adds its JSON's keys,
-// a Fire Widget node what its widget type outputs).
+// a widget or Widget Callback node what its widget type outputs).
 function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
   const keys = new Set()
   const seen = new Set()
   const queue = [id]
   while (queue.length) {
     const target = queue.pop()
-    for (const e of edges.filter((e) => e.target === target && !isLink(e))) {
+    for (const e of edges.filter((e) => e.target === target)) {
       if (seen.has(e.source)) continue
       seen.add(e.source)
       queue.push(e.source)
       const node = nodes.find((n) => n.id === e.source)
       const def = defs.find((d) => d.type === node?.data.type)
-      const type = def?.widgetInput && types.find((t) => t.type === findWidget(widgets, widgetRef(node, nodes, edges))?.type)
-      for (const k of [...(def?.adds ?? []), ...(type?.adds ?? [])]) keys.add(k)
+      const widget = node.data.config.widget && findWidget(widgets, node.data.config.widget)
+      const adds = types.find((t) => t.type === widget?.type)?.adds ?? []
+      for (const k of [...(def?.adds ?? []), ...adds]) keys.add(k)
       for (const item of node.data.config[def?.addsFrom] ?? def?.config[def?.addsFrom] ?? []) if (item.name) keys.add(item.name)
       if (def?.type === 'manual') {
         try { Object.keys(JSON.parse(node.data.config.data ?? def.config.data)).forEach((k) => keys.add(k)) } catch {}
@@ -66,10 +57,9 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
   return [...keys]
 }
 
-// A link is allowed if diamond connectors (handle "widget") only meet each other, and it doesn't close a loop: the
-// target must not already lead, through flow links, back to the source (or be the source itself).
+// A link is allowed if it doesn't close a loop: the target must not already lead back to the source (or be the
+// source itself).
 function isValidConnection(c, edges) {
-  if ((c.sourceHandle === 'widget') !== (c.targetHandle === 'widget')) return false
   const seen = new Set()
   const queue = [c.target]
   while (queue.length) {
@@ -77,7 +67,7 @@ function isValidConnection(c, edges) {
     if (id === c.source) return false
     if (seen.has(id)) continue
     seen.add(id)
-    for (const e of edges) if (e.source === id && !isLink(e)) queue.push(e.target)
+    for (const e of edges) if (e.source === id) queue.push(e.target)
   }
   return true
 }
@@ -86,55 +76,14 @@ const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '#9a9a9a
 // Fitting the graph (on open and with the fit view button) never zooms past 100%, so a small graph isn't blown up.
 const fitOptions = { maxZoom: 1, padding: 0.3 }
 
-// Settings of every node but triggers, handled by the engine (retries and failures).
-const errorConfig = { onError: 'stop', retries: 0, retryWait: 1 }
-const errorFields = {
-  onError: { label: 'On error', options: [{ value: 'stop', label: 'Stop' }, { value: 'continue', label: 'Continue' }], hint: 'Continue passes the data on with {{error}}' },
-  retries: { label: 'Retries' },
-  retryWait: { label: 'Wait between retries', unit: 's' },
-}
-
-const pretty = (v) => JSON.stringify(v, null, 2) ?? 'nothing'
-
-// What the node got and returned the last time it ran, from the run history. `state` (the live state of the node)
-// changing means it just ran, so it is read again.
-function LastRun({ workflow, node, state }) {
-  const [last, setLast] = useState(null)
-  useEffect(() => {
-    if (state === 'running' || state === 'waiting') return
-    get(`/api/runs?workflow=${workflow}`).then((runs) => {
-      const run = runs.find((r) => r.nodes.some((n) => n.node === node))
-      setLast(run && { at: run.at, ...run.nodes.findLast((n) => n.node === node) })
-    })
-  }, [workflow, node, state])
-  if (!last) return <Text size="xs" c="dimmed" mt="md">Not run yet since the server started.</Text>
-  return (
-    <Stack gap={4} mt="md">
-      <Group gap="xs">
-        <Text size="sm" fw={500}>Last run</Text>
-        <Text size="xs" c="dimmed">{new Date(last.at).toLocaleTimeString()} · {last.ms} ms</Text>
-        {last.error && <Badge color="red" variant="light">{last.error}</Badge>}
-        {last.output === null && <Badge color="gray" variant="light">stopped here</Badge>}
-      </Group>
-      <Group gap="xs" align="start" grow wrap="nowrap">
-        {[['Input', last.input], ['Output', last.output]].map(([title, v]) => (
-          <Stack key={title} gap={2} miw={0}>
-            <Text size="xs" c="dimmed">{title}</Text>
-            <Code block mah={180} style={{ overflow: 'auto' }}>{pretty(v)}</Code>
-          </Stack>
-        ))}
-      </Group>
-    </Stack>
-  )
-}
-
 // Settings of the selected node: title, description, then a form built from the node type's fields.
-// A widget node shows its widget instance's settings and preview; a Fire Widget node its linked widget, then the
-// action to run on it (context.widget).
-function Config({ node, def, context, state, onChange, onWidgetChange, onCopy }) {
+// A widget node shows its widget instance's settings and preview, with the main action's value; a Widget Callback node
+// picks a widget node of this workflow (context.instances), then the action to run on it. context.widget is the
+// widget the node points to.
+function Config({ node, def, context, onChange, onWidgetChange, onCopy }) {
   if (!node || !def) return null
   const isWidget = def.type === 'widget'
-  const widget = context.widget
+  const { widget } = context
   const type = widget && context.types.find((t) => t.type === widget.type)
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[def.type]) ?? icons.log
   const fields = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={context} onChange={onChange} />
@@ -147,35 +96,9 @@ function Config({ node, def, context, state, onChange, onWidgetChange, onCopy })
         </Group>
         <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
         {isWidget ? (
-          type ? <WidgetSettings key={widget.id} widget={widget} type={type} onChange={onWidgetChange} onCopy={onCopy} />
+          type ? <WidgetSettings key={widget.id} widget={widget} type={type} value={type.inputs?.[type.main] && fields} testValue={node.data.config.value} onChange={onWidgetChange} onCopy={onCopy} />
             : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>
-        ) : def.widgetInput && !widget ? (
-          <Text size="sm" c="dimmed">Link a widget node to the diamond input under this node, then pick the action to run.</Text>
-        ) : (
-          <>
-            {def.widgetInput && (
-              <Stack gap={2} mb="sm">
-                <Text size="sm" fw={500}>{widget.name}</Text>
-                <Group gap={6} wrap="nowrap">
-                  <Text size="xs" c="dimmed">Instance ID</Text>
-                  <Code>{widget.id}</Code>
-                </Group>
-              </Stack>
-            )}
-            {fields}
-            <LastRun key={node.id} workflow={context.workflow} node={node.id} state={state} />
-            {def.category !== 'trigger' && (
-              <Stack mt="md">
-                <Text size="sm" fw={500}>Error handling</Text>
-                <Fields defaults={errorConfig} values={node.data.config} fields={errorFields} onChange={onChange} />
-              </Stack>
-            )}
-          </>
-        )}
-        {def.event === 'chat' && (
-          // A !command trigger's test message starts with its command.
-          <Stack mt="md"><ChatTest key={node.id} message={def.type === 'chat-command' ? `${node.data.config.command ?? def.config.command} ` : 'hello'} /></Stack>
-        )}
+        ) : fields}
       </div>
     </AppShell.Footer>
   )
@@ -230,14 +153,8 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       timers.forEach(clearTimeout)
     }
   }, [])
-  // A widget node shows what its Fire Widget nodes do (the busiest state wins), and a link animates while its
-  // Fire Widget node runs. Links have no arrow: they carry no data.
-  const busiest = ['running', 'waiting', 'error', 'done', 'stopped']
-  const state = (n) => n.data.type !== 'widget' ? live.nodes[n.id]
-    : busiest.find((st) => edges.some((e) => isLink(e) && e.source === n.id && live.nodes[e.target] === st))
-  const shownNodes = nodes.map((n) => (state(n) ? { ...n, className: `run-${state(n)}` } : n))
-  const shownEdges = edges.map((e) => (isLink(e) ? { ...e, markerEnd: undefined, animated: live.nodes[e.target] === 'running', className: 'widget-link' }
-    : live.edges[e.id] ? { ...e, animated: true, className: 'run-flow' } : e))
+  const shownNodes = nodes.map((n) => (live.nodes[n.id] ? { ...n, className: `run-${live.nodes[n.id]}` } : n))
+  const shownEdges = edges.map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow' } : e))
 
   // When a pane opens, closes or is resized, the graph area changes size: pan so the graph's center stays put.
   const flowRef = useRef()
@@ -256,10 +173,10 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   }, [])
   const nodeTypes = useMemo(() => ({
     step: function Step(props) {
-      const ref = widgetRef(props, useNodes(), useEdges())
-      return <FlowNode {...props} def={defOf(props)} widget={ref && findWidget(widgets, ref)} />
+      const widget = findWidget(widgets, props.data.config.widget)
+      return <FlowNode {...props} def={defOf(props)} widget={widget} type={types.find((t) => t.type === widget?.type)} />
     },
-  }), [defs, widgets])
+  }), [defs, widgets, types])
 
   // The graph's content: only the fields the engine needs (no selection or drag state).
   const graph = {
@@ -318,15 +235,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   const undo = () => travel('past', 'future')
   const redo = () => travel('future', 'past')
 
-  // A Fire Widget node drives one widget: a new link to its diamond input replaces the old one, and clears the
-  // node's action if the new widget doesn't have it.
-  const onConnect = (c) => {
-    if (c.targetHandle !== 'widget') return setEdges((es) => addEdge(c, es))
-    setEdges((es) => addEdge(c, es.filter((e) => !(e.target === c.target && e.targetHandle === 'widget'))))
-    const actions = types.find((t) => t.type === findWidget(widgets, widgetRef(nodes.find((n) => n.id === c.source), nodes, edges))?.type)?.actions ?? []
-    setNodes((ns) => ns.map((n) => (n.id === c.target && !actions.includes(n.data.config.action)
-      ? { ...n, data: { ...n.data, config: { ...n.data.config, action: '' } } } : n)))
-  }
+  const onConnect = (c) => setEdges((es) => addEdge(c, es))
 
   // A library item is a node type, or a widget type: that creates a new widget instance (with its own id) and a
   // widget node for it.
@@ -338,7 +247,10 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     if (!def) return
     let config = {}
     if (type) {
-      const res = await fetch('/api/widgets', json('POST', { name: type.label, type: type.type, config: {} }))
+      // Signed in to Twitch (Streamer mode): a widget with a Twitch mode (Poll, Bets) starts in it.
+      const twitch = type.fields?.mode?.options?.find((o) => o.streamer)
+      const mode = twitch && (await get('/api/twitch')).streamer ? { mode: twitch.value } : {}
+      const res = await fetch('/api/widgets', json('POST', { name: type.label, type: type.type, config: mode }))
       config = { widget: (await res.json()).id }
       onWidgetChange()
     }
@@ -415,7 +327,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       moved[i + 1] = String(j + 1)
     })
     const fixed = def.outputs ?? []
-    setEdges((es) => es.flatMap((e) => (e.source !== selected.id || isLink(e) || fixed.includes(e.sourceHandle) ? [e]
+    setEdges((es) => es.flatMap((e) => (e.source !== selected.id || fixed.includes(e.sourceHandle) ? [e]
       : moved[e.sourceHandle] ? [{ ...e, sourceHandle: moved[e.sourceHandle] }] : [])))
   }
 
@@ -500,11 +412,12 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       <Config
         node={selected}
         def={defOf(selected)}
-        state={live.nodes[selected?.id]}
         context={{
-          workflow: workflow.id,
           vars: selected ? upstreamKeys(selected.id, { nodes, edges, defs, widgets, types }) : [],
-          widget: findWidget(widgets, widgetRef(selected, nodes, edges) ?? ''),
+          widget: findWidget(widgets, selected?.data.config.widget),
+          // The widgets a Widget Callback node can pick: those with a widget node here.
+          instances: nodes.filter((n) => n.data.type === 'widget').map((n) => findWidget(widgets, n.data.config.widget)).filter(Boolean)
+            .map((w) => ({ value: w.id, label: `${w.name} (${w.id.slice(0, 8)})` })),
           types,
         }}
         onChange={setConfig}

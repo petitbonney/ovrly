@@ -28,6 +28,19 @@ for (const kind of ['workflows', 'widgets']) {
   }
 }
 
+// The Image/GIF widget's image used to be a widget setting, shown when its "show" action had no value; it is now that
+// value, set on the node: nodes that showed the widget's image get it (the setting is then dropped).
+const images = Object.fromEntries((await store.list('widgets')).filter((w) => w.type === 'image' && 'image' in (w.config ?? {})).map((w) => [w.id, w]))
+for (const workflow of Object.keys(images).length ? await store.list('workflows') : []) {
+  const nodes = workflow.nodes?.map((n) => {
+    const image = images[n.data.config?.widget]?.config.image
+    const shows = n.data.type === 'widget' || (n.data.type === 'widget-callback' && ['', 'show'].includes(n.data.config.action ?? ''))
+    return image && shows && !n.data.config.value ? { ...n, data: { ...n.data, config: { ...n.data.config, value: image } } } : n
+  })
+  if (nodes?.some((n, i) => n !== workflow.nodes[i])) await store.save('workflows', { ...workflow, nodes })
+}
+for (const { config: { image, ...config }, ...widget } of Object.values(images)) await store.save('widgets', { ...widget, config })
+
 const PORT = process.env.PORT || 6875 // OVRL on a phone keypad
 const app = express()
 app.use(express.json())

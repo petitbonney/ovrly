@@ -3,9 +3,11 @@
 import fs from 'node:fs/promises'
 import bus, { record } from './bus.js'
 import * as store from './store.js'
+import { fill } from './template.js'
 
 // Load every widget type from ../widgets/<type>/widget.js, keyed by type. Every type also gets "show" and "hide" (fade
 // the whole overlay in or out; a type's own "show", like the alert's, also shows the overlay) and "cancel" (see cancel()).
+// `main` is the action a widget node runs (the type's first one if it doesn't say).
 const dir = new URL('../widgets/', import.meta.url)
 export const types = {}
 for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
@@ -14,7 +16,7 @@ for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
   const keep = (state) => state
   // fades: the built-in actions this type doesn't define itself, which play for the 400ms fade.
   const fades = ['show', 'hide'].filter((a) => !def.actions[a])
-  types[def.type] = { ...def, fades, actions: { ...def.actions, show: def.actions.show ?? keep, hide: def.actions.hide ?? keep, cancel: keep } }
+  types[def.type] = { ...def, main: def.main ?? Object.keys(def.actions)[0], fades, actions: { ...def.actions, show: def.actions.show ?? keep, hide: def.actions.hide ?? keep, cancel: keep } }
 }
 
 // Live state lives in memory only: it resets when the server restarts.
@@ -89,6 +91,17 @@ export async function update(widget, { action, value = '', user = '' }) {
   record('sse', 'widget', { widget: widget.name, action, ...(value !== '' && { value }), ...(user && { user }), pages: pages(widget) })
   done.then((played) => record('sse', played ? 'widget-done' : 'widget-cancelled', { widget: widget.name, action, ...(played && output) }))
   return { state: states[widget.id], done, output, run }
+}
+
+// Runs an action from a workflow on a widget instance (by id or name), its main one if none is given, with the value
+// filled from the data. Resolves once it has finished playing, with the data plus the widget's output (e.g. { winner }),
+// or null if another action cancelled it (the run stops there). Cancelling the workflow (signal) cancels the action.
+export async function play(ref, action, value, data, signal) {
+  const widget = (await store.list('widgets')).find((w) => w.id === ref || w.name === ref)
+  if (!widget) throw new Error(ref ? `Widget not found: ${ref}` : 'No widget picked')
+  const { done, output, run } = await update(widget, { action: action || types[widget.type].main, value: fill(value ?? '', data), user: data.user })
+  signal.addEventListener('abort', () => cancel(widget, run), { once: true })
+  return (await done) ? { ...data, ...output } : null
 }
 
 // Bus events a widget type follows: its on: { event: (state, data, config) => state } handlers run for each of its

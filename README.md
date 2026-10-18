@@ -9,7 +9,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 ## Features
 
 - **Workflows**: node graphs of the form trigger → logic → action. Build one from scratch or start from a template.
-- **Widgets**: built-in browser-source overlays: alerts, image/GIF, poll, bets, lottery, TwitchPlays. The image/GIF widget shows an uploaded image (kept in `data/media`) or a GIF picked from Giphy (once the Giphy integration has an API key), with entry and exit effects (fade, slide, rotation, scale). The lottery draws a winner with one of
+- **Widgets**: built-in browser-source overlays: alerts, image/GIF, poll, bets, lottery, TwitchPlays. The image/GIF widget shows the image set on its node: uploaded (kept in `data/media`), a GIF picked from Giphy (once the Giphy integration has an API key), or a URL, e.g. `{{image}}` from a previous node; it fades in and out. The lottery draws a winner with one of
   four layouts: wheel (weighted, colored options), roulette, slot (one reel) or dice.
 - **Twitch features**: in Streamer mode, the poll can run a native Twitch poll and bets a Twitch prediction (channel points), with live results over EventSub. In Guest mode they count chat votes and bets.
 - **Multiple instances**: run several widgets and workflows side by side.
@@ -26,15 +26,16 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   Edit Data changes data; Edit Variable sets, adds to or deletes a variable.
 - **More nodes**: Code (JavaScript on the data), Schedule (a trigger every N seconds, minutes or hours),
   Execute Workflow (runs another workflow, which starts with a Called By Workflow trigger, and merges its result in).
-- **Errors and history**: every node but triggers can retry on failure and then either stop or continue with
-  `{{error}}`. An Error Trigger workflow runs when a node fails in another one. Each node's settings show its input and
-  output from its last run; `GET /api/runs` has the last 100 firings (in memory).
+- **Errors and history**: a node that fails stops the firing there. An Error Trigger workflow runs when a node fails
+  in another one. `GET /api/runs` has the last 100 firings (in memory), with each node's input and output.
 - **Widget concurrency**: an action sent to a widget that is still playing one (e.g. a second `!spin`) cancels it and
   plays the new one; the cancelled run stops there. Put a queue node before the widget to play them in turn instead.
-- **Widgets in a workflow**: a widget node (circle) is the "what": one overlay instance. A Fire Widget node is the
-  "how": one action on it, run in the flow. Link the widget node's diamond (top) to the diamond under each Fire Widget
-  node that drives it; diamonds only connect to diamonds, and each Fire Widget node drives one widget. One widget node
-  can drive several Fire Widget nodes, e.g. `!spin` spins the lottery and `!stop` cancels it in the same workflow.
+- **Widgets in a workflow**: a widget node is one overlay instance, run in the flow like any node: it runs its
+  widget's **main action** (lottery: spin, alerts and image: show, poll: start, bets: open, TwitchPlays: push) with
+  the value set in its settings. To run another action (e.g. `!stop` cancels the lottery, `!vote` votes in the poll),
+  or the same widget a second time, use a **Widget Callback** node: its settings pick a widget node of the same
+  workflow (searchable by name or instance ID), then the action and its value. Both wait until the overlay has
+  finished playing, then add the widget's output to the data.
 - **List settings** (poll and bets options, lottery options) are edited row by row: add, remove, move up or down.
   Each lottery option (wheel, slot) has a label, a color and a weight: a bigger weight is a likelier winner.
   The die's six faces are renamed in place (a face labelled 1 to 6 shows as dots); its color and dots color are settings.
@@ -43,7 +44,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   interrupting what it plays (the alert's own "show" shows a text, and the overlay with it). "cancel" stops its
   animation (the lottery freezes, an alert fades out) and stops the run waiting on it. Cancelling a workflow (switch off, Stop all) cancels the widget actions it is playing.
 - **Actions**:
-  - run an action on a widget overlay (web source) with a **Fire Widget** node
+  - run an action on a widget overlay (web source) with its widget node or a **Widget Callback** node
   - press a key on the broadcaster's machine
   - call an HTTP endpoint
   - control software over WebSocket (e.g. OBS)
@@ -75,8 +76,8 @@ To show a widget in OBS, select its node and copy the browser-source link from t
 ```
 
 - **Left**: **Integration** on top: one row each for Twitch, OBS and Giphy; clicking a row opens its settings (Twitch: **Guest** reads any channel's chat with no sign-in, **Streamer** signs in as the channel owner with a code to approve on twitch.tv/activate, for Twitch features; OBS: WebSocket URL and password; Giphy: API key, checked on save) and a status dot (green connected, red not). Below it the workflow list (**+** opens the template picker; the switch next to each name turns a workflow off: what it is running is cancelled and its triggers ignore chat and API calls, while ▶ Run still works; the red **SOS** button below the list turns them all off at once). OBS nodes use that one OBS connection, and their scene and source settings suggest the names from OBS while it is connected.
-- **Center**: the node graph of the selected workflow. The toolbar has undo/redo, the name, run manual triggers (▶), then export and delete, then show/hide the library. Chat triggers have a test form in their settings that sends a fake chat message.
-- **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance and its widget node, set up from the node's settings: instance ID, name, OBS link, settings, test and live preview. Deleting the node deletes the instance. A Fire Widget node's settings show its linked widget (name and instance ID), then the action to run.
+- **Center**: the node graph of the selected workflow. The toolbar has undo/redo, the name, run manual triggers (▶), then export and delete, then show/hide the library.
+- **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance and its widget node, set up from the node's settings: instance ID, name, OBS link, settings and live preview. Deleting the node deletes the instance. Its settings also have the value its main action runs with, when that action takes one.
 - **Copy/paste**: Ctrl/⌘+C and Ctrl/⌘+V copy the selected nodes, also into another workflow. Pasted widget nodes share the same instance (once per workflow); it is deleted once no workflow uses it anymore. Each instance has its own id, shown in its node's settings with a button that copies the node.
 - **Undo/redo**: Ctrl/⌘+Z and Ctrl/⌘+Shift+Z (or Ctrl+Y), or the toolbar arrows. Undoing a widget node's deletion brings its instance back too.
 - **Bottom**: settings of the selected node (workflow only; each workflow remembers which node was open, and the graph stays centered as the pane opens), with pickers for options and a **{ }** menu to insert data from previous nodes, e.g. `{{user}}`.
@@ -169,7 +170,7 @@ export default {
 
 Actions may be async (e.g. to call the Twitch API), and `on: { 'channel.poll.progress': (state, data, config) => state }` updates a widget's state from bus events, such as Twitch EventSub notifications. `fields` gives settings hints, as for nodes (see `ui/src/Fields.jsx`); a duration lists its usual values, e.g. `duration: { unit: 's', presets: [3, 5, 10] }`, shown as buttons next to an input for any other value.
 
-The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs a widget's actions with Fire Widget nodes linked to its widget node (drag the widget type from the library, link it, then pick the action). `inputs` lists the actions that take a value and describes it, e.g. `{ show: 'Text to show' }`; other actions get no Value field. A widget type can also give data back to the workflow: `output(state, config)` returns e.g. `{ winner: 'Red' }`, merged into the data for the next nodes, and `adds: ['winner']` lists those keys for the `{ }` menu. The lottery outputs `winner`, bets `winner` and `winners`, the poll `leader` and `votes`. The Fire Widget node waits until the action has finished playing before the next nodes run. If the widget type knows how long an action plays, it says so with `playTime(action, config)` (ms) and the server waits that long, whether or not an overlay page is open (the lottery and alerts do). Otherwise the page reports the end: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays.
+The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs a widget's main action (`main`, the type's first action if not set) with its widget node (drag the widget type from the library), and its other actions with Widget Callback nodes. `inputs` lists the actions that take a value and describes it, e.g. `{ show: 'Text to show' }`, or `{ type: 'image', hint }` for an image picker (the Image/GIF widget); other actions get no Value field. A widget type can also give data back to the workflow: `output(state, config)` returns e.g. `{ winner: 'Red' }`, merged into the data for the next nodes, and `adds: ['winner']` lists those keys for the `{ }` menu. The lottery outputs `winner`, bets `winner` and `winners`, the poll `leader` and `votes`. The widget or Widget Callback node waits until the action has finished playing before the next nodes run. If the widget type knows how long an action plays, it says so with `playTime(action, config)` (ms) and the server waits that long, whether or not an overlay page is open (the lottery and alerts do). Otherwise the page reports the end: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays.
 
 ## Import / export
 
