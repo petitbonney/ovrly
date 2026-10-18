@@ -1,15 +1,16 @@
 // Widget instance settings, shown in a widget node's settings pane: id, name, main action's value, OBS link, settings and
-// preview.
+// preview, with buttons to test the main action and cancel it.
 // Autosaved; the instance itself is created when its widget is dropped onto the graph.
 import { useEffect, useState } from 'react'
-import { ActionIcon, Alert, Anchor, Code, CopyButton, Divider, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core'
-import { IconCheck, IconCopy, IconHourglassHigh } from '@tabler/icons-react'
+import { ActionIcon, Alert, Anchor, Button, Code, CopyButton, Divider, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import { IconCheck, IconCopy, IconHourglassHigh, IconPlayerPlay, IconPlayerStop } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import { get, json } from './api.js'
 
 // A widget node's settings: the instance's id and name, the value the node runs its main action with, if it takes one, then its settings. A widget
-// type marked `soon` shows a "Coming soon" note instead of settings. onCopy copies the node for pasting.
-export default function WidgetSettings({ widget, type, value, onChange, onCopy }) {
+// type marked `soon` shows a "Coming soon" note instead of settings. onCopy copies the node for pasting. testValue is
+// the node's value, sent as is by the test button (variables like {{user}} aren't filled outside a run).
+export default function WidgetSettings({ widget, type, value, testValue, onChange, onCopy }) {
   const [name, setName] = useState(widget.name)
   const [config, setConfig] = useState(widget.config)
   // Whether Twitch features (options marked streamer) can run, for the settings to say so.
@@ -26,6 +27,7 @@ export default function WidgetSettings({ widget, type, value, onChange, onCopy }
   }, [name, config])
 
   const url = `${location.origin}/w/${widget.id}`
+  const act = (action, value) => fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, value }))
   const first = ['mode', 'layout'].filter((key) => key in type.config)
   return (
     // Settings on the left scroll; the preview on the right never does, it shrinks to fit the pane's height.
@@ -69,6 +71,11 @@ export default function WidgetSettings({ widget, type, value, onChange, onCopy }
           </CopyButton>
         </Group>
         <div className="preview-fit"><iframe className="preview" src={url} title="Preview" /></div>
+        <Group gap="xs" mt="xs">
+          <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => act(type.main, type.inputs?.[type.main] ? testValue : '')}
+            tt="capitalize">{type.main}</Button>
+          <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} onClick={() => act('cancel')}>Cancel</Button>
+        </Group>
       </Stack>
     </Group>
   )

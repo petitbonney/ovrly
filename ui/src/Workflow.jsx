@@ -96,7 +96,7 @@ function Config({ node, def, context, onChange, onWidgetChange, onCopy }) {
         </Group>
         <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
         {isWidget ? (
-          type ? <WidgetSettings key={widget.id} widget={widget} type={type} value={type.inputs?.[type.main] && fields} onChange={onWidgetChange} onCopy={onCopy} />
+          type ? <WidgetSettings key={widget.id} widget={widget} type={type} value={type.inputs?.[type.main] && fields} testValue={node.data.config.value} onChange={onWidgetChange} onCopy={onCopy} />
             : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>
         ) : fields}
       </div>
