@@ -26,6 +26,7 @@ export default {
     const top = Math.max(0, ...state.counts)
     return { leader: top ? config.options[state.counts.indexOf(top)] : '', votes: state.counts.reduce((a, b) => a + b, 0) }
   },
+  main: 'start', // what a widget node runs; other actions go through Widget Callback nodes
   inputs: { vote: 'Option number or name, e.g. {{args}}' }, // actions that take a value, and what it is
   actions: {
     // Clears the votes and opens voting for the duration.

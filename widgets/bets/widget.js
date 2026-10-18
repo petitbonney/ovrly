@@ -39,6 +39,7 @@ export default {
       : Object.entries(state.bets).filter(([, i]) => i === state.winner).map(([user]) => user)).join(', '),
   }),
   // Actions that take a value, and what it is.
+  main: 'open', // what a widget node runs; other actions go through Widget Callback nodes
   inputs: { bet: 'Option number or name, e.g. {{args}}', win: 'The winning option, by number or name' },
   actions: {
     async open(state, input, config) {

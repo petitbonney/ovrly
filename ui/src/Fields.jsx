@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' | 'image' }.
+// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' | 'image' | 'widget' }.
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
 // (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
@@ -235,7 +235,8 @@ function ListInput({ label, description, value, defaults, fixed, onChange }) {
   )
 }
 
-// One setting; context: { vars: data keys available here, widget: the linked widget, types } for the dynamic types.
+// One setting; context: { vars: data keys available here, widget: the node's widget, instances: the widgets to pick
+// from, types } for the dynamic types.
 function Field({ name, f, fallback, value, set, values, context }) {
   const props = { label: f.label ?? humanize(name), description: f.hint, size: 'xs' }
   if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} onChange={set} />
@@ -246,7 +247,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
   const type = context.types?.find((t) => t.type === context.widget?.type)
   // A widget action's value is only asked for if the action takes one; the widget type says what it is.
   if (f.type === 'input') {
-    const hint = type?.inputs?.[values.action || type.actions[0]]
+    const hint = type?.inputs?.[values.action || type.main]
     return hint ? <VarInput {...props} description={hint} vars={context.vars ?? []} value={value} onChange={set} /> : null
   }
   // Twitch features can't be picked unless Streamer mode is on; one picked earlier says why it won't run.
@@ -269,12 +270,16 @@ function Field({ name, f, fallback, value, set, values, context }) {
       <Stack gap={4}>
         <Text size="xs" fw={500}>{props.label}</Text>
         {props.description && <Text size="xs" c="dimmed">{props.description}</Text>}
-        {/* A Fire Widget node with no action set runs its widget's first one. */}
-        <SegmentedControl size="xs" data={explained} value={f.type === 'action' ? value || options[0] : value} onChange={set} style={{ alignSelf: 'start' }} />
+        {/* A Widget Callback node with no action set runs its widget's main one. */}
+        <SegmentedControl size="xs" data={explained} value={f.type === 'action' ? value || type.main : value} onChange={set} style={{ alignSelf: 'start' }} />
       </Stack>
     )
   }
-  if (options) return <Select {...props} data={options} value={value} onChange={set} allowDeselect={false} />
+  if (options) return <Select {...props} data={options} value={f.type === 'action' ? value || type.main : value} onChange={set} allowDeselect={false} />
+  if (f.type === 'widget') {
+    return <Select {...props} searchable data={context.instances ?? []} value={value || null} onChange={set} allowDeselect={false}
+      placeholder="Search a widget" nothingFoundMessage="No widget node in this workflow" />
+  }
   if (f.type === 'var') return <Autocomplete {...props} data={context.vars ?? []} value={value} onChange={set} />
   if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} />
   if (f.type === 'code') {

@@ -1,6 +1,6 @@
 // n8n-style graph node: icon box with the label underneath; triggers get a rounded left side and a bolt.
-// Nodes with several outputs (if/else, switch) get one labelled handle each, and grow taller with more than three. Widget nodes are circles with a diamond
-// connector on top, linked to the diamond input under Fire Widget nodes (diamonds only connect to diamonds).
+// Nodes with several outputs (if/else, switch) get one labelled handle each, and grow taller with more than three. Widget nodes show their
+// widget's icon and name, with the main action they run underneath.
 import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
@@ -37,7 +37,7 @@ export const icons = {
   'obs-scene': IconMovie,
   'obs-source': IconEye,
   'websocket-send': IconPlugConnected,
-  'fire-widget': IconBroadcast,
+  'widget-callback': IconBroadcast,
   widget: IconLayoutDashboard,
 }
 
@@ -64,40 +64,30 @@ export function outputsOf(def, config) {
   return [...items.map((item, i) => ({ id: String(i + 1), label: item || String(i + 1) })), ...(def?.outputs ?? []).map((id) => ({ id, label: id }))]
 }
 
-// A node's height: 90px, taller with more than three outputs (24px each). Widget nodes are 90px circles.
+// A node's height: 90px, taller with more than three outputs (24px each).
 export function nodeHeight(def, config) {
-  return def?.type === 'widget' ? 90 : Math.max(90, outputsOf(def, config).length * 24)
+  return Math.max(90, outputsOf(def, config).length * 24)
 }
 
-// widgets: a widget node's instance, or the ones linked to a Fire Widget node (undefined for a deleted one).
-export default function FlowNode({ id, data, selected, def, widgets }) {
-  const widget = widgets[0]
+// widget: the instance a widget or Widget Callback node points to (undefined for a deleted one), type: its widget type.
+export default function FlowNode({ id, data, selected, def, widget, type }) {
   const outputs = outputsOf(def, data.config)
   // Handles added or removed (a switch case) must be measured again, or links to them are misplaced.
   const updateNodeInternals = useUpdateNodeInternals()
   const handles = outputs.map((o) => o.id).join()
   useEffect(() => updateNodeInternals(id), [handles])
-  if (data.type === 'widget') {
-    const Icon = widgetIcons[widget?.type] ?? IconBox
-    return (
-      <div className={`flow-node widget${selected ? ' selected' : ''}`}>
-        <Handle id="widget" type="source" position="top" className="diamond" />
-        <Icon size={40} stroke={1.5} color={colors.widget} />
-        <div className="caption"><div className="label">{widget?.name ?? 'Missing widget'}</div></div>
-      </div>
-    )
-  }
-  const Icon = icons[data.type] ?? IconBox
+  const isWidget = data.type === 'widget'
+  const Icon = (isWidget ? widgetIcons[widget?.type] : icons[data.type]) ?? IconBox
   const trigger = def?.category === 'trigger'
-  // Subtitle like n8n's "mode: Rules": the node's first setting. A Fire Widget node shows its widget and action.
+  // Subtitle like n8n's "mode: Rules": the node's first setting. A widget node shows its main action, a Widget Callback
+  // node its widget and action.
   const [key, value] = Object.entries({ ...def?.config, ...data.config })[0] ?? []
   const shown = Array.isArray(value) ? value.map((v) => v?.name ?? v).join(', ') : value
-  const fired = widgets.filter(Boolean)
-  const sub = def?.widgetInput
-    ? fired.length > 1 ? `${fired.length} widgets` : [widget?.name ?? 'no widget', (data.config.widgets?.[widget?.id] ?? data.config).action].filter(Boolean).join(': ')
+  const sub = isWidget ? type?.main
+    : data.type === 'widget-callback' ? [widget?.name ?? 'no widget', widget && (data.config.action || type?.main)].filter(Boolean).join(': ')
     : key && shown !== '' && `${key}: ${shown}`
   return (
-    <div className={`flow-node${trigger ? ' trigger' : ''}${def?.widgetInput ? ' fires' : ''}${selected ? ' selected' : ''}`} style={{ height: nodeHeight(def, data.config) }}>
+    <div className={`flow-node${trigger ? ' trigger' : ''}${selected ? ' selected' : ''}`} style={{ height: nodeHeight(def, data.config) }}>
       {trigger && <IconBolt className="bolt" size={18} fill="currentColor" />}
       {!trigger && <Handle type="target" position="left" className="in" />}
       <Icon size={40} stroke={1.5} color={colors[def?.category]} />
@@ -106,9 +96,8 @@ export default function FlowNode({ id, data, selected, def, widgets }) {
           <span className="port">{o.label}</span>
         </Handle>
       )) : <Handle type="source" position="right" className="out" />}
-      {def?.widgetInput && <Handle id="widget" type="target" position="bottom" className="diamond" />}
       <div className="caption">
-        <div className="label">{def?.label ?? data.label}</div>
+        <div className="label">{isWidget ? widget?.name ?? 'Missing widget' : def?.label ?? data.label}</div>
         {sub && <div className="sub">{sub}</div>}
       </div>
     </div>
