@@ -49,6 +49,7 @@ Small steps; each milestone should be usable on its own.
 - [x] Logic: if/else, switch, wait for all (multi-output nodes and joins in the engine)
 - [x] Logic: cooldown (global or per viewer) and queue; widget actions cancel and restart the one still playing
 - [x] Widget nodes (the "what") linked by diamond connectors to Fire Widget action nodes (the "how")
+- [x] One Fire Widget node can drive several widgets, each with its own action and value
 
 ## M7: Editor polish
 

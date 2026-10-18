@@ -26,11 +26,11 @@ import { get, json } from './api.js'
 const findWidget = (widgets, ref) => widgets.find((w) => w.id === ref || w.name === ref)
 // Widget links join a widget node's diamond to a Fire Widget node's diamond input; they carry no data.
 const isLink = (e) => e.sourceHandle === 'widget'
-// The widget instance a node drives: a widget node's own, or the one linked to a Fire Widget node's diamond input.
-function widgetRef(node, nodes, edges) {
-  if (node?.data.type === 'widget') return node.data.config.widget
-  const link = edges.find((e) => e.target === node?.id && e.targetHandle === 'widget')
-  return nodes.find((n) => n.id === link?.source)?.data.config.widget
+// The widget instances a node drives: a widget node's own, or the ones linked to a Fire Widget node's diamond input.
+function widgetRefs(node, nodes, edges) {
+  if (node?.data.type === 'widget') return [node.data.config.widget]
+  return edges.filter((e) => e.target === node?.id && e.targetHandle === 'widget')
+    .map((e) => nodes.find((n) => n.id === e.source)?.data.config.widget).filter(Boolean)
 }
 
 // Copied nodes and the edges between them; kept in memory so they can be pasted into another workflow.
@@ -55,8 +55,9 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
       queue.push(e.source)
       const node = nodes.find((n) => n.id === e.source)
       const def = defs.find((d) => d.type === node?.data.type)
-      const type = def?.widgetInput && types.find((t) => t.type === findWidget(widgets, widgetRef(node, nodes, edges))?.type)
-      for (const k of [...(def?.adds ?? []), ...(type?.adds ?? [])]) keys.add(k)
+      const linked = def?.widgetInput ? widgetRefs(node, nodes, edges).map((r) => findWidget(widgets, r)?.type) : []
+      const adds = types.filter((t) => linked.includes(t.type)).flatMap((t) => t.adds ?? [])
+      for (const k of [...(def?.adds ?? []), ...adds]) keys.add(k)
       for (const item of node.data.config[def?.addsFrom] ?? def?.config[def?.addsFrom] ?? []) if (item.name) keys.add(item.name)
       if (def?.type === 'manual') {
         try { Object.keys(JSON.parse(node.data.config.data ?? def.config.data)).forEach((k) => keys.add(k)) } catch {}
@@ -130,11 +131,12 @@ function LastRun({ workflow, node, state }) {
 
 // Settings of the selected node: title, description, then a form built from the node type's fields.
 // A widget node shows its widget instance's settings and preview; a Fire Widget node its linked widget, then the
-// action to run on it (context.widget).
+// action to run on it (context.widgets).
 function Config({ node, def, context, state, onChange, onWidgetChange, onCopy }) {
   if (!node || !def) return null
   const isWidget = def.type === 'widget'
-  const widget = context.widget
+  const linked = context.widgets.filter(Boolean)
+  const widget = linked[0]
   const type = widget && context.types.find((t) => t.type === widget.type)
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[def.type]) ?? icons.log
   const fields = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={context} onChange={onChange} />
@@ -149,20 +151,27 @@ function Config({ node, def, context, state, onChange, onWidgetChange, onCopy })
         {isWidget ? (
           type ? <WidgetSettings key={widget.id} widget={widget} type={type} onChange={onWidgetChange} onCopy={onCopy} />
             : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>
-        ) : def.widgetInput && !widget ? (
+        ) : def.widgetInput && !linked.length ? (
           <Text size="sm" c="dimmed">Link a widget node to the diamond input under this node, then pick the action to run.</Text>
         ) : (
           <>
-            {def.widgetInput && (
-              <Stack gap={2} mb="sm">
-                <Text size="sm" fw={500}>{widget.name}</Text>
-                <Group gap={6} wrap="nowrap">
-                  <Text size="xs" c="dimmed">Instance ID</Text>
-                  <Code>{widget.id}</Code>
-                </Group>
-              </Stack>
-            )}
-            {fields}
+            {def.widgetInput ? linked.map((w) => {
+              // One section per linked widget, with its own action and value (older nodes share theirs).
+              const all = node.data.config.widgets ?? Object.fromEntries(linked.map((x) => [x.id, { action: node.data.config.action, value: node.data.config.value }]))
+              const { action = '', value = '' } = all[w.id] ?? {}
+              return (
+                <Stack key={w.id} gap="xs" mb="md">
+                  <Divider />
+                  <Text size="sm" fw={500}>{w.name}</Text>
+                  <Group gap={6} wrap="nowrap">
+                    <Text size="xs" c="dimmed">Instance ID</Text>
+                    <Code>{w.id}</Code>
+                  </Group>
+                  <Fields defaults={def.config} values={{ action, value }} fields={def.fields} context={{ ...context, widget: w }}
+                    onChange={(v) => onChange({ ...node.data.config, widgets: { ...all, [w.id]: v } })} />
+                </Stack>
+              )
+            }) : fields}
             <LastRun key={node.id} workflow={context.workflow} node={node.id} state={state} />
             {def.category !== 'trigger' && (
               <Stack mt="md">
@@ -256,8 +265,8 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   }, [])
   const nodeTypes = useMemo(() => ({
     step: function Step(props) {
-      const ref = widgetRef(props, useNodes(), useEdges())
-      return <FlowNode {...props} def={defOf(props)} widget={ref && findWidget(widgets, ref)} />
+      const refs = widgetRefs(props, useNodes(), useEdges())
+      return <FlowNode {...props} def={defOf(props)} widgets={refs.map((r) => findWidget(widgets, r))} />
     },
   }), [defs, widgets])
 
@@ -318,15 +327,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   const undo = () => travel('past', 'future')
   const redo = () => travel('future', 'past')
 
-  // A Fire Widget node drives one widget: a new link to its diamond input replaces the old one, and clears the
-  // node's action if the new widget doesn't have it.
-  const onConnect = (c) => {
-    if (c.targetHandle !== 'widget') return setEdges((es) => addEdge(c, es))
-    setEdges((es) => addEdge(c, es.filter((e) => !(e.target === c.target && e.targetHandle === 'widget'))))
-    const actions = types.find((t) => t.type === findWidget(widgets, widgetRef(nodes.find((n) => n.id === c.source), nodes, edges))?.type)?.actions ?? []
-    setNodes((ns) => ns.map((n) => (n.id === c.target && !actions.includes(n.data.config.action)
-      ? { ...n, data: { ...n.data, config: { ...n.data.config, action: '' } } } : n)))
-  }
+  const onConnect = (c) => setEdges((es) => addEdge(c, es))
 
   // A library item is a node type, or a widget type: that creates a new widget instance (with its own id) and a
   // widget node for it.
@@ -504,7 +505,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
         context={{
           workflow: workflow.id,
           vars: selected ? upstreamKeys(selected.id, { nodes, edges, defs, widgets, types }) : [],
-          widget: findWidget(widgets, widgetRef(selected, nodes, edges) ?? ''),
+          widgets: widgetRefs(selected, nodes, edges).map((r) => findWidget(widgets, r)),
           types,
         }}
         onChange={setConfig}

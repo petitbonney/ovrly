@@ -33,8 +33,9 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   plays the new one; the cancelled run stops there. Put a queue node before the widget to play them in turn instead.
 - **Widgets in a workflow**: a widget node (circle) is the "what": one overlay instance. A Fire Widget node is the
   "how": one action on it, run in the flow. Link the widget node's diamond (top) to the diamond under each Fire Widget
-  node that drives it; diamonds only connect to diamonds, and each Fire Widget node drives one widget. One widget node
-  can drive several Fire Widget nodes, e.g. `!spin` spins the lottery and `!stop` cancels it in the same workflow.
+  node that drives it; diamonds only connect to diamonds. One widget node can drive several Fire Widget nodes, e.g.
+  `!spin` spins the lottery and `!stop` cancels it in the same workflow, and one Fire Widget node can drive several
+  widgets: each has its own action and value, they all fire together, and the next nodes run once all have finished.
 - **List settings** (poll and bets options, lottery options) are edited row by row: add, remove, move up or down.
   Each lottery option (wheel, slot) has a label, a color and a weight: a bigger weight is a likelier winner.
   The die's six faces are renamed in place (a face labelled 1 to 6 shows as dots); its color and dots color are settings.
@@ -76,7 +77,7 @@ To show a widget in OBS, select its node and copy the browser-source link from t
 
 - **Left**: **Integration** on top: one row each for Twitch, OBS and Giphy; clicking a row opens its settings (Twitch: **Guest** reads any channel's chat with no sign-in, **Streamer** signs in as the channel owner with a code to approve on twitch.tv/activate, for Twitch features; OBS: WebSocket URL and password; Giphy: API key, checked on save) and a status dot (green connected, red not). Below it the workflow list (**+** opens the template picker; the switch next to each name turns a workflow off: what it is running is cancelled and its triggers ignore chat and API calls, while ▶ Run still works; the red **SOS** button below the list turns them all off at once). OBS nodes use that one OBS connection, and their scene and source settings suggest the names from OBS while it is connected.
 - **Center**: the node graph of the selected workflow. The toolbar has undo/redo, the name, run manual triggers (▶), then export and delete, then show/hide the library. Chat triggers have a test form in their settings that sends a fake chat message.
-- **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance and its widget node, set up from the node's settings: instance ID, name, OBS link, settings, test and live preview. Deleting the node deletes the instance. A Fire Widget node's settings show its linked widget (name and instance ID), then the action to run.
+- **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance and its widget node, set up from the node's settings: instance ID, name, OBS link, settings, test and live preview. Deleting the node deletes the instance. A Fire Widget node's settings have one section per linked widget (name and instance ID), then the action to run on it.
 - **Copy/paste**: Ctrl/⌘+C and Ctrl/⌘+V copy the selected nodes, also into another workflow. Pasted widget nodes share the same instance (once per workflow); it is deleted once no workflow uses it anymore. Each instance has its own id, shown in its node's settings with a button that copies the node.
 - **Undo/redo**: Ctrl/⌘+Z and Ctrl/⌘+Shift+Z (or Ctrl+Y), or the toolbar arrows. Undoing a widget node's deletion brings its instance back too.
 - **Bottom**: settings of the selected node (workflow only; each workflow remembers which node was open, and the graph stays centered as the pane opens), with pickers for options and a **{ }** menu to insert data from previous nodes, e.g. `{{user}}`.

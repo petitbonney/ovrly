@@ -69,8 +69,9 @@ export function nodeHeight(def, config) {
   return def?.type === 'widget' ? 90 : Math.max(90, outputsOf(def, config).length * 24)
 }
 
-// widget: a widget node's instance, or the one linked to a Fire Widget node (undefined if none, or deleted).
-export default function FlowNode({ id, data, selected, def, widget }) {
+// widgets: a widget node's instance, or the ones linked to a Fire Widget node (undefined for a deleted one).
+export default function FlowNode({ id, data, selected, def, widgets }) {
+  const widget = widgets[0]
   const outputs = outputsOf(def, data.config)
   // Handles added or removed (a switch case) must be measured again, or links to them are misplaced.
   const updateNodeInternals = useUpdateNodeInternals()
@@ -91,7 +92,9 @@ export default function FlowNode({ id, data, selected, def, widget }) {
   // Subtitle like n8n's "mode: Rules": the node's first setting. A Fire Widget node shows its widget and action.
   const [key, value] = Object.entries({ ...def?.config, ...data.config })[0] ?? []
   const shown = Array.isArray(value) ? value.map((v) => v?.name ?? v).join(', ') : value
-  const sub = def?.widgetInput ? [widget?.name ?? 'no widget', data.config.action].filter(Boolean).join(': ')
+  const fired = widgets.filter(Boolean)
+  const sub = def?.widgetInput
+    ? fired.length > 1 ? `${fired.length} widgets` : [widget?.name ?? 'no widget', (data.config.widgets?.[widget?.id] ?? data.config).action].filter(Boolean).join(': ')
     : key && shown !== '' && `${key}: ${shown}`
   return (
     <div className={`flow-node${trigger ? ' trigger' : ''}${def?.widgetInput ? ' fires' : ''}${selected ? ' selected' : ''}`} style={{ height: nodeHeight(def, data.config) }}>

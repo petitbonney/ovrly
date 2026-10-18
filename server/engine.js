@@ -37,10 +37,10 @@ const sleep = (ms, signal) => new Promise((resolve) => {
 })
 
 // Widget links join a widget node's diamond (sourceHandle "widget") to a Fire Widget node's diamond input
-// (targetHandle "widget"). They carry no data: they say which widget instance the node drives.
-function linkedWidget(workflow, node) {
-  const link = workflow.edges.find((e) => e.target === node.id && e.targetHandle === 'widget')
-  return workflow.nodes.find((n) => n.id === link?.source)?.data.config.widget
+// (targetHandle "widget"). They carry no data: they say which widget instances the node drives.
+function linkedWidgets(workflow, node) {
+  return workflow.edges.filter((e) => e.target === node.id && e.targetHandle === 'widget')
+    .map((e) => workflow.nodes.find((n) => n.id === e.source)?.data.config.widget).filter(Boolean)
 }
 
 // Runs one node, then the nodes connected to its outputs. A null result stops the branch.
@@ -105,7 +105,7 @@ async function step(workflow, node, data, run, { def, config, id, status }) {
   let out, failed
   for (let attempt = 0; ; attempt++) {
     try {
-      out = await def.run({ config, data, id, signal: run.signal, widget: linkedWidget(workflow, node), depth: run.depth })
+      out = await def.run({ config, data, id, signal: run.signal, widgets: linkedWidgets(workflow, node), depth: run.depth })
       break
     } catch (err) {
       if (run.signal.aborted) return end('stopped') // e.g. an HTTP request cut short by cancel()
