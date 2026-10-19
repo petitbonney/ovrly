@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, SimpleGrid, Stack, Switch, Text,
-  Tooltip, UnstyledButton, useAppShellResize,
+  TextInput, Tooltip, UnstyledButton, useAppShellResize,
 } from '@mantine/core'
-import { IconChevronRight, IconFile, IconFileImport, IconPlus, IconSos, IconTool } from '@tabler/icons-react'
+import { IconChevronRight, IconFile, IconFileImport, IconPlus, IconSearch, IconSos, IconTool, IconX } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
 import Integrations from './Integrations.jsx'
 import Heading from './Heading.jsx'
@@ -66,7 +66,7 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
 }
 
 // A library section that folds open or closed from its title; this browser remembers which ones are closed.
-function Section({ title, children }) {
+function Section({ title, forceOpen, children }) {
   const key = `ovrly-library-${title}`
   const [open, setOpen] = useState(() => {
     try { return localStorage.getItem(key) !== 'closed' } catch { return true }
@@ -83,18 +83,28 @@ function Section({ title, children }) {
           <Text size="xs" fw={700} tt="uppercase" c="dimmed">{title}</Text>
         </Group>
       </UnstyledButton>
-      <Collapse expanded={open}>{children}</Collapse>
+      <Collapse expanded={open || forceOpen}>{children}</Collapse>
     </Stack>
   )
 }
 
 // Drag a node type or a widget type onto the graph; each widget dropped is a new instance.
 function Library({ defs, types }) {
+  const [query, setQuery] = useState('')
+  const q = query.trim().toLowerCase()
+  const match = (d) => !q || d.label.toLowerCase().includes(q)
   return (
     <>
-      {['trigger', 'logic', 'action'].map((category) => (
-        <Section key={category} title={category}>
-          {defs.filter((d) => d.category === category).map((d) => {
+      <TextInput
+        mb="md" size="xs" placeholder="Search nodes" value={query} onChange={(e) => setQuery(e.currentTarget.value)}
+        leftSection={<IconSearch size={14} />}
+        rightSection={query && <ActionIcon size="xs" variant="subtle" color="gray" aria-label="Clear search" onClick={() => setQuery('')}><IconX size={14} /></ActionIcon>}
+      />
+      {['trigger', 'logic', 'action'].map((category) => {
+        const items = defs.filter((d) => d.category === category && match(d))
+        return items.length > 0 && (
+        <Section key={category} title={category} forceOpen={!!q}>
+          {items.map((d) => {
             const Icon = icons[d.type]
             return (
               <Tooltip key={d.type} label={d.description} position="left" openDelay={400} multiline w={240}>
@@ -109,9 +119,10 @@ function Library({ defs, types }) {
             )
           })}
         </Section>
-      ))}
-      <Section title="Widget">
-        {types.map((t) => {
+        )
+      })}
+      {types.some(match) && <Section title="Widget" forceOpen={!!q}>
+        {types.filter(match).map((t) => {
           const Icon = widgetIcons[t.type]
           return (
             <Tooltip key={t.type} label={t.soon ? `Coming soon. ${t.description}` : t.description} position="left" openDelay={400} multiline w={240}>
@@ -126,7 +137,7 @@ function Library({ defs, types }) {
             </Tooltip>
           )
         })}
-      </Section>
+      </Section>}
     </>
   )
 }
