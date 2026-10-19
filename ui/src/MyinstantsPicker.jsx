@@ -1,4 +1,4 @@
-// Myinstants picker dialog: search results (loaded through the server, which reads the site's pages), each with a preview.
+// Myinstants picker dialog: trending sounds, or search results (loaded through the server, which reads the site's pages), each with a preview.
 import { useEffect, useRef, useState } from 'react'
 import { ActionIcon, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core'
 import { IconPlayerPlay, IconPlayerStop } from '@tabler/icons-react'
@@ -58,7 +58,7 @@ export default function MyinstantsPicker({ opened, onClose, onPick }) {
           </Group>
         ))}
       </Stack>
-      {!sounds.length && !error && <Text size="xs" c="dimmed">{q.trim() ? 'No sound found' : 'Type to search'}</Text>}
+      {!sounds.length && !error && <Text size="xs" c="dimmed">No sound found</Text>}
       <Text size="xs" c="dimmed" mt="sm">Sounds from myinstants.com</Text>
       {more && <Button size="xs" variant="default" mt="xs" onClick={() => load(q.trim(), page.current + 1)}>Load more</Button>}
     </Modal>

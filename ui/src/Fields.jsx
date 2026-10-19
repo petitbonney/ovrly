@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' | 'image' | 'widget' | 'window' }.
+// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' | 'image' | 'giphy' | 'myinstants' | 'widget' | 'window' }.
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
 // (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
@@ -118,15 +118,10 @@ function PresetInput({ label, description, unit, presets, value, onChange }) {
   )
 }
 
-// An image: a preview, a button to pick a file on disk, a Giphy picker once the Giphy integration has a working key, and
-// a field to paste a URL or path. The value is a file path on disk, a Giphy URL, or the pasted one.
+// An image: a preview, a button to pick a file on disk, and a field to type a URL, a path or {{key}} (e.g. {{gif}} from
+// a GIPHY node).
 function ImageInput({ label, description, value, onChange, vars }) {
-  const [giphy, setGiphy] = useState(false) // whether Giphy is set up
-  const [picking, setPicking] = useState(false)
   const [error, setError] = useState('')
-  useEffect(() => {
-    get('/api/giphy').then((s) => setGiphy(s.connected), () => {})
-  }, [])
   // The server opens the OS file dialog: a browser page can't see a picked file's path.
   const browse = async () => {
     const res = await fetch('/api/browse-image', { method: 'POST' })
@@ -141,21 +136,17 @@ function ImageInput({ label, description, value, onChange, vars }) {
       {value && !value.includes('{{') && <Image src={value.startsWith('/') && !value.startsWith('/media/') ? `/file?path=${encodeURIComponent(value)}` : value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
       <Group gap="xs">
         <Button size="xs" variant="default" leftSection={<IconFolderOpen size={14} />} onClick={browse}>Browse files</Button>
-        <Tooltip label="Set up Giphy first (Integration → Giphy)" disabled={giphy}>
-          <Button size="xs" variant="default" data-disabled={!giphy || undefined} onClick={() => giphy && setPicking(true)}>Giphy</Button>
-        </Tooltip>
         {value && <Button size="xs" variant="subtle" color="red" onClick={() => onChange('')}>Clear</Button>}
       </Group>
-      <VarInput size="xs" placeholder="or paste an image URL or file path" vars={vars} value={value} onChange={onChange} />
+      <VarInput size="xs" placeholder="or an image URL or file path, e.g. {{gif}}" vars={vars} value={value} onChange={onChange} />
       {error && <Text size="xs" c="red">{error}</Text>}
-      <GiphyPicker opened={picking} onClose={() => setPicking(false)} onPick={onChange} />
     </Stack>
   )
 }
 
-// A sound: a player, a button to pick a file on disk, a Myinstants search, and a field to paste a URL or path.
+// A sound: a player, a button to pick a file on disk, and a field to type a URL, a path or {{key}} (e.g. {{sound}} from
+// a MyInstants node).
 function SoundInput({ label, description, value, onChange, vars }) {
-  const [picking, setPicking] = useState(false)
   const [error, setError] = useState('')
   const browse = async () => {
     const res = await fetch('/api/browse-sound', { method: 'POST' })
@@ -170,12 +161,34 @@ function SoundInput({ label, description, value, onChange, vars }) {
       {value && !value.includes('{{') && <audio controls style={{ width: '100%' }} src={value.startsWith('/') ? `/file?path=${encodeURIComponent(value)}` : value} />}
       <Group gap="xs">
         <Button size="xs" variant="default" leftSection={<IconFolderOpen size={14} />} onClick={browse}>Browse files</Button>
-        <Button size="xs" variant="default" onClick={() => setPicking(true)}>Myinstants</Button>
         {value && <Button size="xs" variant="subtle" color="red" onClick={() => onChange('')}>Clear</Button>}
       </Group>
-      <VarInput size="xs" placeholder="or paste a sound URL or file path" vars={vars} value={value} onChange={onChange} />
+      <VarInput size="xs" placeholder="or a sound URL or file path, e.g. {{sound}}" vars={vars} value={value} onChange={onChange} />
       {error && <Text size="xs" c="red">{error}</Text>}
-      <MyinstantsPicker opened={picking} onClose={() => setPicking(false)} onPick={onChange} />
+    </Stack>
+  )
+}
+
+// A GIF picked from Giphy or a sound from Myinstants (kind): a preview and a button opening the picker. The value is its URL.
+function PickInput({ kind, label, description, value, onChange }) {
+  const [ready, setReady] = useState(kind !== 'giphy') // Giphy needs its API key set up
+  const [picking, setPicking] = useState(false)
+  useEffect(() => {
+    if (kind === 'giphy') get('/api/giphy').then((s) => setReady(s.connected), () => {})
+  }, [kind])
+  const Picker = kind === 'giphy' ? GiphyPicker : MyinstantsPicker
+  return (
+    <Stack gap={4}>
+      <Text size="xs" fw={500}>{label}</Text>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
+      {value && (kind === 'giphy' ? <Image src={value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />
+        : <audio controls style={{ width: '100%' }} src={value} />)}
+      <Tooltip label="Set up Giphy first (Integration → Giphy)" disabled={ready}>
+        <Button size="xs" variant="default" style={{ alignSelf: 'start' }} data-disabled={!ready || undefined} onClick={() => ready && setPicking(true)}>
+          {kind === 'giphy' ? 'Pick a GIF' : 'Pick a sound'}
+        </Button>
+      </Tooltip>
+      <Picker opened={picking} onClose={() => setPicking(false)} onPick={onChange} />
     </Stack>
   )
 }
@@ -351,6 +364,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
   }
   if (f.type === 'workflow') return <WorkflowSelect {...props} value={value} onChange={set} />
   if (f.type === 'image') return <ImageInput {...props} value={value} onChange={set} />
+  if (f.type === 'giphy' || f.type === 'myinstants') return <PickInput {...props} kind={f.type} value={value} onChange={set} />
   if (f.type === 'window') return <WindowInput {...props} value={value} onChange={set} />
   if (f.type === 'secret') return <PasswordInput {...props} value={value} onChange={(e) => set(e.target.value)} />
   if (isColor(fallback)) return <ColorInput {...props} swatches={swatches} value={value} onChange={set} />

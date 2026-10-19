@@ -52,6 +52,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   - run an action on a widget overlay (web source) with its widget node or a **Widget Callback** node
   - press a key on the broadcaster's machine
   - call an HTTP endpoint
+  - pick or search a GIF on Giphy (**GIPHY**) or a sound on Myinstants (**MyInstants**): they add its URL (`{{gif}}`, `{{sound}}`) for the Image/GIF and Sound widgets, which only take a file or a URL
   - control software over WebSocket (e.g. OBS)
 - **Import/export**: workflows and widgets are plain JSON files.
 

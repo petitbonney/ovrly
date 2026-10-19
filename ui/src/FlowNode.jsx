@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
   IconAccessPoint, IconAccessPointOff, IconDiamond, IconFlame, IconGift, IconHeart, IconSparkles, IconStar, IconSwords,
-  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconCoin, IconDeviceGamepad2, IconEdit,
+  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconCoin, IconDeviceGamepad2, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
   IconMessageCode, IconMovie, IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVolume, IconVariable, IconWebhook, IconWindmill, IconWorld,
 } from '@tabler/icons-react'
@@ -43,6 +43,8 @@ export const icons = {
   cooldown: IconClockPause,
   queue: IconListNumbers,
   'http-request': IconWorld,
+  giphy: IconGif,
+  myinstants: IconSpeakerphone,
   'key-press': IconKeyboard,
   log: IconNotes,
   'obs-scene': IconMovie,
