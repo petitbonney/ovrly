@@ -1,0 +1,46 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Sound</title>
+<script type="importmap">{ "imports": { "animejs": "/vendor/animejs/index.js" } }</script>
+<audio id="audio"></audio>
+<script type="module">
+  import { animate } from 'animejs'
+  import { subscribe } from '/widgets/lib.js'
+  const audio = document.getElementById('audio')
+  const OUT = 200 // fade-out when a sound is cut
+  let current // { resolve, timer } of the sound playing now
+  let fading // the fade-out in progress
+  const volume = (config) => Math.min(Math.max(config.volume, 0) / 100, 1)
+
+  // Ends the sound playing now (its action finishes), fading it out or stopping it at once.
+  const stop = (fade) => {
+    if (!current) return
+    clearTimeout(current.timer)
+    current.resolve()
+    current = null
+    audio.onended = audio.onerror = null
+    if (!fade) return audio.pause()
+    const level = { v: audio.volume }
+    fading = animate(level, { v: 0, duration: OUT, ease: 'linear', onUpdate: () => (audio.volume = level.v), onComplete: () => audio.pause() })
+  }
+
+  subscribe(({ config, state, run }) => {
+    // Only an action plays, not a config change or a reload; a volume change applies to the sound playing.
+    if (!run || state.cancelled || !state.url) {
+      if (current) audio.volume = volume(config)
+      return
+    }
+    stop(false)
+    fading?.pause()
+    audio.volume = volume(config)
+    return new Promise((resolve) => {
+      current = { resolve }
+      audio.src = state.url
+      audio.onended = audio.onerror = () => stop(false)
+      // OBS plays without a click; a plain browser tab may refuse, which ends the action at once.
+      audio.play().then(() => {
+        if (current?.resolve === resolve && config.duration > 0) current.timer = setTimeout(() => stop(true), config.duration * 1000 - OUT)
+      }, () => stop(false))
+    })
+  }, () => stop(true))
+</script>

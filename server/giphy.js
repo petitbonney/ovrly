@@ -1,4 +1,5 @@
-// Giphy integration: the API key and whether Giphy accepts it (checked on startup and on save).
+// Giphy integration: the API key and whether Giphy accepts it (checked on startup and on save), and the search the
+// GIPHY node and its picker run.
 export const status = { key: '', connected: false, error: '' }
 
 export async function connect({ key = '' } = {}) {
@@ -13,7 +14,7 @@ export async function connect({ key = '' } = {}) {
   }
 }
 
-// A page of GIFs for the picker: the search results, or the trending ones without a query.
+// A page of GIFs: the search results, or the trending ones without a query.
 export async function search(q, offset) {
   if (!status.key) throw new Error('Set the Giphy API key first (Integration → Giphy)')
   const url = new URL(`https://api.giphy.com/v1/gifs/${q ? 'search' : 'trending'}`)
