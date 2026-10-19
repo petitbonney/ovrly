@@ -9,6 +9,18 @@ const settings = {
   filter: ({ field, contains, ...config }) => field !== undefined && { ...config, value: `{{${field}}}`, operator: 'contains', compare: contains ?? '' },
   // ms became seconds.
   delay: ({ ms, ...config }) => ms !== undefined && { ...config, seconds: ms / 1000 },
+  // Merge Widgets: a canvas width and height, with boxes in its pixels from the top left, became fractions of the
+  // canvas from its center. Boxes are kept inside the canvas.
+  merge: ({ width, height, layout = {}, ...config }) => width !== undefined && {
+    ...config,
+    layout: Object.fromEntries(Object.entries(layout).map(([id, b]) => {
+      const w = Math.min(Math.abs(b.w) / width, 1)
+      const h = Math.min(Math.abs(b.h) / height, 1)
+      const x = Math.min(Math.max((b.x + b.w / 2) / width - 0.5, w / 2 - 0.5), 0.5 - w / 2)
+      const y = Math.min(Math.max((b.y + b.h / 2) / height - 0.5, h / 2 - 0.5), 0.5 - h / 2)
+      return [id, { x, y, w, h }]
+    })),
+  },
 }
 
 // Placeholders were "{key}" until version 2, then "{{key}}". Done once (the version is saved), so a "{word}" typed

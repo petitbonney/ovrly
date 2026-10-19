@@ -3,16 +3,25 @@
 // Page side: calls render({ config, state }) now and on every update from the server, and stop() when the "cancel"
 // action asks the page to stop its animation. The "show" and "hide" actions fade the whole page (base.css). render may return a promise (e.g. an animation): once it settles, the
 // page tells the server the action finished, so the workflow moves on. EventSource reconnects by itself, so OBS
-// sources survive a server restart.
+// sources survive a server restart. In a Merge Widgets page (an iframe marked data-merged), the updates come from the
+// parent's stream (mergeSource), as events named by widget id, starting from the last one (mergeLast) without its run.
 export function subscribe(render, stop) {
   const id = location.pathname.split('/')[2]
-  new EventSource(`/w/${id}/events`).onmessage = async (e) => {
+  const merged = window.frameElement?.dataset.merged !== undefined && parent.mergeSource
+  const onMessage = async (e) => {
     const msg = JSON.parse(e.data)
     document.body.classList.toggle('hidden', msg.hidden)
     if (msg.cancel) return stop?.()
     await render(msg)
     if (msg.run) fetch(`/w/${id}/done`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ run: msg.run }) })
   }
+  if (!merged) {
+    new EventSource(`/w/${id}/events`).onmessage = onMessage
+    return
+  }
+  merged.addEventListener(id, onMessage)
+  const last = parent.mergeLast?.[id]
+  if (last) onMessage({ data: JSON.stringify({ ...JSON.parse(last), run: undefined, cancel: undefined }) })
 }
 
 // Page side: a promise that resolves after ms, for render to return while an animation plays.

@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
   IconAccessPoint, IconAccessPointOff, IconDiamond, IconFlame, IconGift, IconHeart, IconSparkles, IconStar, IconSwords,
-  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconCoin, IconDeviceGamepad2, IconEdit,
+  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconLayoutCollage, IconBell, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconCoin, IconDeviceGamepad2, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
   IconMessageCode, IconMovie, IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVideo, IconVolume, IconVariable, IconWebhook, IconWindmill, IconWorld,
 } from '@tabler/icons-react'
@@ -52,6 +52,7 @@ export const icons = {
   'websocket-send': IconPlugConnected,
   'widget-callback': IconBroadcast,
   widget: IconLayoutDashboard,
+  merge: IconLayoutCollage,
 }
 
 export const widgetIcons = {
@@ -99,6 +100,7 @@ export default function FlowNode({ id, workflowId, data, selected, def, widget, 
   const [key, value] = Object.entries({ ...def?.config, ...data.config })[0] ?? []
   const shown = Array.isArray(value) ? value.map((v) => v?.name ?? v).join(', ') : value
   const sub = isWidget ? type?.main
+    : data.type === 'merge' ? null // its only setting is the placement
     : data.type === 'widget-callback' ? [widget?.name ?? 'no widget', widget && (data.config.action || type?.main)].filter(Boolean).join(': ')
     : key && shown !== '' && `${key}: ${shown}`
   return (

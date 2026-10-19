@@ -42,3 +42,14 @@
 .run-error .flow-node { border-color: var(--mantine-color-red-6); box-shadow: 0 0 0 4px rgba(250, 82, 82, 0.3); }
 .react-flow__edge.run-flow path { stroke: var(--mantine-color-blue-4); }
 @keyframes run-pulse { 50% { box-shadow: 0 0 0 6px rgba(77, 171, 247, 0.35); } }
+/* Merge Widgets canvas (Merge.jsx): as large as fits beside its settings; each widget is a live preview box. */
+.merge-fit { flex: 1; min-height: 0; }
+.merge-canvas { position: relative; aspect-ratio: auto; overflow: hidden; }
+.merge-box { position: absolute; outline: 1px dashed #9147ff; background: #9147ff1a; cursor: move; touch-action: none; }
+.merge-box:hover { outline-style: solid; }
+.merge-box iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; pointer-events: none; color-scheme: normal; }
+.merge-box .name { position: absolute; top: 0; left: 0; padding: 1px 6px; background: #9147ff; color: #fff; font-size: 11px; white-space: nowrap; }
+.merge-guide { position: absolute; z-index: 999; pointer-events: none; background: #ff2d95; }
+.merge-guide.x { top: 0; bottom: 0; width: 1px; }
+.merge-guide.y { left: 0; right: 0; height: 1px; }
+.merge-box .corner { position: absolute; right: 0; bottom: 0; width: 12px; height: 12px; background: #9147ff; cursor: nwse-resize; }

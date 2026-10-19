@@ -72,6 +72,7 @@ Small steps; each milestone should be usable on its own.
 - [x] Execute Workflow with a Called By Workflow trigger
 - [x] Twitch triggers: follow, subscription (sub, resub, gifted), gift subs (with who received them), cheer, channel points, raid, stream online/offline, hype train (from chat in Guest mode where Twitch announces it there)
 - [x] Fan Out: runs what follows once per item of a list
+- [x] Merge Widgets: widget nodes placed on one canvas, served as a single browser source
 
 ## Later
 

@@ -211,6 +211,7 @@ app.put('/api/:kind/:id', async (req, res) => {
   const old = req.params.kind === 'workflows' && await store.get('workflows', req.params.id)
   const item = await store.save(req.params.kind, upgraded(req.params.kind, { ...old, ...req.body, id: req.params.id }))
   if (old && req.body.enabled === false) cancel(item.id) // switched off: stop what is running
+  if (old) pushMerges(item) // widgets moved on a Merge Widgets canvas
   if (req.params.kind === 'widgets') widgets.push(item) // live config changes on the overlay
   if (old) await dropUnusedWidgets(widgetRefs(old))
   res.json(item)
@@ -240,6 +241,49 @@ app.get('/w/:id{/:events}', async (req, res) => {
   if (!widget || !widgets.types[widget.type]) return res.sendStatus(404)
   if (req.params.events === 'events') return widgets.stream(widget, req, res)
   res.sendFile(`widgets/${widget.type}/index.html`, { root: '.' })
+})
+
+// Merge Widgets pages: /m/<workflow>/<node> shows the widget nodes linked into that node, each in an iframe placed
+// on its canvas; /m/<workflow>/<node>/events streams the placement (null while there is no such node), again whenever
+// the workflow is saved. It also carries the merged widgets' own snapshots, as SSE events named by widget id, so the
+// page holds one connection instead of one per widget (browsers allow only 6 per server).
+// A widget not placed yet gets the same default box as in the editor (Merge.jsx): half the canvas, cascading.
+function mergeView(workflow, id) {
+  const node = workflow?.nodes.find((n) => n.id === id && n.data.type === 'merge')
+  if (!node) return null
+  const { layout = {} } = node.data.config
+  const ids = workflow.edges.filter((e) => e.target === id).map((e) => workflow.nodes.find((n) => n.id === e.source))
+    .filter((n) => n?.data.type === 'widget').map((n) => n.data.config.widget)
+  return { items: [...new Set(ids)].map((w, i) => ({ id: w, ...(layout[w] ?? { x: 0.03 * i, y: 0.03 * i, w: 0.5, h: 0.5 }) })) }
+}
+const mergeClients = {} // workflow id -> Set of { node, res, widgets: widget id -> detach }
+async function pushMerge(workflow, client) {
+  const view = mergeView(workflow, client.node)
+  client.res.write(`data: ${JSON.stringify(view)}\n\n`)
+  const ids = view?.items.map((i) => i.id) ?? []
+  for (const [id, detach] of client.widgets) if (!ids.includes(id)) detach(), client.widgets.delete(id)
+  for (const id of ids.filter((id) => !client.widgets.has(id))) {
+    const widget = await store.get('widgets', id).catch(() => null)
+    if (widget) client.widgets.set(id, widgets.attach(widget, { write: (msg) => client.res.write(`event: ${id}\n${msg}`) }))
+  }
+}
+function pushMerges(workflow) {
+  for (const client of mergeClients[workflow.id] ?? []) pushMerge(workflow, client)
+}
+app.get('/m/:workflow/:node{/:events}', async (req, res) => {
+  const workflow = await store.get('workflows', req.params.workflow).catch(() => null)
+  if (req.params.events === 'events') {
+    res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }).flushHeaders()
+    const client = { node: req.params.node, res, widgets: new Map() }
+    const set = (mergeClients[req.params.workflow] ??= new Set()).add(client)
+    req.on('close', () => {
+      set.delete(client)
+      for (const detach of client.widgets.values()) detach()
+    })
+    return pushMerge(workflow, client)
+  }
+  if (!mergeView(workflow, req.params.node)) return res.sendStatus(404)
+  res.sendFile('server/merge.html', { root: '.' })
 })
 
 if (process.env.NODE_ENV === 'production') {
