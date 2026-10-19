@@ -9,7 +9,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 ## Features
 
 - **Workflows**: node graphs of the form trigger → logic → action. Build one from scratch or start from a template.
-- **Widgets**: built-in browser-source overlays: alerts, image/GIF, poll, bets, lottery, TwitchPlays. The image/GIF widget shows the image set on its node: uploaded (kept in `data/media`), a GIF picked from Giphy (once the Giphy integration has an API key), or a URL, e.g. `{{image}}` from a previous node; it fades in and out. The lottery draws a winner with one of
+- **Widgets**: built-in browser-source overlays: alerts, image/GIF, poll, bets, lottery, TwitchPlays. The image/GIF widget shows the image set on its node: a file on disk (picked with Browse files, used where it is), a GIF picked from Giphy (once the Giphy integration has an API key), or a URL, e.g. `{{image}}` from a previous node; it fades in and out. The lottery draws a winner with one of
   four layouts: wheel (weighted, colored options), roulette, slot (one reel) or dice.
 - **Twitch features**: in Streamer mode, the poll can run a native Twitch poll and bets a Twitch prediction (channel points), with live results over EventSub. In Guest mode they count chat votes and bets.
 - **Multiple instances**: run several widgets and workflows side by side.
@@ -125,7 +125,7 @@ server/
 ui/               React app (Vite)
 widgets/          one folder per widget type (index.html + widget.js)
 templates/        starter workflows
-data/             your widgets, workflows and uploaded images (gitignored)
+data/             your widgets and workflows (gitignored)
 ```
 
 ## Writing a node

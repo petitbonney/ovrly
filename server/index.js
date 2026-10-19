@@ -1,6 +1,6 @@
 // Server entry: REST API over the store, widget pages, plus the UI (Vite in dev, ./dist in production).
-import fs from 'node:fs/promises'
-import { randomUUID } from 'node:crypto'
+import path from 'node:path'
+import { execFile } from 'node:child_process'
 import express from 'express'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
@@ -138,17 +138,23 @@ app.put('/api/giphy', async (req, res) => {
 app.get('/api/giphy/search', (req, res) =>
   giphy.search(String(req.query.q ?? ''), Number(req.query.offset) || 0).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
 
-// Images uploaded for the Image widget: kept as they are in ./data/media and served at /media/<file>.
-// No SVG: opened directly, it could run scripts on Ovrly's origin.
-const IMAGE_TYPES = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp', 'image/avif': '.avif', 'image/apng': '.png' }
+// Images for the Image widget are files on disk, used where they are: "Browse files" opens the OS file dialog here
+// (a browser page can't see file paths) and /file serves a path set on a node. Only image types, so this can't leak other
+// files; no SVG: opened directly, it could run scripts on Ovrly's origin. /media serves images uploaded by older versions.
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|avif|apng)$/i
 app.use('/media', express.static('data/media'))
-app.post('/api/media', express.raw({ type: Object.keys(IMAGE_TYPES), limit: '25mb' }), async (req, res) => {
-  const ext = IMAGE_TYPES[req.get('content-type')]
-  if (!ext || !req.body?.length) return res.status(415).json({ error: 'Send a PNG, JPEG, GIF, WebP or AVIF image' })
-  const name = `${randomUUID()}${ext}`
-  await fs.mkdir('data/media', { recursive: true })
-  await fs.writeFile(`data/media/${name}`, req.body)
-  res.json({ url: `/media/${name}` })
+app.post('/api/browse-image', (req, res) => {
+  if (process.platform !== 'darwin') return res.status(501).json({ error: 'Browse files only works on macOS for now: paste the file path or an image URL' })
+  const script = 'POSIX path of (choose file with prompt "Pick an image or GIF" of type {"public.png", "public.jpeg", "com.compuserve.gif", "org.webmproject.webp", "public.avif"})'
+  execFile('osascript', ['-e', script], (err, out) => {
+    if (err) return res.json({}) // cancelled
+    res.json({ path: out.trim() })
+  })
+})
+app.get('/file', (req, res) => {
+  const file = String(req.query.path ?? '')
+  if (!path.isAbsolute(file) || !IMAGE_EXT.test(file)) return res.status(400).end()
+  res.sendFile(file, { dotfiles: 'allow' }, (err) => err && !res.headersSent && res.status(404).end())
 })
 
 // Widget types for the UI (metadata plus action names, no functions).

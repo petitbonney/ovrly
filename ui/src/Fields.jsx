@@ -11,7 +11,7 @@ import {
   ActionIcon, Autocomplete, Button, ColorInput, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
   Select, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
 } from '@mantine/core'
-import { IconBraces, IconGripVertical, IconPlus, IconUpload, IconX } from '@tabler/icons-react'
+import { IconBraces, IconGripVertical, IconPlus, IconFolderOpen, IconX } from '@tabler/icons-react'
 import { get } from './api.js'
 import GiphyPicker from './GiphyPicker.jsx'
 
@@ -95,8 +95,8 @@ function PresetInput({ label, description, unit, presets, value, onChange }) {
   )
 }
 
-// An image: a preview, an upload button, a Giphy picker once the Giphy integration has a working key, and a field to
-// paste a URL. The value is the image's URL (an uploaded file's /media/… path, a Giphy URL, or the pasted one).
+// An image: a preview, a button to pick a file on disk, a Giphy picker once the Giphy integration has a working key, and
+// a field to paste a URL or path. The value is a file path on disk, a Giphy URL, or the pasted one.
 function ImageInput({ label, description, value, onChange, vars }) {
   const [giphy, setGiphy] = useState(false) // whether Giphy is set up
   const [picking, setPicking] = useState(false)
@@ -104,31 +104,26 @@ function ImageInput({ label, description, value, onChange, vars }) {
   useEffect(() => {
     get('/api/giphy').then((s) => setGiphy(s.connected), () => {})
   }, [])
-  const upload = async (e) => {
-    const file = e.target.files[0]
-    e.target.value = '' // so the same file can be picked again
-    if (!file) return
-    const res = await fetch('/api/media', { method: 'POST', headers: { 'Content-Type': file.type }, body: file })
+  // The server opens the OS file dialog: a browser page can't see a picked file's path.
+  const browse = async () => {
+    const res = await fetch('/api/browse-image', { method: 'POST' })
     const body = await res.json()
     setError(res.ok ? '' : body.error)
-    if (res.ok) onChange(body.url)
+    if (body.path) onChange(body.path)
   }
   return (
     <Stack gap={4}>
       <Text size="xs" fw={500}>{label}</Text>
       {description && <Text size="xs" c="dimmed">{description}</Text>}
-      {value && !value.includes('{{') && <Image src={value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
+      {value && !value.includes('{{') && <Image src={value.startsWith('/') && !value.startsWith('/media/') ? `/file?path=${encodeURIComponent(value)}` : value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
       <Group gap="xs">
-        <Button size="xs" variant="default" component="label" leftSection={<IconUpload size={14} />}>
-          Upload
-          <input type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/avif" hidden onChange={upload} />
-        </Button>
+        <Button size="xs" variant="default" leftSection={<IconFolderOpen size={14} />} onClick={browse}>Browse files</Button>
         <Tooltip label="Set up Giphy first (Integration → Giphy)" disabled={giphy}>
           <Button size="xs" variant="default" data-disabled={!giphy || undefined} onClick={() => giphy && setPicking(true)}>Giphy</Button>
         </Tooltip>
         {value && <Button size="xs" variant="subtle" color="red" onClick={() => onChange('')}>Clear</Button>}
       </Group>
-      <VarInput size="xs" placeholder="or paste an image URL" vars={vars} value={value} onChange={onChange} />
+      <VarInput size="xs" placeholder="or paste an image URL or file path" vars={vars} value={value} onChange={onChange} />
       {error && <Text size="xs" c="red">{error}</Text>}
       <GiphyPicker opened={picking} onClose={() => setPicking(false)} onPick={onChange} />
     </Stack>
