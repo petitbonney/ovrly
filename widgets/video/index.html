@@ -1,0 +1,49 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Video</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<script type="importmap">{ "imports": { "animejs": "/vendor/animejs/index.js" } }</script>
+<style>
+  /* The video fits the page, centered, whatever its size. */
+  #video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; }
+</style>
+<video id="video" playsinline></video>
+<script type="module">
+  import { animate } from 'animejs'
+  import { subscribe } from '/widgets/lib.js'
+  const video = document.getElementById('video')
+  const OUT = 300 // fade-out when the video ends or is cut
+  let current // { resolve, timer } of the video playing now
+  const volume = (config) => Math.min(Math.max(config.volume, 0) / 100, 1)
+
+  // Ends the video playing now (its action finishes), fading it out or hiding it at once.
+  const stop = (fade) => {
+    if (!current) return
+    clearTimeout(current.timer)
+    current.resolve()
+    current = null
+    video.onended = video.onerror = null
+    if (!fade) return void (video.pause(), (video.style.opacity = 0))
+    animate(video, { opacity: [1, 0], duration: OUT, ease: 'inQuad', onComplete: () => video.pause() })
+  }
+
+  subscribe(({ config, state, run }) => {
+    // Only an action plays, not a config change or a reload; a volume change applies to the video playing.
+    if (!run || state.cancelled || !state.url) {
+      if (current) video.volume = volume(config)
+      return
+    }
+    stop(false)
+    video.volume = volume(config)
+    return new Promise((resolve) => {
+      current = { resolve }
+      video.src = state.url
+      video.onended = video.onerror = () => stop(true)
+      // OBS plays without a click; a plain browser tab may refuse, which ends the action at once.
+      video.play().then(() => {
+        video.style.opacity = 1
+        if (current?.resolve === resolve && config.duration > 0) current.timer = setTimeout(() => stop(true), config.duration * 1000 - OUT)
+      }, () => stop(false))
+    })
+  }, () => stop(true))
+</script>

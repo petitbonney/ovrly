@@ -7,7 +7,7 @@ import {
   IconAccessPoint, IconAccessPointOff, IconDiamond, IconFlame, IconGift, IconHeart, IconSparkles, IconStar, IconSwords,
   IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconCoin, IconDeviceGamepad2, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
-  IconMessageCode, IconMovie, IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVolume, IconVariable, IconWebhook, IconWindmill, IconWorld,
+  IconMessageCode, IconMovie, IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVideo, IconVolume, IconVariable, IconWebhook, IconWindmill, IconWorld,
 } from '@tabler/icons-react'
 
 // If/else branches left to right, like the graph.
@@ -61,6 +61,7 @@ export const widgetIcons = {
   lottery: IconClover,
   image: IconPhoto,
   sound: IconVolume,
+  video: IconVideo,
   'twitch-plays': IconDeviceGamepad2,
 }
 
