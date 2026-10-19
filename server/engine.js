@@ -17,8 +17,10 @@ for (const name of await fs.readdir(dir)) {
 // when data travels along a link, and { workflow, running } with the number of firings in progress.
 export const activity = new EventEmitter()
 
-// Queue nodes (`queue`): node key -> { tail: promise of the last firing in line, size: firings in line }.
+// Queue nodes (`queue`): node key -> { busy: a firing is past the node, line: firings waiting, in order, as
+// { id, at, data, go } where go(true) lets one through and go(false) drops it }.
 const queues = {}
+let lastEntry = 0
 // Node key -> how many firings are running it: a node only shows as finished once the last one has.
 const active = {}
 // Workflow id -> abort controllers of its firings in progress, for cancel().
@@ -47,23 +49,35 @@ async function walk(workflow, node, data, run) {
   const config = { ...def.config, ...node.data.config }
   // A queue node lets one firing at a time through: the next waits until everything after it has finished.
   if (def.queue) {
-    const q = (queues[id] ??= { tail: Promise.resolve(), size: 0 })
-    if (config.max > 0 && q.size > config.max) return status('stopped') // line full: dropped
-    const turn = q.tail
-    let release
-    q.tail = new Promise((resolve) => (release = resolve))
-    q.size++
-    if (q.size > 1) status('waiting')
-    await turn
+    const q = (queues[id] ??= { busy: false, line: [] })
+    if (q.busy) {
+      if (config.max > 0 && q.line.length >= config.max) return status('stopped') // line full: dropped
+      status('waiting')
+      const go = await new Promise((resolve) => q.line.push({ id: ++lastEntry, at: Date.now(), data, go: resolve }))
+      if (!go) return status('stopped') // removed from the line (Queue settings)
+    }
+    q.busy = true
     try {
       if (run.signal.aborted) return status('stopped')
       return await step(workflow, node, data, run, { def, config, id, status })
     } finally {
-      q.size--
-      release()
+      const next = q.line.shift()
+      if (next) next.go(true) // its turn: the node stays busy
+      else q.busy = false
     }
   }
   return step(workflow, node, data, run, { def, config, id, status })
+}
+
+// The firings waiting at a queue node, first in line first: [{ id, at, data }] (GET /api/queues/:workflow/:node).
+export const line = (workflow, node) => (queues[`${workflow}/${node}`]?.line ?? []).map(({ id, at, data }) => ({ id, at, data }))
+
+// Removes a firing from a queue node's line: it stops there (DELETE /api/queues/:workflow/:node/:entry).
+export function drop(workflow, node, entry) {
+  const q = queues[`${workflow}/${node}`]
+  const i = q?.line.findIndex((e) => e.id === entry) ?? -1
+  if (i >= 0) q.line.splice(i, 1)[0].go(false)
+  return i >= 0
 }
 
 // Runs the node itself, then walks on from its outputs. Besides the data, the node can read {{ $node.<type>.<key> }},

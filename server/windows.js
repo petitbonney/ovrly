@@ -1,0 +1,44 @@
+// Open windows, as "App — Title" names, for Key Press's "Only when focused". macOS asks System Events, which needs
+// only the Accessibility permission Key Press already needs (nut.js would also need Screen Recording for titles);
+// without it, app names alone. Other systems use nut.js window titles.
+import { execFile } from 'node:child_process'
+import { getWindows, getActiveWindow } from '@nut-tree-fork/nut-js'
+
+const osa = (script) => new Promise((resolve, reject) =>
+  execFile('osascript', ['-e', script], (err, out) => (err ? reject(err) : resolve(out.trim()))))
+
+// One "app<TAB>title" line per window (title empty if unreadable) of the given processes.
+const lines = (processes) => `
+tell application "System Events"
+  set out to ""
+  repeat with p in (${processes})
+    set out to out & name of p & tab & linefeed
+    try
+      repeat with w in (every window of p)
+        try
+          set out to out & name of p & tab & name of w & linefeed
+        end try
+      end repeat
+    end try
+  end repeat
+  return out
+end tell`
+
+const names = (out) => out.split('\n').filter(Boolean).map((l) => {
+  const [app, title] = l.split('\t')
+  return title ? `${app} — ${title}` : app
+})
+
+// Every open window, plus each app on its own (picking it matches any of its windows).
+export async function list() {
+  if (process.platform !== 'darwin') return Promise.all((await getWindows()).map((w) => w.title.catch(() => '')))
+  return names(await osa(lines('every application process whose background only is false')))
+}
+
+// The focused window: "App — Title" (macOS), or its title.
+export async function focused() {
+  if (process.platform !== 'darwin') return (await getActiveWindow()).title
+  // Its front window is the first one listed; the app alone when titles can't be read.
+  const [app, front] = names(await osa(lines('every application process whose frontmost is true')))
+  return front ?? app ?? ''
+}

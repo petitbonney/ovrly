@@ -46,7 +46,8 @@ export function push(widget, run, cancel) {
 // the server waits that long itself: pages may be closed, or hidden and slowed down by the browser. Otherwise it waits
 // for a page to report the end: right away if no page is open, after 60s if none answers.
 // Cancel and restart: an action arriving while another still plays on the same widget cancels it (its `done` resolves
-// to false, so that run stops) and plays instead. The "cancel" action only stops what is playing; the built-in "show"
+// to false, so that run stops) and plays instead. An action that returns the same state did nothing (e.g. an invalid
+// vote): it cancels nothing and its own run stops. playTime(action, config, state) may depend on the new state. The "cancel" action only stops what is playing; the built-in "show"
 // and "hide" only fade the overlay.
 // `output` is what the widget type's output(state, config) gives back to the workflow, e.g. { winner: 'Red' }.
 // An action may be async (e.g. it starts a Twitch poll); if it throws, the state is kept and update rejects.
@@ -62,13 +63,16 @@ export async function update(widget, { action, value = '', user = '' }) {
     record('sse', 'widget', { widget: widget.name, action, pages: pages(widget) })
     return { state: states[widget.id], done: new Promise((resolve) => setTimeout(resolve, 400, true)), output: {} }
   }
-  playing[widget.id]?.stop()
   const { config, state } = snapshot(widget)
-  states[widget.id] = await fn(state, { value: String(value).trim(), user }, config)
+  const next = await fn(state, { value: String(value).trim(), user }, config)
+  if (next === state) return { state, done: Promise.resolve(false), output: {} } // did nothing: nothing is cancelled
+  playing[widget.id]?.stop()
+  states[widget.id] = next
   if (action === 'show') hidden[widget.id] = false // a type's own "show" (e.g. an alert) shows the overlay too
   const run = ++runs
-  const ms = def.playTime?.(action, config)
+  const ms = def.playTime?.(action, config, next)
   const done = new Promise((resolve) => {
+    if (ms === 0) return resolve(true) // over at once: never "playing", so the next action can't cancel it
     const mine = (playing[widget.id] = {
       run,
       stop: () => {

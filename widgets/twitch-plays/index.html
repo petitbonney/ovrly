@@ -2,15 +2,65 @@
 <meta charset="utf-8">
 <title>TwitchPlays</title>
 <link rel="stylesheet" href="/widgets/base.css">
-<div class="card"><h1 id="title"></h1><div id="rows"></div></div>
+<script type="importmap">{ "imports": { "animejs": "/vendor/animejs/index.js" } }</script>
+<style>
+  /* The card fills the page (minus its margin), so resizing the browser source resizes it; extra rows are cut off. */
+  .card { box-sizing: border-box; height: calc(100vh - 32px); display: flex; flex-direction: column; }
+  #rows { flex: 1; min-height: 0; overflow: hidden; }
+  h1 { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+  #mode { font-size: 16px; padding: 2px 10px; border-radius: 999px; background: #9147ff; }
+  .row b { min-width: 2ch; text-align: right; }
+  .row.win { outline: 2px solid #ffb400; }
+</style>
+<div class="card"><h1><span id="title"></span><span id="mode"></span></h1><div id="rows"></div><div id="foot" class="muted"></div></div>
 <script type="module">
+  import { animate } from 'animejs'
   import { subscribe, el } from '/widgets/lib.js'
-  subscribe(({ config, state }) => {
-    document.getElementById('title').textContent = config.title
-    document.getElementById('rows').replaceChildren(...state.log.map(({ user, value }, i) => {
-      const row = el('div', 'row', el('span', 'muted', user), el('span', '', value))
-      row.style.opacity = 1 - i / (config.max + 1) // older inputs fade out
+  const $ = (id) => document.getElementById(id)
+  let seen = 0 // newest log entry already shown, so only new ones slide in
+  let widths = [] // vote bars' last widths, so they grow from there
+  let timer
+
+  // Anarchy: the latest inputs, newest on top, older ones fading out.
+  function anarchy(config, state) {
+    $('foot').textContent = ''
+    $('rows').replaceChildren(...state.log.map(({ user, command, at }, i) => {
+      const row = el('div', 'row', el('span', 'muted', user || 'test'), el('span', '', command))
+      const opacity = 1 - i / (config.max + 1)
+      row.style.opacity = opacity
+      if (at > seen) animate(row, { translateX: [-40, 0], opacity: [0, opacity], duration: 300, ease: 'outQuad' })
       return row
     }))
+    seen = state.log[0]?.at ?? 0
+  }
+
+  // Democracy: one bar per command, a countdown while the vote is open, the winner once it closes.
+  function democracy(config, state, render) {
+    const left = Math.ceil((state.endsAt - Date.now()) / 1000)
+    const open = left > 0
+    if (open) timer = setTimeout(render, 1000 - ((state.endsAt - Date.now()) % 1000))
+    const counts = config.commands.map((c, i) => state.counts[i] ?? 0)
+    const total = counts.reduce((a, b) => a + b, 0)
+    const top = Math.max(0, ...counts)
+    $('rows').replaceChildren(...config.commands.map(({ command }, i) => {
+      const pct = total ? (counts[i] / total) * 100 : 0
+      const bar = el('div', 'bar')
+      bar.style.width = `${widths[i] ?? 0}%`
+      if (pct !== widths[i]) animate(bar, { width: `${pct}%`, duration: 400, ease: 'outQuad' })
+      widths[i] = pct
+      const row = el('div', 'row', bar, el('span', '', command), el('b', '', String(counts[i])))
+      if (!open && top && counts[i] === top && counts.indexOf(top) === i) row.classList.add('win')
+      return row
+    }))
+    $('foot').textContent = open ? `${left}s to vote · type a command` : total ? 'Vote closed · next vote opens with a command' : 'Type a command to vote'
+  }
+
+  subscribe(function render({ config, state }) {
+    clearTimeout(timer)
+    const mode = state.mode && state.over === config.mode ? state.mode : config.mode // see widget.js
+    $('title').textContent = config.title
+    $('mode').textContent = mode === 'democracy' ? 'Democracy' : 'Anarchy'
+    if (mode === 'democracy') democracy(config, state, () => render({ config, state }))
+    else anarchy(config, state)
   })
 </script>

@@ -4,13 +4,14 @@ import { execFile } from 'node:child_process'
 import express from 'express'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
-import { nodes, fire, cancel, running, activity, history } from './engine.js'
+import { nodes, fire, cancel, running, activity, history, line, drop } from './engine.js'
 import * as twitch from './sources/twitch.js'
 import * as twitchAuth from './sources/twitch-auth.js'
 import * as eventsub from './sources/twitch-eventsub.js'
 import * as obs from './obs.js'
 import * as giphy from './giphy.js'
 import * as widgets from './widgets.js'
+import * as windows from './windows.js'
 import upgrade, { upgradeWidget } from './upgrade.js'
 
 // The OBS connection used to be set in each OBS node: the first one found becomes the OBS integration's settings
@@ -61,6 +62,10 @@ app.get('/api/activity', (req, res) => {
   activity.on('activity', send)
   req.on('close', () => activity.off('activity', send))
 })
+// Queue nodes: the firings waiting in line, and removing one (it stops there).
+app.get('/api/queues/:workflow/:node', (req, res) => res.json(line(req.params.workflow, req.params.node)))
+app.delete('/api/queues/:workflow/:node/:entry', (req, res) =>
+  res.sendStatus(drop(req.params.workflow, req.params.node, Number(req.params.entry)) ? 204 : 404))
 // Developer view: the recent events (chat, API calls, manual runs…), newest first. Browsers get a live table
 // (events.html), anything else the JSON; ?format=json forces JSON.
 app.get('/api/events', (req, res) => {
@@ -156,6 +161,10 @@ app.get('/file', (req, res) => {
   if (!path.isAbsolute(file) || !IMAGE_EXT.test(file)) return res.status(400).end()
   res.sendFile(file, { dotfiles: 'allow' }, (err) => err && !res.headersSent && res.status(404).end())
 })
+
+// The open windows, for Key Press's "Only when focused" picker.
+app.get('/api/windows', (req, res) =>
+  windows.list().then((list) => res.json([...new Set(list.filter(Boolean))]), (err) => res.status(503).json({ error: err.message })))
 
 // Widget types for the UI (metadata plus action names, no functions).
 app.get('/api/widget-types', (req, res) =>

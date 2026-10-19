@@ -17,6 +17,7 @@ import {
 } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import WidgetSettings from './Widget.jsx'
+import QueueLine from './QueueLine.jsx'
 import FlowNode, { colors, icons, widgetIcons } from './FlowNode.jsx'
 import layout from './layout.js'
 import { exportWorkflow, download } from './share.js'
@@ -79,8 +80,8 @@ const fitOptions = { maxZoom: 1, padding: 0.3 }
 // Settings of the selected node: title, description, then a form built from the node type's fields.
 // A widget node shows its widget instance's settings and preview, with the main action's value; a Widget Callback node
 // picks a widget node of this workflow (context.instances), then the action to run on it. context.widget is the
-// widget the node points to.
-function Config({ node, def, context, onChange, onWidgetChange, onCopy }) {
+// widget the node points to. A Queue node also shows who waits in its line.
+function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy }) {
   if (!node || !def) return null
   const isWidget = def.type === 'widget'
   const { widget } = context
@@ -99,6 +100,7 @@ function Config({ node, def, context, onChange, onWidgetChange, onCopy }) {
           type ? <WidgetSettings key={widget.id} widget={widget} type={type} value={type.inputs?.[type.main] && fields} testValue={node.data.config.value} onChange={onWidgetChange} onCopy={onCopy} />
             : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>
         ) : fields}
+        {def.queue && <QueueLine workflow={workflow} node={node.id} />}
       </div>
     </AppShell.Footer>
   )
@@ -410,6 +412,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
         </ReactFlow>
       </AppShell.Main>
       <Config
+        workflow={workflow.id}
         node={selected}
         def={defOf(selected)}
         context={{

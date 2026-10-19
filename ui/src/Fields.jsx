@@ -1,10 +1,11 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' | 'image' | 'widget' }.
+// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' | 'image' | 'widget' | 'window' }.
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
 // (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
 // An option { value, label, streamer: true } is a Twitch feature: it needs Twitch in Streamer mode (context.streamer).
-// A list default (e.g. a poll's options) gets a list editor, a color default ("#rrggbb") a color picker, and
+// A list default (e.g. a poll's options) gets a list editor (columns: { key: field } for its items' fields, e.g. a
+// { type: 'keys' } picker), a color default ("#rrggbb") a color picker, and
 // { obs: 'scenes' | 'sources' } suggestions from OBS.
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -18,16 +19,13 @@ import GiphyPicker from './GiphyPicker.jsx'
 // "case1" -> "Case1", "sceneName" -> "Scene name"
 const humanize = (key) => key[0].toUpperCase() + key.slice(1).replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`)
 
-// Text input with a menu that inserts "{{key}}" placeholders for the data keys available at this node. With data,
-// it also suggests those values as you type (all of them while the value is one of them).
-function VarInput({ vars, value, onChange, multiline, data, ...props }) {
-  const ref = useRef()
-  const insert = (key) => {
-    const el = ref.current
-    const start = el?.selectionStart ?? value.length
-    onChange(value.slice(0, start) + `{{${key}}}` + value.slice(el?.selectionEnd ?? start))
-  }
-  const menu = (
+// Suggestions filter: every option while the value is empty or one of them, else those containing it.
+const suggest = ({ options, search }) => (!search || options.some((o) => o.value === search) ? options
+  : options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase())))
+
+// The "{}" button: a menu of the data keys available at this node; onPick(key) gets the one picked.
+function VarMenu({ vars, onPick }) {
+  return (
     <Menu position="bottom-end" withinPortal>
       <Menu.Target>
         <Tooltip label="Insert data from previous nodes">
@@ -35,16 +33,24 @@ function VarInput({ vars, value, onChange, multiline, data, ...props }) {
         </Tooltip>
       </Menu.Target>
       <Menu.Dropdown>
-        {vars.length ? vars.map((k) => <Menu.Item key={k} onClick={() => insert(k)}>{`{{${k}}}`}</Menu.Item>)
+        {vars.length ? vars.map((k) => <Menu.Item key={k} onClick={() => onPick(k)}>{`{{${k}}}`}</Menu.Item>)
           : <Menu.Label>Connect an input first</Menu.Label>}
       </Menu.Dropdown>
     </Menu>
   )
-  if (data) {
-    const filter = ({ options, search }) => (options.some((o) => o.value === search) ? options
-      : options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase())))
-    return <Autocomplete ref={ref} data={data} filter={filter} value={value} onChange={onChange} rightSection={menu} {...props} />
+}
+
+// Text input with a "{}" menu that inserts "{{key}}" placeholders at the cursor. With data, it also suggests those
+// values as you type (see suggest).
+function VarInput({ vars, value, onChange, multiline, data, ...props }) {
+  const ref = useRef()
+  const insert = (key) => {
+    const el = ref.current
+    const start = el?.selectionStart ?? value.length
+    onChange(value.slice(0, start) + `{{${key}}}` + value.slice(el?.selectionEnd ?? start))
   }
+  const menu = <VarMenu vars={vars} onPick={insert} />
+  if (data) return <Autocomplete ref={ref} data={data} filter={suggest} value={value} onChange={onChange} rightSection={menu} {...props} />
   const Input = multiline ? Textarea : TextInput
   return <Input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rightSection={menu} autosize={multiline || undefined} minRows={multiline ? 2 : undefined} {...props} />
 }
@@ -74,6 +80,21 @@ function WorkflowSelect({ value, onChange, ...props }) {
     get('/api/workflows').then((all) => setList(all.map((w) => ({ value: w.id, label: w.name || w.id }))))
   }, [])
   return <Select {...props} data={list} value={value} onChange={onChange} placeholder="Pick a workflow" />
+}
+
+// An app or window (or part of its name), picked from those open now, listed again each time the list opens. Typing
+// stays free.
+function WindowInput({ onChange, ...props }) {
+  const [names, setNames] = useState([])
+  const load = () => fetch('/api/windows').then((r) => r.json()).then((list) => Array.isArray(list) && setNames(list), () => {})
+  useEffect(() => {
+    load()
+  }, [])
+  // Without the Accessibility permission (macOS), only app names come back.
+  const titles = names.some((n) => n.includes(' — '))
+  const description = titles || !names.length ? props.description : `${props.description}. Window titles need the Accessibility permission`
+  return <Autocomplete {...props} description={description} data={names} filter={suggest} limit={100} onDropdownOpen={load}
+    onChange={onChange} placeholder="Pick or type an app or window" />
 }
 
 // "90 s" -> "1m30", "300 s" -> "5m": presets read faster in minutes.
@@ -137,21 +158,25 @@ const width = (v) => (isColor(v) ? 110 : typeof v === 'number' ? 72 : undefined)
 
 // One list item: a text, or an object edited field by field. shape (a default item) says which input each field gets,
 // so a color being typed doesn't turn into a text field.
-function ItemInput({ item, shape, onChange }) {
+function ItemInput({ item, shape, columns = {}, onChange }) {
   if (typeof shape !== 'object') return <TextInput size="xs" flex={1} value={item} onChange={(e) => onChange(e.target.value)} />
   return Object.entries(shape).map(([key, example]) => {
-    const props = { key, size: 'xs', w: width(example), flex: width(example) ? undefined : 1, 'aria-label': humanize(key) }
+    const props = { size: 'xs', w: width(example), flex: width(example) ? undefined : 1, 'aria-label': humanize(key) }
     const set = (v) => onChange({ ...item, [key]: v })
-    if (isColor(example)) return <ColorInput {...props} swatches={swatches} value={item[key] ?? ''} onChange={set} />
-    if (typeof example === 'number') return <NumberInput {...props} min={0} value={item[key]} onChange={(v) => set(Number(v))} />
-    return <TextInput {...props} value={item[key] ?? ''} onChange={(e) => set(e.target.value)} />
+    if (columns[key]?.type === 'keys') {
+      return <TagsInput key={key} {...props} miw={0} styles={{ inputField: { minWidth: 30 } }} data={columns[key].options}
+        value={item[key] ? item[key].split('+') : []} onChange={(v) => set(v.join('+'))} />
+    }
+    if (isColor(example)) return <ColorInput key={key} {...props} swatches={swatches} value={item[key] ?? ''} onChange={set} />
+    if (typeof example === 'number') return <NumberInput key={key} {...props} min={0} value={item[key]} onChange={(v) => set(Number(v))} />
+    return <TextInput key={key} {...props} miw={0} value={item[key] ?? ''} onChange={(e) => set(e.target.value)} />
   })
 }
 
 // A list setting: one row per item, reordered by dragging its grip (dropped above the row it lands on) or removed,
 // and an Add button. A new item is empty
 // text, or shaped like the default items with empty text and, for colors, the first swatch not used yet.
-function ListInput({ label, description, value, defaults, fixed, onChange }) {
+function ListInput({ label, description, value, defaults, fixed, columns, onChange }) {
   const shape = defaults[0]
   const set = (i, item) => onChange(value.map((v, j) => (j === i ? item : v)))
   const [drag, setDrag] = useState(null) // { from, over }: the row being dragged and the row it is over
@@ -215,7 +240,7 @@ function ListInput({ label, description, value, defaults, fixed, onChange }) {
           >
             <IconGripVertical size={14} />
           </ActionIcon>}
-          <ItemInput item={item} shape={shape} onChange={(v) => set(i, v)} />
+          <ItemInput item={item} shape={shape} columns={columns} onChange={(v) => set(i, v)} />
           {!fixed && <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label="Remove"><IconX size={14} /></ActionIcon>}
         </Group>
       ))}
@@ -234,9 +259,11 @@ function ListInput({ label, description, value, defaults, fixed, onChange }) {
 // from, types } for the dynamic types.
 function Field({ name, f, fallback, value, set, values, context }) {
   const props = { label: f.label ?? humanize(name), description: f.hint, size: 'xs' }
-  if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} onChange={set} />
+  if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} columns={f.columns} onChange={set} />
   if (f.type === 'keys') {
-    return <TagsInput {...props} data={f.options} value={value ? value.split('+') : []} onChange={(v) => set(v.join('+'))} />
+    const tags = value ? value.split('+') : []
+    return <TagsInput {...props} data={f.options} value={tags} onChange={(v) => set(v.join('+'))}
+      rightSection={<VarMenu vars={context.vars ?? []} onPick={(k) => set([...tags, `{{${k}}}`].join('+'))} />} />
   }
   // A widget's actions come from its type (nothing to pick if there is only one); short option lists are buttons.
   const type = context.types?.find((t) => t.type === context.widget?.type)
@@ -284,6 +311,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
   }
   if (f.type === 'workflow') return <WorkflowSelect {...props} value={value} onChange={set} />
   if (f.type === 'image') return <ImageInput {...props} value={value} onChange={set} />
+  if (f.type === 'window') return <WindowInput {...props} value={value} onChange={set} />
   if (f.type === 'secret') return <PasswordInput {...props} value={value} onChange={(e) => set(e.target.value)} />
   if (isColor(fallback)) return <ColorInput {...props} swatches={swatches} value={value} onChange={set} />
   if (typeof fallback === 'boolean') return <Switch {...props} checked={value} onChange={(e) => set(e.target.checked)} />

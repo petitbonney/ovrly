@@ -11,13 +11,18 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 - **Workflows**: node graphs of the form trigger → logic → action. Build one from scratch or start from a template.
 - **Widgets**: built-in browser-source overlays: alerts, image/GIF, poll, bets, lottery, TwitchPlays. The image/GIF widget shows the image set on its node: a file on disk (picked with Browse files, used where it is), a GIF picked from Giphy (once the Giphy integration has an API key), or a URL, e.g. `{{image}}` from a previous node; it fades in and out. The lottery draws a winner with one of
   four layouts: wheel (weighted, colored options), roulette, slot (one reel) or dice.
+- **TwitchPlays**: translates chat into keys, through a list of command → keys pairs (`up` → `Up`); a Key Press node
+  set to `{{keys}}` presses them. Anarchy passes on every command; democracy counts one vote per viewer during the
+  vote window, then passes on the winner. Widget Callback's `mode` action switches modes mid-stream (dropping a vote
+  under way). Key Press's "Only when focused" presses only while that app or window is focused, picked from those
+  open (macOS: window titles need the Accessibility permission Key Press already needs).
 - **Twitch features**: in Streamer mode, the poll can run a native Twitch poll and bets a Twitch prediction (channel points), with live results over EventSub. In Guest mode they count chat votes and bets.
 - **Multiple instances**: run several widgets and workflows side by side.
 - **Triggers**: a schedule, Twitch chat (any message or a `!command`), an API call to `http://localhost:6875/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual Trigger).
 - **Logic**: filter (continues only if a comparison holds, like if/else; 13 operators: equals, contains, regex, numbers, empty…), delay (in seconds), if/else, switch (a list
   of cases, one output each, labelled by the case; links follow their case when cases move or are removed), wait for all (continues once every incoming link has delivered),
   cooldown (lets data through, then sends the next to "blocked" for a while, for everyone or per viewer) and
-  queue (what follows runs one firing at a time, the next wait in line).
+  queue (what follows runs one firing at a time, the next wait in line; its settings show the line, and remove a firing from it).
 - **Expressions**: any text setting takes `{{ ... }}`: a path (`{{user}}`, `{{json.items.0.name}}`, `{{$vars.score}}`,
   `{{$node.http-request.status}}` for the output of an earlier node, by type or id) or a JavaScript expression
   (`{{ score * 2 }}`). Expressions and the Code node run as code: only import workflows you trust.
