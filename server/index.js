@@ -140,9 +140,9 @@ app.put('/api/giphy', async (req, res) => {
   await giphy.connect(settings)
   res.json(giphy.status)
 })
-// GIPHY node's picker: trending GIFs or search results, 24 at a time.
+// GIPHY node's picker: trending GIFs (or ?kind=sticker, clip) or search results, 24 at a time.
 app.get('/api/giphy/search', (req, res) =>
-  giphy.search(String(req.query.q ?? ''), Number(req.query.offset) || 0).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+  giphy.search(String(req.query.q ?? ''), Number(req.query.offset) || 0, req.query.kind, req.query.rating).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
 // MyInstants node's picker: search results, one page (36) at a time.
 app.get('/api/myinstants/search', (req, res) =>
   myinstants.search(String(req.query.q ?? '').trim(), Number(req.query.page) || 1).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))

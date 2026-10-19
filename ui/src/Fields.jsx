@@ -1,5 +1,6 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
 // { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' | 'image' | 'giphy' | 'myinstants' | 'widget' | 'window' }.
+// slider: true shows the options as marks on a slider, from the first to the last, instead of buttons; tips: { option: text } adds a tooltip to each mark.
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
 // (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
@@ -11,7 +12,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ActionIcon, Autocomplete, Button, Chip, ColorInput, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
-  Select, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
+  Select, Slider, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
 } from '@mantine/core'
 import { IconBraces, IconGripVertical, IconPlus, IconFolderOpen, IconX } from '@tabler/icons-react'
 import { get } from './api.js'
@@ -151,7 +152,7 @@ function FileInput({ kind, label, description, value, onChange, vars }) {
 }
 
 // A GIF picked from Giphy or a sound from Myinstants (kind): a preview and a button opening the picker. The value is its URL.
-function PickInput({ kind, label, description, value, onChange }) {
+function PickInput({ kind, media = 'gif', rating, label, description, value, onChange }) {
   const [ready, setReady] = useState(kind !== 'giphy') // Giphy needs its API key set up
   const [picking, setPicking] = useState(false)
   useEffect(() => {
@@ -162,14 +163,15 @@ function PickInput({ kind, label, description, value, onChange }) {
     <Stack gap={4}>
       <Text size="xs" fw={500}>{label}</Text>
       {description && <Text size="xs" c="dimmed">{description}</Text>}
-      {value && (kind === 'giphy' ? <Image src={value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />
+      {value && (media === 'clip' ? <video src={value} controls muted loop style={{ height: 90 }} />
+        : kind === 'giphy' ? <Image src={value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />
         : <audio controls style={{ width: '100%' }} src={value} />)}
       <Tooltip label="Set up Giphy first (Integration → Giphy)" disabled={ready}>
         <Button size="xs" variant="default" style={{ alignSelf: 'start' }} data-disabled={!ready || undefined} onClick={() => ready && setPicking(true)}>
-          {kind === 'giphy' ? 'Pick a GIF' : 'Pick a sound'}
+          {kind === 'giphy' ? `Pick a ${media === 'gif' ? 'GIF' : media}` : 'Pick a sound'}
         </Button>
       </Tooltip>
-      <Picker opened={picking} onClose={() => setPicking(false)} onPick={onChange} />
+      <Picker opened={picking} onClose={() => setPicking(false)} onPick={onChange} media={media} rating={rating} />
     </Stack>
   )
 }
@@ -322,6 +324,16 @@ function Field({ name, f, fallback, value, set, values, context }) {
   if (f.options?.find((o) => o.value === value)?.streamer && !context.streamer) {
     props.description = <Text span size="xs" c="yellow">Needs Twitch in Streamer mode, signed in (Integration → Twitch)</Text>
   }
+  if (f.slider) {
+    return (
+      <Stack gap={4} pb="lg">
+        <Text size="xs" fw={500}>{props.label}</Text>
+        {props.description && <Text size="xs" c="dimmed">{props.description}</Text>}
+        <Slider size="md" w={200} min={0} max={options.length - 1} step={1} label={null} marks={options.map((o, i) => ({ value: i, label: <Tooltip label={f.tips?.[o]} disabled={!f.tips} multiline w={200} withinPortal><span style={{ pointerEvents: 'auto' }}>{o.toUpperCase()}</span></Tooltip> }))}
+          value={options.indexOf(value)} onChange={(i) => set(options[i])} />
+      </Stack>
+    )
+  }
   if (options?.length <= 4) {
     return (
       <Stack gap={4}>
@@ -344,7 +356,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
   }
   if (f.type === 'workflow') return <WorkflowSelect {...props} value={value} onChange={set} />
   if (f.type === 'image') return <FileInput kind="image" {...props} value={value} onChange={set} />
-  if (f.type === 'giphy' || f.type === 'myinstants') return <PickInput {...props} kind={f.type} value={value} onChange={set} />
+  if (f.type === 'giphy' || f.type === 'myinstants') return <PickInput {...props} kind={f.type} media={f.media} rating={values.rating} value={value} onChange={set} />
   if (f.type === 'window') return <WindowInput {...props} value={value} onChange={set} />
   if (f.type === 'secret') return <PasswordInput {...props} value={value} onChange={(e) => set(e.target.value)} />
   if (isColor(fallback)) return <ColorInput {...props} swatches={swatches} value={value} onChange={set} />
