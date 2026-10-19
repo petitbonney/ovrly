@@ -177,9 +177,9 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   const nodeTypes = useMemo(() => ({
     step: function Step(props) {
       const widget = findWidget(widgets, props.data.config.widget)
-      return <FlowNode {...props} def={defOf(props)} widget={widget} type={types.find((t) => t.type === widget?.type)} />
+      return <FlowNode {...props} workflowId={workflow.id} def={defOf(props)} widget={widget} type={types.find((t) => t.type === widget?.type)} />
     },
-  }), [defs, widgets, types])
+  }), [defs, widgets, types, workflow.id])
 
   // The graph's content: only the fields the engine needs (no selection or drag state).
   const graph = {

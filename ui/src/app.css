@@ -20,6 +20,8 @@
 .flow-node.trigger { border-radius: 45px 8px 8px 45px; }
 .flow-node.selected { border-color: #fff; box-shadow: 0 0 0 4px #ffffff22; }
 .flow-node .bolt { position: absolute; left: -26px; color: var(--mantine-color-orange-5); }
+.flow-node button.bolt { background: none; border: 0; padding: 0; cursor: pointer; line-height: 0; }
+.flow-node button.bolt:hover { color: var(--mantine-color-orange-3); transform: scale(1.2); }
 .flow-node .caption { position: absolute; top: 100%; margin-top: 8px; width: 160px; text-align: center; pointer-events: none; }
 .flow-node .label { font-size: 13px; font-weight: 600; color: #eee; }
 .flow-node .sub { font-size: 11px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

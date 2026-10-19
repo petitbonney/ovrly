@@ -21,7 +21,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 - **Triggers**: a schedule, Twitch chat (any message or a `!command`), an API call to `http://localhost:6875/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual Trigger).
 - **Logic**: filter (continues only if a comparison holds, like if/else; 13 operators: equals, contains, regex, numbers, empty…), delay (in seconds), if/else, switch (a list
   of cases, one output each, labelled by the case; links follow their case when cases move or are removed), wait for all (continues once every incoming link has delivered),
-  cooldown (lets data through, then sends the next to "blocked" for a while, for everyone or per viewer),
+  cooldown (lets data through, then sends the next to "blocked" for a while, for everyone and optionally per data key),
   fan out (what follows runs once per item of a list, e.g. a gift's recipients) and queue (what follows runs one firing at a time, the next wait in line; its settings show the line, and remove a firing from it).
 - **Expressions**: any text setting takes `{{ ... }}`: a path (`{{user}}`, `{{json.items.0.name}}`, `{{$vars.score}}`,
   `{{$node.http-request.status}}` for the output of an earlier node, by type or id) or a JavaScript expression

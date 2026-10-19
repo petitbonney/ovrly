@@ -75,12 +75,12 @@ app.get('/api/events', (req, res) => {
 })
 // Run history: the recent firings with what each node got and returned, newest first; ?workflow=<id> for one workflow.
 app.get('/api/runs', (req, res) => res.json(history.filter((r) => !req.query.workflow || r.workflow === req.query.workflow)))
-// Runs a workflow's manual triggers now (the Run button in the editor).
+// Runs a workflow's manual triggers now (the Run button in the editor), or just ?node=<id> (the bolt on a manual trigger).
 app.post('/api/workflows/:id/run', async (req, res) => {
   const workflow = await store.get('workflows', req.params.id).catch(() => null)
   if (!workflow) return res.sendStatus(404)
   record('http', 'manual', { workflow: workflow.id }) // not on the bus: it targets this workflow only
-  fire(workflow, 'manual', {})
+  fire(workflow, 'manual', {}, {}, req.query.node)
   res.sendStatus(204)
 })
 // Emergency stop: switches every workflow off and cancels what is running.
