@@ -16,13 +16,13 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   vote window, then passes on the winner. Widget Callback's `mode` action switches modes mid-stream (dropping a vote
   under way). Key Press's "Only when focused" presses only while that app or window is focused, picked from those
   open (macOS: window titles need the Accessibility permission Key Press already needs).
-- **Twitch features**: in Streamer mode, the poll can run a native Twitch poll and bets a Twitch prediction (channel points), with live results over EventSub. In Guest mode they count chat votes and bets.
+- **Twitch features**: in Streamer mode, the poll can run a native Twitch poll and bets a Twitch prediction (channel points), with live results over EventSub. In Guest mode they count chat votes and bets. Twitch triggers (follow, subscription, gift subs, cheer, channel points, raids, stream online/offline, hype train) follow EventSub in Streamer mode; subs, gift subs, cheers and raids also work in Guest mode, from what chat announces.
 - **Multiple instances**: run several widgets and workflows side by side.
 - **Triggers**: a schedule, Twitch chat (any message or a `!command`), an API call to `http://localhost:6875/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual Trigger).
 - **Logic**: filter (continues only if a comparison holds, like if/else; 13 operators: equals, contains, regex, numbers, empty…), delay (in seconds), if/else, switch (a list
   of cases, one output each, labelled by the case; links follow their case when cases move or are removed), wait for all (continues once every incoming link has delivered),
-  cooldown (lets data through, then sends the next to "blocked" for a while, for everyone or per viewer) and
-  queue (what follows runs one firing at a time, the next wait in line; its settings show the line, and remove a firing from it).
+  cooldown (lets data through, then sends the next to "blocked" for a while, for everyone or per viewer),
+  fan out (what follows runs once per item of a list, e.g. a gift's recipients) and queue (what follows runs one firing at a time, the next wait in line; its settings show the line, and remove a firing from it).
 - **Expressions**: any text setting takes `{{ ... }}`: a path (`{{user}}`, `{{json.items.0.name}}`, `{{$vars.score}}`,
   `{{$node.http-request.status}}` for the output of an earlier node, by type or id) or a JavaScript expression
   (`{{ score * 2 }}`). Expressions and the Code node run as code: only import workflows you trust.
@@ -153,7 +153,7 @@ export default {
 
 Optional metadata makes the settings pane friendlier: `description`, `adds` (the data keys the node adds, offered as `{{key}}` in later nodes) and `fields` (per-setting hints such as `{ options: [...] }`, `{ vars: true }` for `{{key}}` placeholders, or `{ type: 'json' }`; see `ui/src/Fields.jsx`).
 
-A node with several outputs declares them, e.g. `outputs: ['true', 'false']`, and returns `{ [output]: data }` to pick which ones continue. A trigger sets `event` to the bus event it listens to.
+A node with several outputs declares them, e.g. `outputs: ['true', 'false']`, and returns `{ [output]: data }` to pick which ones continue. A trigger sets `event` to the bus event it listens to, or a list of them; `run` gets the one that fired as `event`.
 
 ## Writing a widget
 

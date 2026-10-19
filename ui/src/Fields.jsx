@@ -4,12 +4,13 @@
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
 // (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
 // An option { value, label, streamer: true } is a Twitch feature: it needs Twitch in Streamer mode (context.streamer).
-// A list default (e.g. a poll's options) gets a list editor (columns: { key: field } for its items' fields, e.g. a
+// A list default with options gets one chip per option, any number picked (e.g. the kinds of subs a trigger fires on).
+// Any other list default (e.g. a poll's options) gets a list editor (columns: { key: field } for its items' fields, e.g. a
 // { type: 'keys' } picker), a color default ("#rrggbb") a color picker, and
 // { obs: 'scenes' | 'sources' } suggestions from OBS.
 import { useEffect, useRef, useState } from 'react'
 import {
-  ActionIcon, Autocomplete, Button, ColorInput, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
+  ActionIcon, Autocomplete, Button, Chip, ColorInput, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
   Select, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
 } from '@mantine/core'
 import { IconBraces, IconGripVertical, IconPlus, IconFolderOpen, IconX } from '@tabler/icons-react'
@@ -259,6 +260,16 @@ function ListInput({ label, description, value, defaults, fixed, columns, onChan
 // from, types } for the dynamic types.
 function Field({ name, f, fallback, value, set, values, context }) {
   const props = { label: f.label ?? humanize(name), description: f.hint, size: 'xs' }
+  if (Array.isArray(fallback) && f.options) {
+    return (
+      <Stack gap={4}>
+        <Text size="xs" fw={500}>{props.label}</Text>
+        <Chip.Group multiple value={value} onChange={set}>
+          <Group gap={6}>{f.options.map((o) => <Chip key={o.value ?? o} value={o.value ?? o} size="xs">{o.label ?? o}</Chip>)}</Group>
+        </Chip.Group>
+      </Stack>
+    )
+  }
   if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} columns={f.columns} onChange={set} />
   if (f.type === 'keys') {
     const tags = value ? value.split('+') : []

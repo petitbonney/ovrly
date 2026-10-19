@@ -7,7 +7,7 @@ import { record } from '../bus.js'
 export const CLIENT_ID = '6vu8lgkxb5ljuijesmm2rlirke32ns'
 // Polls and predictions (Poll and Bets widgets), then what the EventSub triggers on the roadmap need.
 const SCOPES = ['channel:manage:polls', 'channel:manage:predictions', 'channel:read:redemptions', 'moderator:read:followers',
-  'channel:read:subscriptions', 'bits:read']
+  'channel:read:subscriptions', 'bits:read', 'channel:read:hype_train']
 
 // login: the signed-in account; device: the code to approve while a sign-in is pending; scopesOk: false when the
 // account was signed in before Ovrly asked for more scopes (sign in again).

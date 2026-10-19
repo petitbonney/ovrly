@@ -96,6 +96,7 @@ function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy
           <Text fw={600}>{isWidget ? widget?.name ?? 'Missing widget' : def.label}</Text>
         </Group>
         <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
+        {def.streamer && <Text size="xs" c="orange" mb="sm">Needs Twitch in Streamer mode, signed in (Integration → Twitch).</Text>}
         {isWidget ? (
           type ? <WidgetSettings key={widget.id} widget={widget} type={type} value={type.inputs?.[type.main] && fields} testValue={node.data.config.value} onChange={onWidgetChange} onCopy={onCopy} />
             : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>

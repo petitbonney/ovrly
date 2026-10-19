@@ -104,7 +104,7 @@ async function step(workflow, node, data, run, { def, config, id, status }) {
   // A failure stops the firing there.
   let out
   try {
-    out = await def.run({ config, data, id, signal: run.signal, depth: run.depth })
+    out = await def.run({ config, data, id, signal: run.signal, depth: run.depth, event: run.event })
   } catch (err) {
     if (run.signal.aborted) return end('stopped') // e.g. an HTTP request cut short by cancel()
     log({ error: err.message })
@@ -119,23 +119,28 @@ async function step(workflow, node, data, run, { def, config, id, status }) {
   if (trigger) run.start()
   log({ output: out })
   end('done')
-  // Nodes with several outputs (if/else, switch) return { [output]: data }; only those outputs continue.
+  // Nodes with several outputs (if/else, switch) return { [output]: data }; only those outputs continue. A split node
+  // (Fan Out) returns a list: each item continues on its own, in order.
   const multi = def.outputs || def.outputsFrom
-  run.last = multi ? Object.values(out)[0] : out
+  const items = def.split ? out : [out]
+  run.last = multi ? Object.values(out)[0] : items.at(-1)
   run.outputs[def.type] = run.outputs[node.id] = run.last
   const next = workflow.edges.filter((e) => e.source === node.id && (!multi || e.sourceHandle in out))
-  await Promise.all(next.map((e) => {
+  await Promise.all(next.flatMap((e) => {
     const target = workflow.nodes.find((n) => n.id === e.target)
     if (target) activity.emit('activity', { workflow: workflow.id, edge: e.id, target: e.target })
-    return target && walk(workflow, target, multi ? out[e.sourceHandle] : out, run)
+    return target ? items.map((item) => walk(workflow, target, multi ? out[e.sourceHandle] : item, run)) : []
   }))
 }
+
+// Whether a node type's trigger listens to the event: its `event` is one name or a list.
+const listens = (def, event) => [def?.event].flat().includes(event)
 
 // Runs every trigger of this workflow that listens to the event, and resolves with their runs once they have all
 // finished: { error, last } where last is the data of the last node that ran. parent ({ signal, depth }) is the
 // firing that called this workflow (Execute Workflow): cancelling it cancels this one too.
 export function fire(workflow, event, data, parent = {}) {
-  return Promise.all(workflow.nodes.filter((n) => nodes[n.data.type]?.event === event).map(async (t) => {
+  return Promise.all(workflow.nodes.filter((n) => listens(nodes[n.data.type], event)).map(async (t) => {
     const controller = new AbortController()
     parent.signal?.addEventListener('abort', () => controller.abort(), { once: true })
     const firing = (runs[workflow.id] ??= new Set())
@@ -148,7 +153,7 @@ export function fire(workflow, event, data, parent = {}) {
       history.splice(100)
     }
     // outputs: node type or id -> output of the last node of that type that ran, for {{ $node... }}.
-    const run = { signal: controller.signal, joins: {}, outputs: {}, depth: parent.depth ?? 0, record, start }
+    const run = { event, signal: controller.signal, joins: {}, outputs: {}, depth: parent.depth ?? 0, record, start }
     const began = Date.now()
     try {
       await walk(workflow, t, data, run)
@@ -179,7 +184,7 @@ export function cancel(workflowId) {
 
 // Workflows are re-read on each event so edits apply without a restart. Workflows switched off are skipped
 // (the Run button still fires a switched-off workflow's manual triggers, through fire()).
-for (const event of new Set(Object.values(nodes).map((d) => d.event).filter(Boolean))) {
+for (const event of new Set(Object.values(nodes).flatMap((d) => [d.event ?? []].flat()))) {
   bus.on(event, async (data) => {
     for (const workflow of await store.list('workflows')) {
       if (workflow.enabled !== false) fire(workflow, event, data)
