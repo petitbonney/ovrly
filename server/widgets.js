@@ -146,7 +146,13 @@ export function finish(run) {
 // Express handler for GET /w/:id/events: an SSE stream of snapshots.
 export function stream(widget, req, res) {
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }).flushHeaders()
+  req.on('close', attach(widget, res))
+}
+
+// Adds a page (anything with write(msg)) to the widget's clients and sends it the current snapshot; returns the
+// function that removes it. A Merge Widgets stream attaches one per merged widget.
+export function attach(widget, res) {
   const set = (clients[widget.id] ??= new Set()).add(res)
-  req.on('close', () => set.delete(res))
   push(widget)
+  return () => set.delete(res)
 }

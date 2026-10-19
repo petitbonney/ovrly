@@ -18,6 +18,7 @@ import {
 import Fields from './Fields.jsx'
 import WidgetSettings from './Widget.jsx'
 import QueueLine from './QueueLine.jsx'
+import Merge from './Merge.jsx'
 import FlowNode, { colors, icons, widgetIcons } from './FlowNode.jsx'
 import layout from './layout.js'
 import { exportWorkflow, download } from './share.js'
@@ -59,8 +60,10 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
 }
 
 // A link is allowed if it doesn't close a loop: the target must not already lead back to the source (or be the
-// source itself).
-function isValidConnection(c, edges) {
+// source itself). Only widget nodes link into a Merge Widgets node.
+function isValidConnection(c, edges, nodes) {
+  const type = (id) => nodes.find((n) => n.id === id)?.data.type
+  if (type(c.target) === 'merge' && type(c.source) !== 'widget') return false
   const seen = new Set()
   const queue = [c.target]
   while (queue.length) {
@@ -80,17 +83,19 @@ const fitOptions = { maxZoom: 1, padding: 0.3 }
 // Settings of the selected node: title, description, then a form built from the node type's fields.
 // A widget node shows its widget instance's settings and preview, with the main action's value; a Widget Callback node
 // picks a widget node of this workflow (context.instances), then the action to run on it. context.widget is the
-// widget the node points to. A Queue node also shows who waits in its line.
+// widget the node points to. A Queue node also shows who waits in its line. A Merge Widgets node shows its canvas, with
+// the widgets linked into it (context.inputs).
 function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy }) {
   if (!node || !def) return null
   const isWidget = def.type === 'widget'
+  const isMerge = def.type === 'merge'
   const { widget } = context
   const type = widget && context.types.find((t) => t.type === widget.type)
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[def.type]) ?? icons.log
   const fields = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={context} onChange={onChange} />
   return (
     <AppShell.Footer>
-      <div className={isWidget && type ? 'pane split' : 'pane'}>
+      <div className={(isWidget && type) || isMerge ? 'pane split' : 'pane'}>
         <Group gap="xs" mb={4}>
           <Icon size={20} color={colors[def.category]} />
           <Text fw={600}>{isWidget ? widget?.name ?? 'Missing widget' : def.label}</Text>
@@ -100,6 +105,8 @@ function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy
         {isWidget ? (
           type ? <WidgetSettings key={widget.id} widget={widget} type={type} value={type.inputs?.[type.main] && fields} testValue={node.data.config.value} onChange={onWidgetChange} onCopy={onCopy} />
             : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>
+        ) : isMerge ? (
+          <Merge workflow={workflow} node={node.id} config={{ ...def.config, ...node.data.config }} widgets={context.inputs} onChange={onChange} />
         ) : fields}
         {def.queue && <QueueLine workflow={workflow} node={node.id} />}
       </div>
@@ -384,7 +391,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          isValidConnection={(c) => isValidConnection(c, edges)}
+          isValidConnection={(c) => isValidConnection(c, edges, nodes)}
           nodesDraggable={!locked}
           nodesConnectable={!locked}
           deleteKeyCode={locked ? null : 'Backspace'}
@@ -422,6 +429,9 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           // The widgets a Widget Callback node can pick: those with a widget node here.
           instances: nodes.filter((n) => n.data.type === 'widget').map((n) => findWidget(widgets, n.data.config.widget)).filter(Boolean)
             .map((w) => ({ value: w.id, label: `${w.name} (${w.id.slice(0, 8)})` })),
+          // The widgets linked into the selected node (for a Merge Widgets node), in link order.
+          inputs: [...new Set(edges.filter((e) => e.target === selected?.id).map((e) => nodes.find((n) => n.id === e.source))
+            .filter((n) => n?.data.type === 'widget').map((n) => n.data.config.widget))].map((ref) => findWidget(widgets, ref)).filter(Boolean),
           types,
         }}
         onChange={setConfig}

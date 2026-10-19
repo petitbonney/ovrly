@@ -45,6 +45,12 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   Each lottery option (wheel, slot) has a label, a color and a weight: a bigger weight is a likelier winner.
   The die's six faces are renamed in place (a face labelled 1 to 6 shows as dots); its color and dots color are settings.
   The dice throw is real physics (cannon-es), so it ignores the duration setting: a roll always takes 3.5s.
+- **Merge Widgets**: one OBS browser source for several widgets. Link widget nodes into a Merge Widgets node (in the
+  library's Widget section); its settings show a 16:9 canvas with a live preview of each one: drag a widget to move it,
+  drag its corner to resize it. Boxes snap to the canvas borders, its center lines and the other widgets' edges (hold Alt to place one freely). Its
+  link, `http://localhost:6875/m/<workflow>/<node>`, shows them all where they were placed, and follows changes live.
+  Placement is relative to the canvas, which scales to fit any browser source size (widgets included) and stays
+  centered, so resizing the source in OBS resizes everything. In the flow it only passes data on.
 - **Show, hide, cancel**: every widget has these actions. "show" and "hide" fade the whole overlay in or out without
   interrupting what it plays (the alert's own "show" shows a text, and the overlay with it). "cancel" stops its
   animation (the lottery freezes, an alert fades out) and stops the run waiting on it. Cancelling a workflow (switch off, Stop all) cancels the widget actions it is playing.

@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- Merge Widgets overlay (/m/<workflow>/<node>): the merged widgets' pages, each in an iframe placed on the canvas.
+     The canvas is a 1920x1080 reference, scaled as a whole (widgets included) to fit the window and centered in it, so
+     any OBS source size works; another shape leaves space on the sides. Placement updates live. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ovrly · Merged widgets</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+  #stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; }
+  iframe { position: absolute; border: 0; background: transparent; color-scheme: normal; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+  const stage = document.getElementById('stage')
+  const frames = {} // widget id -> iframe, kept while it stays merged so moving it doesn't reload it
+  const fit = () => (stage.style.transform = `translate(-50%, -50%) scale(${Math.min(innerWidth / 1920, innerHeight / 1080)})`)
+  addEventListener('resize', fit)
+  fit()
+  // The merged widget pages (iframes marked data-merged) listen to this stream instead of opening their own, and start
+  // from their widget's last message, kept in mergeLast (lib.js).
+  window.mergeSource = new EventSource(`${location.pathname}/events`)
+  window.mergeLast = {}
+  mergeSource.onmessage = (e) => {
+    const view = JSON.parse(e.data) ?? { items: [] } // null: the node was deleted
+    for (const id of Object.keys(frames)) {
+      if (!view.items.some((i) => i.id === id)) frames[id].remove(), delete frames[id]
+    }
+    view.items.forEach(({ id, x, y, w, h }, i) => {
+      if (!frames[id]) {
+        mergeSource.addEventListener(id, (e) => (mergeLast[id] = e.data))
+        frames[id] = stage.appendChild(document.createElement('iframe'))
+        frames[id].dataset.merged = ''
+        frames[id].src = `/w/${id}`
+      }
+      const frame = frames[id]
+      // x and y: from the canvas center to the box's center; all four are fractions of the canvas.
+      Object.assign(frame.style, { left: `${(0.5 + x - w / 2) * 1920}px`, top: `${(0.5 + y - h / 2) * 1080}px`, width: `${w * 1920}px`, height: `${h * 1080}px`, zIndex: i })
+    })
+  }
+</script>
+</body>
+</html>

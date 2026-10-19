@@ -121,7 +121,17 @@ function Library({ defs, types }) {
         </Section>
         )
       })}
-      {types.some(match) && <Section title="Widget" forceOpen={!!q}>
+      {(types.some(match) || defs.some((d) => d.category === 'widget' && d.type !== 'widget' && match(d))) && <Section title="Widget" forceOpen={!!q}>
+        {/* Widget node types (Merge Widgets) come first; the widget node itself is created by dropping a widget type. */}
+        {defs.filter((d) => d.category === 'widget' && d.type !== 'widget' && match(d)).map((d) => {
+          const Icon = icons[d.type]
+          return (
+            <Tooltip key={d.type} label={d.description} position="left" openDelay={400} multiline w={240}>
+              <NavLink label={d.label} leftSection={Icon && <Icon size={18} color={colors.widget} />} draggable style={{ cursor: 'grab' }}
+                onDragStart={(e) => e.dataTransfer.setData('application/ovrly', d.type)} />
+            </Tooltip>
+          )
+        })}
         {types.filter(match).map((t) => {
           const Icon = widgetIcons[t.type]
           return (
