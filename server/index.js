@@ -148,22 +148,22 @@ app.get('/api/myinstants/search', (req, res) =>
   myinstants.search(String(req.query.q ?? '').trim(), Number(req.query.page) || 1).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
 
 // Images and sounds for the Image and Sound widgets are files on disk, used where they are: "Browse files" opens the OS
-// file dialog here (a browser page can't see file paths) and /file serves a path set on a node. Only image and sound types,
+// file dialog here (a browser page can't see file paths) and /file serves a path set on a node. Only image, sound and video types,
 // so this can't leak other files; no SVG: opened directly, it could run scripts on Ovrly's origin. /media serves images
 // uploaded by older versions.
-const MEDIA_EXT = /\.(png|jpe?g|gif|webp|avif|apng|mp3|wav|ogg|m4a|aac|flac)$/i
+const MEDIA_EXT = /\.(png|jpe?g|gif|webp|avif|apng|mp3|wav|ogg|m4a|aac|flac|mp4|webm|mov|m4v|ogv)$/i
 app.use('/media', express.static('data/media'))
-app.post('/api/browse-image', (req, res) => {
-  if (process.platform !== 'darwin') return res.status(501).json({ error: 'Browse files only works on macOS for now: paste the file path or an image URL' })
-  const script = 'POSIX path of (choose file with prompt "Pick an image or GIF" of type {"public.png", "public.jpeg", "com.compuserve.gif", "org.webmproject.webp", "public.avif"})'
-  execFile('osascript', ['-e', script], (err, out) => {
-    if (err) return res.json({}) // cancelled
-    res.json({ path: out.trim() })
-  })
-})
-app.post('/api/browse-sound', (req, res) => {
-  if (process.platform !== 'darwin') return res.status(501).json({ error: 'Browse files only works on macOS for now: paste the file path or a sound URL' })
-  const script = 'POSIX path of (choose file with prompt "Pick a sound" of type {"public.mp3", "com.microsoft.waveform-audio", "org.xiph.ogg-audio", "public.mpeg-4-audio", "public.aac-audio", "org.xiph.flac"})'
+// "Browse files" per kind: the dialog's prompt and the file types it allows.
+const BROWSE = {
+  image: ['Pick an image or GIF', ['public.png', 'public.jpeg', 'com.compuserve.gif', 'org.webmproject.webp', 'public.avif']],
+  sound: ['Pick a sound', ['public.mp3', 'com.microsoft.waveform-audio', 'org.xiph.ogg-audio', 'public.mpeg-4-audio', 'public.aac-audio', 'org.xiph.flac']],
+  video: ['Pick a video', ['public.mpeg-4', 'com.apple.quicktime-movie', 'org.webmproject.webm']],
+}
+app.post('/api/browse-:kind', (req, res) => {
+  const [prompt, types] = BROWSE[req.params.kind] ?? []
+  if (!prompt) return res.sendStatus(404)
+  if (process.platform !== 'darwin') return res.status(501).json({ error: `Browse files only works on macOS for now: paste the file path or a URL` })
+  const script = `POSIX path of (choose file with prompt "${prompt}" of type {${types.map((t) => `"${t}"`).join(', ')}})`
   execFile('osascript', ['-e', script], (err, out) => {
     if (err) return res.json({}) // cancelled
     res.json({ path: out.trim() })

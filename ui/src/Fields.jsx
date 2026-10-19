@@ -118,52 +118,31 @@ function PresetInput({ label, description, unit, presets, value, onChange }) {
   )
 }
 
-// An image: a preview, a button to pick a file on disk, and a field to type a URL, a path or {{key}} (e.g. {{gif}} from
-// a GIPHY node).
-function ImageInput({ label, description, value, onChange, vars }) {
+// An image, sound or video (kind): a preview, a button to pick a file on disk, and a field to type a URL, a path or
+// {{key}} (e.g. {{gif}} from a GIPHY node).
+const FILE_KINDS = { image: 'an image', sound: 'a sound', video: 'a video' }
+function FileInput({ kind, label, description, value, onChange, vars }) {
   const [error, setError] = useState('')
   // The server opens the OS file dialog: a browser page can't see a picked file's path.
   const browse = async () => {
-    const res = await fetch('/api/browse-image', { method: 'POST' })
+    const res = await fetch(`/api/browse-${kind}`, { method: 'POST' })
     const body = await res.json()
     setError(res.ok ? '' : body.error)
     if (body.path) onChange(body.path)
   }
+  const src = value && (value.startsWith('/') && !value.startsWith('/media/') ? `/file?path=${encodeURIComponent(value)}` : value)
   return (
     <Stack gap={4}>
       <Text size="xs" fw={500}>{label}</Text>
       {description && <Text size="xs" c="dimmed">{description}</Text>}
-      {value && !value.includes('{{') && <Image src={value.startsWith('/') && !value.startsWith('/media/') ? `/file?path=${encodeURIComponent(value)}` : value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
+      {value && !value.includes('{{') && kind === 'image' && <Image src={src} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
+      {value && !value.includes('{{') && kind === 'sound' && <audio controls style={{ width: '100%' }} src={src} />}
+      {value && !value.includes('{{') && kind === 'video' && <video controls muted style={{ width: '100%', maxHeight: 140 }} src={src} />}
       <Group gap="xs">
         <Button size="xs" variant="default" leftSection={<IconFolderOpen size={14} />} onClick={browse}>Browse files</Button>
         {value && <Button size="xs" variant="subtle" color="red" onClick={() => onChange('')}>Clear</Button>}
       </Group>
-      <VarInput size="xs" placeholder="or an image URL or file path, e.g. {{gif}}" vars={vars} value={value} onChange={onChange} />
-      {error && <Text size="xs" c="red">{error}</Text>}
-    </Stack>
-  )
-}
-
-// A sound: a player, a button to pick a file on disk, and a field to type a URL, a path or {{key}} (e.g. {{sound}} from
-// a MyInstants node).
-function SoundInput({ label, description, value, onChange, vars }) {
-  const [error, setError] = useState('')
-  const browse = async () => {
-    const res = await fetch('/api/browse-sound', { method: 'POST' })
-    const body = await res.json()
-    setError(res.ok ? '' : body.error)
-    if (body.path) onChange(body.path)
-  }
-  return (
-    <Stack gap={4}>
-      <Text size="xs" fw={500}>{label}</Text>
-      {description && <Text size="xs" c="dimmed">{description}</Text>}
-      {value && !value.includes('{{') && <audio controls style={{ width: '100%' }} src={value.startsWith('/') ? `/file?path=${encodeURIComponent(value)}` : value} />}
-      <Group gap="xs">
-        <Button size="xs" variant="default" leftSection={<IconFolderOpen size={14} />} onClick={browse}>Browse files</Button>
-        {value && <Button size="xs" variant="subtle" color="red" onClick={() => onChange('')}>Clear</Button>}
-      </Group>
-      <VarInput size="xs" placeholder="or a sound URL or file path, e.g. {{sound}}" vars={vars} value={value} onChange={onChange} />
+      <VarInput size="xs" placeholder={`or ${FILE_KINDS[kind]} URL or file path`} vars={vars} value={value} onChange={onChange} />
       {error && <Text size="xs" c="red">{error}</Text>}
     </Stack>
   )
@@ -320,11 +299,10 @@ function Field({ name, f, fallback, value, set, values, context }) {
   // A widget's actions come from its type (nothing to pick if there is only one); short option lists are buttons.
   const type = context.types?.find((t) => t.type === context.widget?.type)
   // A widget action's value is only asked for if the action takes one; the widget type says what it is: a hint, or
-  // { type: 'image', hint } for an image picker.
+  // { type: 'image' | 'sound' | 'video', hint } for a file picker.
   if (f.type === 'input') {
     const input = type?.inputs?.[values.action || type.main]
-    if (input?.type === 'image') return <ImageInput {...props} label="Image" description={input.hint} vars={context.vars ?? []} value={value} onChange={set} />
-    if (input?.type === 'sound') return <SoundInput {...props} label="Sound" description={input.hint} vars={context.vars ?? []} value={value} onChange={set} />
+    if (FILE_KINDS[input?.type]) return <FileInput {...props} kind={input.type} label={input.type[0].toUpperCase() + input.type.slice(1)} description={input.hint} vars={context.vars ?? []} value={value} onChange={set} />
     return input ? <VarInput {...props} description={input} vars={context.vars ?? []} value={value} onChange={set} /> : null
   }
   // Twitch features can't be picked unless Streamer mode is on; one picked earlier says why it won't run.
@@ -363,7 +341,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
     return <Textarea {...props} value={value} onChange={(e) => set(e.target.value)} autosize minRows={4} spellCheck={false} styles={{ input: { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 } }} />
   }
   if (f.type === 'workflow') return <WorkflowSelect {...props} value={value} onChange={set} />
-  if (f.type === 'image') return <ImageInput {...props} value={value} onChange={set} />
+  if (f.type === 'image') return <FileInput kind="image" {...props} value={value} onChange={set} />
   if (f.type === 'giphy' || f.type === 'myinstants') return <PickInput {...props} kind={f.type} value={value} onChange={set} />
   if (f.type === 'window') return <WindowInput {...props} value={value} onChange={set} />
   if (f.type === 'secret') return <PasswordInput {...props} value={value} onChange={(e) => set(e.target.value)} />

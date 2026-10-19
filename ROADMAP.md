@@ -57,6 +57,7 @@ Small steps; each milestone should be usable on its own.
 - [x] Undo/redo of graph edits (buttons and shortcuts)
 - [x] Copy/paste nodes across workflows, with feedback; pasted widget nodes share their instance (once per workflow), deleted with its last node
 - [x] Sound widget: a file on disk or a URL, with a max duration and volume
+- [x] Video widget: a short video (file on disk or URL), with a max duration and volume
 - [x] GIPHY and MyInstants action nodes (Myinstants: HTML parsed, no API) add a URL for the Image/GIF and Sound widgets
 - [x] Twitch connection in the sidebar
 - [x] Twitch Guest/Streamer modes (Device Code sign-in, EventSub over WebSocket); Twitch poll and prediction modes in Poll and Bets
