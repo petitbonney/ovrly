@@ -16,6 +16,7 @@ import {
 import { IconBraces, IconGripVertical, IconPlus, IconFolderOpen, IconX } from '@tabler/icons-react'
 import { get } from './api.js'
 import GiphyPicker from './GiphyPicker.jsx'
+import MyinstantsPicker from './MyinstantsPicker.jsx'
 
 // "case1" -> "Case1", "sceneName" -> "Scene name"
 const humanize = (key) => key[0].toUpperCase() + key.slice(1).replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`)
@@ -152,6 +153,33 @@ function ImageInput({ label, description, value, onChange, vars }) {
   )
 }
 
+// A sound: a player, a button to pick a file on disk, a Myinstants search, and a field to paste a URL or path.
+function SoundInput({ label, description, value, onChange, vars }) {
+  const [picking, setPicking] = useState(false)
+  const [error, setError] = useState('')
+  const browse = async () => {
+    const res = await fetch('/api/browse-sound', { method: 'POST' })
+    const body = await res.json()
+    setError(res.ok ? '' : body.error)
+    if (body.path) onChange(body.path)
+  }
+  return (
+    <Stack gap={4}>
+      <Text size="xs" fw={500}>{label}</Text>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
+      {value && !value.includes('{{') && <audio controls style={{ width: '100%' }} src={value.startsWith('/') ? `/file?path=${encodeURIComponent(value)}` : value} />}
+      <Group gap="xs">
+        <Button size="xs" variant="default" leftSection={<IconFolderOpen size={14} />} onClick={browse}>Browse files</Button>
+        <Button size="xs" variant="default" onClick={() => setPicking(true)}>Myinstants</Button>
+        {value && <Button size="xs" variant="subtle" color="red" onClick={() => onChange('')}>Clear</Button>}
+      </Group>
+      <VarInput size="xs" placeholder="or paste a sound URL or file path" vars={vars} value={value} onChange={onChange} />
+      {error && <Text size="xs" c="red">{error}</Text>}
+      <MyinstantsPicker opened={picking} onClose={() => setPicking(false)} onPick={onChange} />
+    </Stack>
+  )
+}
+
 const isColor = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)
 const swatches = ['#9147ff', '#ff4f8b', '#00c2a8', '#ffb400', '#3d8bff', '#ff7a00', '#e03131', '#2f9e44']
 // Column widths of list items with fields: colors and numbers are narrow, text takes the rest.
@@ -283,6 +311,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
   if (f.type === 'input') {
     const input = type?.inputs?.[values.action || type.main]
     if (input?.type === 'image') return <ImageInput {...props} label="Image" description={input.hint} vars={context.vars ?? []} value={value} onChange={set} />
+    if (input?.type === 'sound') return <SoundInput {...props} label="Sound" description={input.hint} vars={context.vars ?? []} value={value} onChange={set} />
     return input ? <VarInput {...props} description={input} vars={context.vars ?? []} value={value} onChange={set} /> : null
   }
   // Twitch features can't be picked unless Streamer mode is on; one picked earlier says why it won't run.

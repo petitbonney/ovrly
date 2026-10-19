@@ -10,6 +10,7 @@ import * as twitchAuth from './sources/twitch-auth.js'
 import * as eventsub from './sources/twitch-eventsub.js'
 import * as obs from './obs.js'
 import * as giphy from './giphy.js'
+import * as myinstants from './myinstants.js'
 import * as widgets from './widgets.js'
 import * as windows from './windows.js'
 import upgrade, { upgradeWidget } from './upgrade.js'
@@ -143,10 +144,15 @@ app.put('/api/giphy', async (req, res) => {
 app.get('/api/giphy/search', (req, res) =>
   giphy.search(String(req.query.q ?? ''), Number(req.query.offset) || 0).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
 
-// Images for the Image widget are files on disk, used where they are: "Browse files" opens the OS file dialog here
-// (a browser page can't see file paths) and /file serves a path set on a node. Only image types, so this can't leak other
-// files; no SVG: opened directly, it could run scripts on Ovrly's origin. /media serves images uploaded by older versions.
-const IMAGE_EXT = /\.(png|jpe?g|gif|webp|avif|apng)$/i
+// Sound picker: Myinstants search results, one page (36) at a time.
+app.get('/api/myinstants/search', (req, res) =>
+  myinstants.search(String(req.query.q ?? '').trim(), Number(req.query.page) || 1).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+
+// Images and sounds for the Image and Sound widgets are files on disk, used where they are: "Browse files" opens the OS
+// file dialog here (a browser page can't see file paths) and /file serves a path set on a node. Only image and sound types,
+// so this can't leak other files; no SVG: opened directly, it could run scripts on Ovrly's origin. /media serves images
+// uploaded by older versions.
+const MEDIA_EXT = /\.(png|jpe?g|gif|webp|avif|apng|mp3|wav|ogg|m4a|aac|flac)$/i
 app.use('/media', express.static('data/media'))
 app.post('/api/browse-image', (req, res) => {
   if (process.platform !== 'darwin') return res.status(501).json({ error: 'Browse files only works on macOS for now: paste the file path or an image URL' })
@@ -156,9 +162,17 @@ app.post('/api/browse-image', (req, res) => {
     res.json({ path: out.trim() })
   })
 })
+app.post('/api/browse-sound', (req, res) => {
+  if (process.platform !== 'darwin') return res.status(501).json({ error: 'Browse files only works on macOS for now: paste the file path or a sound URL' })
+  const script = 'POSIX path of (choose file with prompt "Pick a sound" of type {"public.mp3", "com.microsoft.waveform-audio", "org.xiph.ogg-audio", "public.mpeg-4-audio", "public.aac-audio", "org.xiph.flac"})'
+  execFile('osascript', ['-e', script], (err, out) => {
+    if (err) return res.json({}) // cancelled
+    res.json({ path: out.trim() })
+  })
+})
 app.get('/file', (req, res) => {
   const file = String(req.query.path ?? '')
-  if (!path.isAbsolute(file) || !IMAGE_EXT.test(file)) return res.status(400).end()
+  if (!path.isAbsolute(file) || !MEDIA_EXT.test(file)) return res.status(400).end()
   res.sendFile(file, { dotfiles: 'allow' }, (err) => err && !res.headersSent && res.status(404).end())
 })
 

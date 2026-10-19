@@ -9,7 +9,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 ## Features
 
 - **Workflows**: node graphs of the form trigger → logic → action. Build one from scratch or start from a template.
-- **Widgets**: built-in browser-source overlays: alerts, image/GIF, poll, bets, lottery, TwitchPlays. The image/GIF widget shows the image set on its node: a file on disk (picked with Browse files, used where it is), a GIF picked from Giphy (once the Giphy integration has an API key), or a URL, e.g. `{{image}}` from a previous node; it fades in and out. The lottery draws a winner with one of
+- **Widgets**: built-in browser-source overlays: alerts, image/GIF, sound, poll, bets, lottery, TwitchPlays. The sound widget plays a sound through its overlay (so it reaches the stream; tick "Control audio via OBS" on the browser source): a file on disk (Browse files), a search on [Myinstants](https://www.myinstants.com) (no API: Ovrly reads its search pages, for personal use), or a URL, e.g. `{{sound}}` from a previous node. Its max duration cuts it with a short fade-out (0 plays all of it) and its volume is a percentage. The image/GIF widget shows the image set on its node: a file on disk (picked with Browse files, used where it is), a GIF picked from Giphy (once the Giphy integration has an API key), or a URL, e.g. `{{image}}` from a previous node; it fades in and out. The lottery draws a winner with one of
   four layouts: wheel (weighted, colored options), roulette, slot (one reel) or dice.
 - **TwitchPlays**: translates chat into keys, through a list of command → keys pairs (`up` → `Up`); a Key Press node
   set to `{{keys}}` presses them. Anarchy passes on every command; democracy counts one vote per viewer during the
