@@ -138,9 +138,10 @@ const listens = (def, event) => [def?.event].flat().includes(event)
 
 // Runs every trigger of this workflow that listens to the event, and resolves with their runs once they have all
 // finished: { error, last } where last is the data of the last node that ran. parent ({ signal, depth }) is the
-// firing that called this workflow (Execute Workflow): cancelling it cancels this one too.
-export function fire(workflow, event, data, parent = {}) {
-  return Promise.all(workflow.nodes.filter((n) => listens(nodes[n.data.type], event)).map(async (t) => {
+// firing that called this workflow (Execute Workflow): cancelling it cancels this one too. only: a trigger node id to
+// run alone.
+export function fire(workflow, event, data, parent = {}, only) {
+  return Promise.all(workflow.nodes.filter((n) => (!only || n.id === only) && listens(nodes[n.data.type], event)).map(async (t) => {
     const controller = new AbortController()
     parent.signal?.addEventListener('abort', () => controller.abort(), { once: true })
     const firing = (runs[workflow.id] ??= new Set())

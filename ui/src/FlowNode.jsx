@@ -83,8 +83,8 @@ export function nodeHeight(def, config) {
   return Math.max(90, outputsOf(def, config).length * 24)
 }
 
-// widget: the instance a widget or Widget Callback node points to (undefined for a deleted one), type: its widget type.
-export default function FlowNode({ id, data, selected, def, widget, type }) {
+// workflowId: the workflow the node is in. widget: the instance a widget or Widget Callback node points to (undefined for a deleted one), type: its widget type.
+export default function FlowNode({ id, workflowId, data, selected, def, widget, type }) {
   const outputs = outputsOf(def, data.config)
   // Handles added or removed (a switch case) must be measured again, or links to them are misplaced.
   const updateNodeInternals = useUpdateNodeInternals()
@@ -102,7 +102,14 @@ export default function FlowNode({ id, data, selected, def, widget, type }) {
     : key && shown !== '' && `${key}: ${shown}`
   return (
     <div className={`flow-node${trigger ? ' trigger' : ''}${selected ? ' selected' : ''}`} style={{ height: nodeHeight(def, data.config) }}>
-      {trigger && <IconBolt className="bolt" size={18} fill="currentColor" />}
+      {data.type === 'manual' ? (
+        <button className="bolt nodrag" title="Run this trigger" onClick={(e) => {
+          e.stopPropagation() // don't select the node (which opens its editor)
+          fetch(`/api/workflows/${workflowId}/run?node=${id}`, { method: 'POST' })
+        }}>
+          <IconBolt size={18} fill="currentColor" />
+        </button>
+      ) : trigger && <IconBolt className="bolt nodrag" size={18} fill="currentColor" onClick={(e) => e.stopPropagation()} />}
       {!trigger && <Handle type="target" position="left" className="in" />}
       <Icon size={40} stroke={1.5} color={colors[def?.category]} />
       {outputs.length ? outputs.map((o, i) => (
