@@ -7,6 +7,7 @@ export default {
   type: 'sound',
   label: 'Sound',
   description: 'Plays a sound (a file on disk or a URL), up to a max duration.',
+  visual: false, // nothing to see: no preview in its settings, no box on a Merge Widgets canvas
   config: { duration: 0, volume: 100 },
   fields: {
     duration: { label: 'Max duration', unit: 's', presets: [5, 10, 15, 30], hint: 'The sound is cut (with a short fade-out) after this long; 0 plays all of it' },

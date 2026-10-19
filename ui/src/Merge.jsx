@@ -33,8 +33,10 @@ function snap(edges, lines, reach) {
   return best
 }
 
-// widgets: the widget instances linked into the node, in link order (later ones are drawn on top).
-export default function Merge({ workflow, node, config, widgets, onChange }) {
+// widgets: the widget instances linked into the node, in link order (later ones are drawn on top). Those of a type
+// with nothing to see (visual: false, e.g. Sound) get no box: only a hidden page, so they still play in the preview.
+export default function Merge({ workflow, node, config, widgets, types, onChange }) {
+  const visual = (w) => types.find((t) => t.type === w.type)?.visual !== false
   const { layout = {} } = config
   const url = `${location.origin}/m/${workflow}/${node}`
   // Canvas scale: as large as fits the space left in the pane.
@@ -70,7 +72,7 @@ export default function Merge({ workflow, node, config, widgets, onChange }) {
     e.stopPropagation()
     const start = toBox(layout[id], i)
     const from = { x: e.clientX, y: e.clientY }
-    const others = widgets.filter((w) => w.id !== id).map((w) => toBox(layout[w.id], widgets.indexOf(w)))
+    const others = widgets.filter((w) => w.id !== id && visual(w)).map((w) => toBox(layout[w.id], widgets.indexOf(w)))
     const xs = [0, W / 2, W, ...others.flatMap((o) => [o.x, o.x + o.w])]
     const ys = [0, H / 2, H, ...others.flatMap((o) => [o.y, o.y + o.h])]
     let box = start
@@ -130,6 +132,7 @@ export default function Merge({ workflow, node, config, widgets, onChange }) {
         <div ref={ref} className="merge-fit">
           <div className="preview merge-canvas" style={{ width: W * scale, height: H * scale }}>
             {widgets.map((w, i) => {
+              if (!visual(w)) return <iframe key={w.id} src={`/w/${w.id}`} data-merged="" title={w.name} hidden />
               const b = moving?.id === w.id ? moving.box : toBox(layout[w.id], i)
               return (
                 <div key={w.id} className="merge-box" style={{ left: b.x * scale, top: b.y * scale, width: b.w * scale, height: b.h * scale, zIndex: i }}

@@ -106,7 +106,7 @@ function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy
           type ? <WidgetSettings key={widget.id} widget={widget} type={type} value={type.inputs?.[type.main] && fields} testValue={node.data.config.value} onChange={onWidgetChange} onCopy={onCopy} />
             : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>
         ) : isMerge ? (
-          <Merge workflow={workflow} node={node.id} config={{ ...def.config, ...node.data.config }} widgets={context.inputs} onChange={onChange} />
+          <Merge workflow={workflow} node={node.id} config={{ ...def.config, ...node.data.config }} widgets={context.inputs} types={context.types} onChange={onChange} />
         ) : fields}
         {def.queue && <QueueLine workflow={workflow} node={node.id} />}
       </div>

@@ -70,7 +70,8 @@ export default function WidgetSettings({ widget, type, value, testValue, onChang
             )}
           </CopyButton>
         </Group>
-        <div className="preview-fit"><iframe className="preview" src={url} title="Preview" /></div>
+        {/* A widget with nothing to see (visual: false) keeps its page, hidden, so the test button still plays it here. */}
+        <div className="preview-fit" hidden={type.visual === false}><iframe className="preview" src={url} title="Preview" /></div>
         <Group gap="xs" mt="xs">
           <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => act(type.main, type.inputs?.[type.main] ? testValue : '')}
             tt="capitalize">{type.main}</Button>
