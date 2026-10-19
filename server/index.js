@@ -1,16 +1,17 @@
 // Server entry: REST API over the store, widget pages, plus the UI (Vite in dev, ./dist in production).
-import fs from 'node:fs/promises'
-import { randomUUID } from 'node:crypto'
+import path from 'node:path'
+import { execFile } from 'node:child_process'
 import express from 'express'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
-import { nodes, fire, cancel, running, activity, history } from './engine.js'
+import { nodes, fire, cancel, running, activity, history, line, drop } from './engine.js'
 import * as twitch from './sources/twitch.js'
 import * as twitchAuth from './sources/twitch-auth.js'
 import * as eventsub from './sources/twitch-eventsub.js'
 import * as obs from './obs.js'
 import * as giphy from './giphy.js'
 import * as widgets from './widgets.js'
+import * as windows from './windows.js'
 import upgrade, { upgradeWidget } from './upgrade.js'
 
 // The OBS connection used to be set in each OBS node: the first one found becomes the OBS integration's settings
@@ -61,6 +62,10 @@ app.get('/api/activity', (req, res) => {
   activity.on('activity', send)
   req.on('close', () => activity.off('activity', send))
 })
+// Queue nodes: the firings waiting in line, and removing one (it stops there).
+app.get('/api/queues/:workflow/:node', (req, res) => res.json(line(req.params.workflow, req.params.node)))
+app.delete('/api/queues/:workflow/:node/:entry', (req, res) =>
+  res.sendStatus(drop(req.params.workflow, req.params.node, Number(req.params.entry)) ? 204 : 404))
 // Developer view: the recent events (chat, API calls, manual runs…), newest first. Browsers get a live table
 // (events.html), anything else the JSON; ?format=json forces JSON.
 app.get('/api/events', (req, res) => {
@@ -138,18 +143,28 @@ app.put('/api/giphy', async (req, res) => {
 app.get('/api/giphy/search', (req, res) =>
   giphy.search(String(req.query.q ?? ''), Number(req.query.offset) || 0).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
 
-// Images uploaded for the Image widget: kept as they are in ./data/media and served at /media/<file>.
-// No SVG: opened directly, it could run scripts on Ovrly's origin.
-const IMAGE_TYPES = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif', 'image/webp': '.webp', 'image/avif': '.avif', 'image/apng': '.png' }
+// Images for the Image widget are files on disk, used where they are: "Browse files" opens the OS file dialog here
+// (a browser page can't see file paths) and /file serves a path set on a node. Only image types, so this can't leak other
+// files; no SVG: opened directly, it could run scripts on Ovrly's origin. /media serves images uploaded by older versions.
+const IMAGE_EXT = /\.(png|jpe?g|gif|webp|avif|apng)$/i
 app.use('/media', express.static('data/media'))
-app.post('/api/media', express.raw({ type: Object.keys(IMAGE_TYPES), limit: '25mb' }), async (req, res) => {
-  const ext = IMAGE_TYPES[req.get('content-type')]
-  if (!ext || !req.body?.length) return res.status(415).json({ error: 'Send a PNG, JPEG, GIF, WebP or AVIF image' })
-  const name = `${randomUUID()}${ext}`
-  await fs.mkdir('data/media', { recursive: true })
-  await fs.writeFile(`data/media/${name}`, req.body)
-  res.json({ url: `/media/${name}` })
+app.post('/api/browse-image', (req, res) => {
+  if (process.platform !== 'darwin') return res.status(501).json({ error: 'Browse files only works on macOS for now: paste the file path or an image URL' })
+  const script = 'POSIX path of (choose file with prompt "Pick an image or GIF" of type {"public.png", "public.jpeg", "com.compuserve.gif", "org.webmproject.webp", "public.avif"})'
+  execFile('osascript', ['-e', script], (err, out) => {
+    if (err) return res.json({}) // cancelled
+    res.json({ path: out.trim() })
+  })
 })
+app.get('/file', (req, res) => {
+  const file = String(req.query.path ?? '')
+  if (!path.isAbsolute(file) || !IMAGE_EXT.test(file)) return res.status(400).end()
+  res.sendFile(file, { dotfiles: 'allow' }, (err) => err && !res.headersSent && res.status(404).end())
+})
+
+// The open windows, for Key Press's "Only when focused" picker.
+app.get('/api/windows', (req, res) =>
+  windows.list().then((list) => res.json([...new Set(list.filter(Boolean))]), (err) => res.status(503).json({ error: err.message })))
 
 // Widget types for the UI (metadata plus action names, no functions).
 app.get('/api/widget-types', (req, res) =>

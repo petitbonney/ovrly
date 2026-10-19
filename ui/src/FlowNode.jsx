@@ -4,9 +4,10 @@
 import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
+  IconAccessPoint, IconAccessPointOff, IconDiamond, IconFlame, IconGift, IconHeart, IconSparkles, IconStar, IconSwords,
   IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconBell, IconBolt, IconBox, IconBroadcast, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconCoin, IconDeviceGamepad2, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
-  IconMessageCode, IconMovie, IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVariable, IconWebhook, IconWorld,
+  IconMessageCode, IconMovie, IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVariable, IconWebhook, IconWindmill, IconWorld,
 } from '@tabler/icons-react'
 
 // If/else branches left to right, like the graph.
@@ -15,6 +16,15 @@ const IconIfElse = ({ style, ...props }) => <IconGitBranch {...props} style={{ .
 export const icons = {
   'chat-command': IconMessageCode,
   'chat-message': IconMessage,
+  follow: IconHeart,
+  subscription: IconStar,
+  'gift-subs': IconGift,
+  cheer: IconDiamond,
+  redeem: IconSparkles,
+  raid: IconSwords,
+  'stream-online': IconAccessPoint,
+  'stream-offline': IconAccessPointOff,
+  'hype-train': IconFlame,
   webhook: IconWebhook,
   schedule: IconClock,
   'error-trigger': IconAlertTriangle,
@@ -28,6 +38,7 @@ export const icons = {
   filter: IconFilter,
   'if-else': IconIfElse,
   switch: IconArrowsSplit,
+  'fan-out': IconWindmill,
   'wait-all': IconArrowsJoin2,
   cooldown: IconClockPause,
   queue: IconListNumbers,

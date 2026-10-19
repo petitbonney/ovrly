@@ -4,7 +4,7 @@ export default {
   label: 'Delay',
   category: 'logic',
   description: 'Waits before passing data on.',
-  fields: { seconds: { label: 'Delay', unit: 's' } },
+  fields: { seconds: { label: 'Delay', unit: 's', presets: [1, 3, 5, 10, 30] } },
   config: { seconds: 1 },
   async run({ config, data, signal }) {
     await new Promise((resolve) => {

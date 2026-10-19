@@ -17,6 +17,23 @@ function command(name, description, command, widget, value, action) {
   return { name, description, widgets: [{ id: 'w', ...widget }], workflows: [{ name, ...workflow }] }
 }
 
+// Chat Message → TwitchPlays → Key Press: chat commands become key presses in the game window (set it on Key Press).
+const step = (id, x, type, label, config) => ({ id, type: 'step', position: { x, y: 0 }, data: { type, label, config } })
+const twitchPlays = {
+  name: 'TwitchPlays',
+  description: 'Chat plays the game: up, down, a, b… become key presses. Set the game window on the Key Press node.',
+  widgets: [{ id: 'w', name: 'TwitchPlays', type: 'twitch-plays', config: {} }],
+  workflows: [{
+    name: 'TwitchPlays',
+    nodes: [
+      step('chat', 0, 'chat-message', 'Chat Message', {}),
+      step('widget', 240, 'widget', 'Widget', { widget: 'w', value: '{{message}}' }),
+      step('keys', 480, 'key-press', 'Key Press', { keys: '{{keys}}', window: '' }),
+    ],
+    edges: [{ id: 'e1', source: 'chat', target: 'widget' }, { id: 'e2', source: 'widget', target: 'keys' }],
+  }],
+}
+
 export default [
   command('!spin → lottery', 'Spins a lottery wheel when chat types !spin.', '!spin',
     { name: 'Lottery', type: 'lottery', config: {} }, ''),
@@ -24,4 +41,5 @@ export default [
     { name: 'Poll', type: 'poll', config: {} }, '{{args}}', 'vote'),
   command('!hype alert', 'Shows a banner when someone types !hype.', '!hype',
     { name: 'Alerts', type: 'alerts', config: {} }, '{{user}} just ran !hype'),
+  twitchPlays,
 ]

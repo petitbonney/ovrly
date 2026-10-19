@@ -67,12 +67,13 @@ Small steps; each milestone should be usable on its own.
 - [x] Error Trigger
 - [x] Run history: `GET /api/runs`, last input and output in each node's settings
 - [x] Execute Workflow with a Called By Workflow trigger
+- [x] Twitch triggers: follow, subscription (sub, resub, gifted), gift subs (with who received them), cheer, channel points, raid, stream online/offline, hype train (from chat in Guest mode where Twitch announces it there)
+- [x] Fan Out: runs what follows once per item of a list
 
 ## Later
 
-- Twitch EventSub triggers (follows, subs, bits, redeems; Streamer mode)
 - Other platforms (YouTube, Kick) and software (Streamlabs)
 - TypeScript
 - Run history that survives restarts, and a view of all runs
-- Loop over lists (items) and Merge modes
+- Merge modes
 - Custom widget authoring

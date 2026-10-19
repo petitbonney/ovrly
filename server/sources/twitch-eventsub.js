@@ -4,9 +4,20 @@
 import bus, { record } from '../bus.js'
 import { helix, status as account } from './twitch-auth.js'
 
-// What the Poll and Bets widgets follow. Add the types new triggers need here.
-const TYPES = ['channel.poll.begin', 'channel.poll.progress', 'channel.poll.end',
-  'channel.prediction.begin', 'channel.prediction.progress', 'channel.prediction.lock', 'channel.prediction.end']
+// EventSub type -> version: what the Poll and Bets widgets and the Twitch triggers follow.
+const TYPES = {
+  'channel.poll.begin': '1', 'channel.poll.progress': '1', 'channel.poll.end': '1',
+  'channel.prediction.begin': '1', 'channel.prediction.progress': '1', 'channel.prediction.lock': '1', 'channel.prediction.end': '1',
+  'channel.follow': '2', 'channel.subscribe': '1', 'channel.subscription.message': '1', 'channel.subscription.gift': '1',
+  'channel.cheer': '1', 'channel.channel_points_custom_reward_redemption.add': '1', 'channel.raid': '1',
+  'stream.online': '1', 'stream.offline': '1',
+  'channel.hype_train.begin': '2', 'channel.hype_train.progress': '2', 'channel.hype_train.end': '2',
+}
+// Most types are about the broadcaster's channel; these few name it differently.
+const condition = (type, id) => ({
+  'channel.follow': { broadcaster_user_id: id, moderator_user_id: id },
+  'channel.raid': { to_broadcaster_user_id: id },
+})[type] ?? { broadcaster_user_id: id }
 
 export const status = { connected: false, error: '' }
 let ws = null
@@ -51,8 +62,8 @@ function open(gen, url, reconnecting) {
       Object.assign(status, { connected: true, error: '' })
       record('websocket', 'twitch-eventsub', { connected: true })
       if (reconnecting) return
-      for (const type of TYPES) {
-        helix('POST', 'eventsub/subscriptions', { type, version: '1', condition: { broadcaster_user_id: account.userId },
+      for (const [type, version] of Object.entries(TYPES)) {
+        helix('POST', 'eventsub/subscriptions', { type, version, condition: condition(type, account.userId),
           transport: { method: 'websocket', session_id: payload.session.id } })
           .catch((err) => { status.error = err.message })
       }

@@ -17,8 +17,10 @@ for (const name of await fs.readdir(dir)) {
 // when data travels along a link, and { workflow, running } with the number of firings in progress.
 export const activity = new EventEmitter()
 
-// Queue nodes (`queue`): node key -> { tail: promise of the last firing in line, size: firings in line }.
+// Queue nodes (`queue`): node key -> { busy: a firing is past the node, line: firings waiting, in order, as
+// { id, at, data, go } where go(true) lets one through and go(false) drops it }.
 const queues = {}
+let lastEntry = 0
 // Node key -> how many firings are running it: a node only shows as finished once the last one has.
 const active = {}
 // Workflow id -> abort controllers of its firings in progress, for cancel().
@@ -47,23 +49,35 @@ async function walk(workflow, node, data, run) {
   const config = { ...def.config, ...node.data.config }
   // A queue node lets one firing at a time through: the next waits until everything after it has finished.
   if (def.queue) {
-    const q = (queues[id] ??= { tail: Promise.resolve(), size: 0 })
-    if (config.max > 0 && q.size > config.max) return status('stopped') // line full: dropped
-    const turn = q.tail
-    let release
-    q.tail = new Promise((resolve) => (release = resolve))
-    q.size++
-    if (q.size > 1) status('waiting')
-    await turn
+    const q = (queues[id] ??= { busy: false, line: [] })
+    if (q.busy) {
+      if (config.max > 0 && q.line.length >= config.max) return status('stopped') // line full: dropped
+      status('waiting')
+      const go = await new Promise((resolve) => q.line.push({ id: ++lastEntry, at: Date.now(), data, go: resolve }))
+      if (!go) return status('stopped') // removed from the line (Queue settings)
+    }
+    q.busy = true
     try {
       if (run.signal.aborted) return status('stopped')
       return await step(workflow, node, data, run, { def, config, id, status })
     } finally {
-      q.size--
-      release()
+      const next = q.line.shift()
+      if (next) next.go(true) // its turn: the node stays busy
+      else q.busy = false
     }
   }
   return step(workflow, node, data, run, { def, config, id, status })
+}
+
+// The firings waiting at a queue node, first in line first: [{ id, at, data }] (GET /api/queues/:workflow/:node).
+export const line = (workflow, node) => (queues[`${workflow}/${node}`]?.line ?? []).map(({ id, at, data }) => ({ id, at, data }))
+
+// Removes a firing from a queue node's line: it stops there (DELETE /api/queues/:workflow/:node/:entry).
+export function drop(workflow, node, entry) {
+  const q = queues[`${workflow}/${node}`]
+  const i = q?.line.findIndex((e) => e.id === entry) ?? -1
+  if (i >= 0) q.line.splice(i, 1)[0].go(false)
+  return i >= 0
 }
 
 // Runs the node itself, then walks on from its outputs. Besides the data, the node can read {{ $node.<type>.<key> }},
@@ -90,7 +104,7 @@ async function step(workflow, node, data, run, { def, config, id, status }) {
   // A failure stops the firing there.
   let out
   try {
-    out = await def.run({ config, data, id, signal: run.signal, depth: run.depth })
+    out = await def.run({ config, data, id, signal: run.signal, depth: run.depth, event: run.event })
   } catch (err) {
     if (run.signal.aborted) return end('stopped') // e.g. an HTTP request cut short by cancel()
     log({ error: err.message })
@@ -105,23 +119,28 @@ async function step(workflow, node, data, run, { def, config, id, status }) {
   if (trigger) run.start()
   log({ output: out })
   end('done')
-  // Nodes with several outputs (if/else, switch) return { [output]: data }; only those outputs continue.
+  // Nodes with several outputs (if/else, switch) return { [output]: data }; only those outputs continue. A split node
+  // (Fan Out) returns a list: each item continues on its own, in order.
   const multi = def.outputs || def.outputsFrom
-  run.last = multi ? Object.values(out)[0] : out
+  const items = def.split ? out : [out]
+  run.last = multi ? Object.values(out)[0] : items.at(-1)
   run.outputs[def.type] = run.outputs[node.id] = run.last
   const next = workflow.edges.filter((e) => e.source === node.id && (!multi || e.sourceHandle in out))
-  await Promise.all(next.map((e) => {
+  await Promise.all(next.flatMap((e) => {
     const target = workflow.nodes.find((n) => n.id === e.target)
     if (target) activity.emit('activity', { workflow: workflow.id, edge: e.id, target: e.target })
-    return target && walk(workflow, target, multi ? out[e.sourceHandle] : out, run)
+    return target ? items.map((item) => walk(workflow, target, multi ? out[e.sourceHandle] : item, run)) : []
   }))
 }
+
+// Whether a node type's trigger listens to the event: its `event` is one name or a list.
+const listens = (def, event) => [def?.event].flat().includes(event)
 
 // Runs every trigger of this workflow that listens to the event, and resolves with their runs once they have all
 // finished: { error, last } where last is the data of the last node that ran. parent ({ signal, depth }) is the
 // firing that called this workflow (Execute Workflow): cancelling it cancels this one too.
 export function fire(workflow, event, data, parent = {}) {
-  return Promise.all(workflow.nodes.filter((n) => nodes[n.data.type]?.event === event).map(async (t) => {
+  return Promise.all(workflow.nodes.filter((n) => listens(nodes[n.data.type], event)).map(async (t) => {
     const controller = new AbortController()
     parent.signal?.addEventListener('abort', () => controller.abort(), { once: true })
     const firing = (runs[workflow.id] ??= new Set())
@@ -134,7 +153,7 @@ export function fire(workflow, event, data, parent = {}) {
       history.splice(100)
     }
     // outputs: node type or id -> output of the last node of that type that ran, for {{ $node... }}.
-    const run = { signal: controller.signal, joins: {}, outputs: {}, depth: parent.depth ?? 0, record, start }
+    const run = { event, signal: controller.signal, joins: {}, outputs: {}, depth: parent.depth ?? 0, record, start }
     const began = Date.now()
     try {
       await walk(workflow, t, data, run)
@@ -165,7 +184,7 @@ export function cancel(workflowId) {
 
 // Workflows are re-read on each event so edits apply without a restart. Workflows switched off are skipped
 // (the Run button still fires a switched-off workflow's manual triggers, through fire()).
-for (const event of new Set(Object.values(nodes).map((d) => d.event).filter(Boolean))) {
+for (const event of new Set(Object.values(nodes).flatMap((d) => [d.event ?? []].flat()))) {
   bus.on(event, async (data) => {
     for (const workflow of await store.list('workflows')) {
       if (workflow.enabled !== false) fire(workflow, event, data)
