@@ -118,8 +118,8 @@ function PresetInput({ label, description, unit, presets, value, onChange }) {
   )
 }
 
-// An image, sound or video (kind): a preview, a button to pick a file on disk, and a field to type a URL, a path or
-// {{key}} (e.g. {{gif}} from a GIPHY node).
+// An image, sound or video (kind): a preview, and a field to type a URL, a path or
+// {{key}} (e.g. {{gif}} from a GIPHY node), with an icon button beside it to pick a file on disk.
 const FILE_KINDS = { image: 'an image', sound: 'a sound', video: 'a video' }
 function FileInput({ kind, label, description, value, onChange, vars }) {
   const [error, setError] = useState('')
@@ -138,11 +138,13 @@ function FileInput({ kind, label, description, value, onChange, vars }) {
       {value && !value.includes('{{') && kind === 'image' && <Image src={src} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
       {value && !value.includes('{{') && kind === 'sound' && <audio controls style={{ width: '100%' }} src={src} />}
       {value && !value.includes('{{') && kind === 'video' && <video controls muted style={{ width: '100%', maxHeight: 140 }} src={src} />}
-      <Group gap="xs">
-        <Button size="xs" variant="default" leftSection={<IconFolderOpen size={14} />} onClick={browse}>Browse files</Button>
-        {value && <Button size="xs" variant="subtle" color="red" onClick={() => onChange('')}>Clear</Button>}
+      {value && <Button size="xs" variant="subtle" color="red" style={{ alignSelf: 'start' }} onClick={() => onChange('')}>Clear</Button>}
+      <Group gap={6} wrap="nowrap" align="start">
+        <VarInput size="xs" flex={1} placeholder={`or ${FILE_KINDS[kind]} URL or file path`} vars={vars} value={value} onChange={onChange} />
+        <Tooltip label="Browse files">
+          <ActionIcon size={30} variant="default" aria-label="Browse files" onClick={browse}><IconFolderOpen size={16} /></ActionIcon>
+        </Tooltip>
       </Group>
-      <VarInput size="xs" placeholder={`or ${FILE_KINDS[kind]} URL or file path`} vars={vars} value={value} onChange={onChange} />
       {error && <Text size="xs" c="red">{error}</Text>}
     </Stack>
   )
