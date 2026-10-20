@@ -1,10 +1,11 @@
 // Merge Widgets node settings: hints beside a 16:9 canvas (with the OBS link above it, as in widget nodes) where each
 // widget linked into the node is a live preview box, dragged to move it and resized from its corner. Boxes snap to the
 // canvas borders and center lines and to the other boxes' edges, unless Alt is held. The placement is saved in the
-// node's config (layout), as fractions of the canvas.
+// node's config (layout), as fractions of the canvas. A list of the widgets, top layer first, is dragged to reorder the
+// layers (order).
 import { useEffect, useRef, useState } from 'react'
 import { ActionIcon, Anchor, CopyButton, Group, Stack, Text, Tooltip } from '@mantine/core'
-import { IconCheck, IconCopy } from '@tabler/icons-react'
+import { IconCheck, IconCopy, IconGripVertical } from '@tabler/icons-react'
 
 // The reference canvas, as on the overlay page (server/merge.html), which scales it to the source's size.
 const W = 1920
@@ -33,11 +34,21 @@ function snap(edges, lines, reach) {
   return best
 }
 
-// widgets: the widget instances linked into the node, in link order (later ones are drawn on top). Those of a type
+// widgets: the widget instances linked into the node, in link order. Those of a type
 // with nothing to see (visual: false, e.g. Sound) get no box: only a hidden page, so they still play in the preview.
 export default function Merge({ workflow, node, config, widgets, types, onChange }) {
   const visual = (w) => types.find((t) => t.type === w.type)?.visual !== false
-  const { layout = {} } = config
+  const { layout = {}, order = [] } = config
+  // Widget ids from the top layer down: those not ordered yet go on top, the last linked highest (as on the server).
+  const ids = widgets.filter(visual).map((w) => w.id)
+  const top = [...ids.filter((id) => !order.includes(id)).reverse(), ...order.filter((id) => ids.includes(id))]
+  const [drag, setDrag] = useState(null) // { from, over }: the layer being dragged and the row it is over
+  const drop = () => {
+    const next = top.filter((_, j) => j !== drag.from)
+    next.splice(drag.over > drag.from ? drag.over - 1 : drag.over, 0, top[drag.from])
+    onChange({ ...config, order: next })
+    setDrag(null)
+  }
   const url = `${location.origin}/m/${workflow}/${node}`
   // Canvas scale per axis: the canvas fills the space left in the pane, as the previews of the other widget nodes do.
   const ref = useRef()
@@ -57,12 +68,12 @@ export default function Merge({ workflow, node, config, widgets, types, onChange
       delete window.mergeSource
     }
   }, [url])
-  const ids = widgets.map((w) => w.id).join()
+  const linked = widgets.map((w) => w.id).join()
   useEffect(() => {
     const keep = (e) => (window.mergeLast[e.type] = e.data)
     for (const w of widgets) window.mergeSource.addEventListener(w.id, keep)
     return () => widgets.forEach((w) => window.mergeSource?.removeEventListener(w.id, keep))
-  }, [url, ids])
+  }, [url, linked])
   // The box being dragged, { id, box, guides: { x, y } (the lines it snapped to) }, while the pointer is down; saved on release.
   const [moving, setMoving] = useState(null)
 
@@ -114,6 +125,44 @@ export default function Merge({ workflow, node, config, widgets, types, onChange
           edges and center lines while dragged: hold Alt to place one freely.
         </Text>
         {!widgets.length && <Text size="xs" c="dimmed">Link widget nodes into this node to place them here.</Text>}
+        {top.length > 0 && (
+          <Stack gap={4}>
+            <Text size="xs" fw={500}>Layers</Text>
+            <Text size="xs" c="dimmed">The top one is drawn in front: drag a widget to reorder them.</Text>
+            {top.map((id, i) => (
+              <Group
+                key={id}
+                className="merge-layer"
+                gap={6}
+                wrap="nowrap"
+                draggable
+                // The drop spot shows as a line above the row (or below the last one).
+                style={{ boxShadow: drag && drag.over === i && drag.from !== i ? '0 -2px 0 var(--mantine-color-blue-5)' : undefined }}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData('application/ovrly-layer', id) // Firefox needs some data to drag
+                  setDrag({ from: i, over: i })
+                }}
+                onDragOver={(e) => {
+                  if (!drag) return
+                  e.preventDefault()
+                  const { top: y, height } = e.currentTarget.getBoundingClientRect()
+                  const over = e.clientY > y + height / 2 && i === top.length - 1 ? top.length : i
+                  if (over !== drag.over) setDrag({ ...drag, over })
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  if (drag) drop()
+                }}
+                onDragEnd={() => setDrag(null)}
+              >
+                <IconGripVertical size={14} />
+                <Text size="xs" truncate>{widgets.find((w) => w.id === id).name}</Text>
+              </Group>
+            ))}
+            {drag?.over === top.length && <div style={{ height: 2, marginTop: -2, background: 'var(--mantine-color-blue-5)' }} />}
+          </Stack>
+        )}
       </Stack>
       <Stack gap={0} flex="1 1 320px" miw={0}>
         <Group gap={6} mb="xs" wrap="nowrap">
@@ -135,7 +184,7 @@ export default function Merge({ workflow, node, config, widgets, types, onChange
               if (!visual(w)) return <iframe key={w.id} src={`/w/${w.id}`} data-merged="" title={w.name} hidden />
               const b = moving?.id === w.id ? moving.box : toBox(layout[w.id], i)
               return (
-                <div key={w.id} className="merge-box" style={{ left: b.x * scale.x, top: b.y * scale.y, width: b.w * scale.x, height: b.h * scale.y, zIndex: i }}
+                <div key={w.id} className="merge-box" style={{ left: b.x * scale.x, top: b.y * scale.y, width: b.w * scale.x, height: b.h * scale.y, zIndex: top.length - top.indexOf(w.id) }}
                   onPointerDown={(e) => grab(e, w.id, i, 'move')}>
                   <iframe src={`/w/${w.id}`} data-merged="" title={w.name} style={{ width: b.w, height: b.h, transform: `scale(${scale.x}, ${scale.y})` }} />
                   <span className="name">{w.name}</span>

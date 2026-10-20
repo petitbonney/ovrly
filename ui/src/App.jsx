@@ -37,7 +37,7 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
   }
 
   return (
-    <Stack gap={0} mb="md">
+    <Stack gap={0} className="library-section">
       <Heading title={title}>
         <Tooltip label={kind === 'widgets' ? 'New widget' : 'New workflow'}>
           <ActionIcon variant="default" size="sm" onClick={onAdd}><IconPlus size={14} /></ActionIcon>
@@ -65,18 +65,19 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
   )
 }
 
-// A library section that folds open or closed from its title; this browser remembers which ones are closed.
+// A library section that folds open or closed from its title; this browser remembers the choice. First time, only
+// the trigger section is open.
 function Section({ title, forceOpen, children }) {
   const key = `ovrly-library-${title}`
   const [open, setOpen] = useState(() => {
-    try { return localStorage.getItem(key) !== 'closed' } catch { return true }
+    try { return (localStorage.getItem(key) ?? (title === 'trigger' ? 'open' : 'closed')) === 'open' } catch { return title === 'trigger' }
   })
   const toggle = () => {
     try { localStorage.setItem(key, open ? 'closed' : 'open') } catch {}
     setOpen(!open)
   }
   return (
-    <Stack gap={0} mb="md">
+    <Stack gap={0} className="library-section">
       <UnstyledButton onClick={toggle} mb="xs" aria-expanded={open}>
         <Group gap={4}>
           <IconChevronRight size={14} color="var(--mantine-color-dimmed)" style={{ transform: open ? 'rotate(90deg)' : undefined, transition: 'transform 150ms' }} />
@@ -97,6 +98,7 @@ function Item({ d, color }) {
   return (
     <Tooltip label={d.description} position="left" openDelay={400} multiline w={240}>
       <NavLink
+        py={0}
         label={d.label}
         leftSection={Icon && <Icon size={18} color={color} />}
         draggable
@@ -113,7 +115,7 @@ function Groups({ items }) {
   const groups = [...Map.groupBy(items, (i) => i.group)].sort(([a], [b]) => !b - !a)
   return groups.map(([group, list]) => (
     <Fragment key={group ?? ''}>
-      {group && <Divider label={group} labelPosition="center" my="xs" />}
+      {group && <Divider label={group} labelPosition="center" my={0} />}
       {list.map((i) => i.el)}
     </Fragment>
   ))
@@ -149,6 +151,7 @@ function Library({ defs, types }) {
             return { el: (
               <Tooltip key={t.type} label={t.soon ? `Coming soon. ${t.description}` : t.description} position="left" openDelay={400} multiline w={240}>
                 <NavLink
+                  py={0}
                   label={t.label}
                   leftSection={Icon && <Icon size={18} color={colors.widget} />}
                   rightSection={t.soon && <Badge size="xs" variant="light" color="yellow">Soon</Badge>}

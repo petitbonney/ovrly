@@ -9,7 +9,9 @@ export default {
   fields: {
     // Widget id -> { x, y, w, h } as fractions of the canvas: x and y from its center to the box's center, w and h its size.
     layout: { hidden: true },
+    // Widget ids from the top layer down (set in its settings); widgets not in it go on top, the last linked highest.
+    order: { hidden: true },
   },
-  config: { layout: {} },
+  config: { layout: {}, order: [] },
   run: ({ data }) => data,
 }

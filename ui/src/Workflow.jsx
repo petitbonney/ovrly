@@ -469,7 +469,13 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   // One-shot auto layout: every node glides to its place, the view stays put (a single undo step: history
   // waits for the edit to settle). Nodes stay movable and land on the grid.
   const arrange = () => {
-    const to = Object.fromEntries(Object.entries(layout(nodes, edges, defs)).map(([id, p]) => [id, snap(p)]))
+    // The layout is centred on the origin; shift it to keep the top-left corner where the nodes' box is now,
+    // so they don't jump out of the view.
+    const laid = layout(nodes, edges, defs)
+    const min = (ps, k) => Math.min(...Object.values(ps).map((p) => p[k]))
+    const now = Object.fromEntries(nodes.map((n) => [n.id, n.position]))
+    const [dx, dy] = [min(now, 'x') - min(laid, 'x'), min(now, 'y') - min(laid, 'y')]
+    const to = Object.fromEntries(Object.entries(laid).map(([id, p]) => [id, snap({ x: p.x + dx, y: p.y + dy })]))
     const from = Object.fromEntries(nodes.map((n) => [n.id, n.position]))
     const move = { t: 0 }
     animate(move, {
