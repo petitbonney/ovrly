@@ -65,11 +65,12 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
   )
 }
 
-// A library section that folds open or closed from its title; this browser remembers which ones are closed.
+// A library section that folds open or closed from its title; this browser remembers the choice. First time, only
+// the trigger section is open.
 function Section({ title, forceOpen, children }) {
   const key = `ovrly-library-${title}`
   const [open, setOpen] = useState(() => {
-    try { return localStorage.getItem(key) !== 'closed' } catch { return true }
+    try { return (localStorage.getItem(key) ?? (title === 'trigger' ? 'open' : 'closed')) === 'open' } catch { return title === 'trigger' }
   })
   const toggle = () => {
     try { localStorage.setItem(key, open ? 'closed' : 'open') } catch {}
