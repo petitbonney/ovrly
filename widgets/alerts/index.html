@@ -2,25 +2,166 @@
 <meta charset="utf-8">
 <title>Alerts</title>
 <link rel="stylesheet" href="/widgets/base.css">
+<!-- anime.js and three.js, served from node_modules by the server (/vendor). -->
+<script type="importmap">
+  {
+    "imports": {
+      "animejs": "/vendor/animejs/index.js",
+      "three": "/vendor/three/build/three.module.js",
+      "three/addons/": "/vendor/three/examples/jsm/"
+    }
+  }
+</script>
 <style>
-  #alert { text-align: center; font-size: 40px; opacity: 0; transform: translateY(-20px); transition: .4s; }
-  #alert.on { opacity: 1; transform: none; }
+  /* Layouts are designed on an 800 × 450 board, centered and scaled to fit the page (--k, set below). Each alert gets
+     a box over the whole board, its pieces placed in it. --c is the color setting. */
+  #board { position: fixed; left: 50%; top: 50%; width: 800px; height: 450px; translate: -50% -50%; scale: var(--k, 1); }
+  .alert { position: absolute; inset: 0; }
+  .alert > * { position: absolute; }
+  /* Lines of text: words wrap, a word too long for the line breaks. */
+  .line { overflow-wrap: anywhere; }
+  .center { display: flex; align-items: center; justify-content: center; text-align: center; }
+
+  /* Banner */
+  .banner-card { left: 50%; top: 20px; translate: -50% 0; width: max-content; max-width: 720px; margin: 0; text-align: center; }
+
+  /* Neon sign: on a brick wall lit by the tube. Letters are dim until they light up. */
+  .neon-wall { left: 40px; top: 75px; width: 720px; height: 300px; border-radius: 18px; background-color: #3a1d18;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='40'%3E%3Cpath d='M0 1.5H60M0 21.5H60M1.5 0V20M31.5 20V40' stroke='%23000' stroke-opacity='.5' stroke-width='3' fill='none'/%3E%3C/svg%3E");
+    box-shadow: inset 0 0 90px #000e, 0 10px 30px #0008; }
+  .neon-halo { left: 40px; top: 75px; width: 720px; height: 300px; border-radius: 18px; opacity: 0;
+    background: radial-gradient(closest-side, color-mix(in srgb, var(--c) 45%, transparent), transparent); }
+  .neon-text { left: 80px; top: 105px; width: 640px; height: 240px; }
+  .neon-text .line { width: 100%; font-family: 'Snell Roundhand', 'Segoe Script', 'Brush Script MT', cursive; color: color-mix(in srgb, var(--c), #fff 55%);
+    text-shadow: 0 0 2px #fff, 0 0 8px var(--c), 0 0 18px var(--c), 0 0 40px var(--c); }
+  .neon-text .ch { opacity: .12; }
+
+  /* Ticket: printed out of a slot, then torn off. */
+  .ticket-slot { left: 180px; top: 14px; width: 440px; height: 26px; border-radius: 13px; z-index: 1;
+    background: linear-gradient(#3a3a40, #0a0a0c); box-shadow: 0 4px 10px #000a, inset 0 -4px 0 #000; }
+  .ticket-feed { left: 200px; top: 27px; width: 400px; height: 423px; overflow: hidden; }
+  .ticket-paper { position: absolute; left: 15px; top: 0; width: 370px; height: 330px; border-radius: 0 0 6px 6px; transform-origin: 100% 0;
+    background: #fbf4e2; color: #2a2320; text-shadow: none; font-family: 'Courier New', ui-monospace, monospace; box-shadow: 0 6px 16px #0007; }
+  .ticket-head { position: absolute; left: 0; right: 0; top: 22px; text-align: center; font-size: 18px; letter-spacing: 4px;
+    color: color-mix(in srgb, var(--c), #000 30%); }
+  .ticket-text { position: absolute; left: 24px; top: 56px; width: 322px; height: 170px; }
+  .ticket-text .line { width: 100%; }
+  .ticket-cut { position: absolute; left: 12px; right: 12px; top: 240px; border-top: 3px dashed #2a232055; }
+  .ticket-stub { position: absolute; left: 24px; right: 24px; top: 258px; display: flex; justify-content: space-between; align-items: center; font-size: 16px; }
+  .ticket-bars { width: 120px; height: 44px; background: repeating-linear-gradient(90deg, #2a2320 0 2px, #0000 2px 4px, #2a2320 4px 7px, #0000 7px 9px); }
+
+  /* Speech bubble: a comic bubble over a burst. */
+  .bubble-burst { left: 80px; top: -5px; width: 640px; height: 460px; }
+  .bubble-shape { left: 100px; top: 60px; width: 600px; height: 300px; transform-origin: 18% 97%; }
+  .bubble-burst svg, .bubble-shape svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .bubble-text { position: absolute; left: 50px; top: 30px; width: 500px; height: 190px; }
+  .bubble-text .line { width: 100%; font-family: 'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', cursive; font-weight: 900;
+    text-transform: uppercase; color: #111; text-shadow: none; }
+  .bubble-shape .ch { opacity: 0; }
+
+  /* Arcade: a CRT screen, its pixels drawn on a small canvas blown up. */
+  .arcade-crt { left: 80px; top: 45px; width: 640px; height: 360px; border-radius: 26px; overflow: hidden; background: #050508;
+    box-shadow: 0 0 0 10px #1c1c22, 0 0 0 13px #000, 0 14px 30px #000a; }
+  .arcade-crt canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; filter: drop-shadow(0 0 5px var(--c)); }
+  .arcade-crt::after { content: ''; position: absolute; inset: 0; border-radius: inherit;
+    background: repeating-linear-gradient(#0000 0 2px, #0007 2px 4px), radial-gradient(#0000 60%, #000a); }
+
+  /* Flap board: a grid of split flaps. */
+  .flap-frame { left: 50%; top: 50%; translate: -50% -50%; display: grid; grid-template-columns: repeat(16, 42px); gap: 5px; padding: 14px;
+    border-radius: 12px; background: #0c0c0f; box-shadow: 0 12px 30px #000a, inset 0 0 0 2px #26262c; }
+  .flap-cell { position: relative; height: 60px; border-radius: 5px; overflow: hidden; display: grid; place-items: center;
+    background: linear-gradient(#2c2c33 50%, #212127 50%); font: 700 40px ui-monospace, Menlo, Consolas, monospace; color: #f4f4f4; text-shadow: none; }
+  .flap-cell::after { content: ''; position: absolute; left: 0; right: 0; top: calc(50% - 1px); height: 2px; background: #000b; }
+
+  /* Trophy: three.js above an engraved plaque, confetti on landing. */
+  .trophy-scene { left: 240px; top: 0; width: 320px; height: 340px; }
+  .trophy-plaque { left: 170px; top: 344px; width: 460px; height: 84px; border-radius: 8px; box-shadow: 0 6px 14px #0008, inset 0 0 0 3px #0003; }
+  .trophy-plaque.gold { background: linear-gradient(#f9e08f, #c8962c); }
+  .trophy-plaque.silver { background: linear-gradient(#f4f6f8, #a3a9b2); }
+  .trophy-plaque.bronze { background: linear-gradient(#f0b98a, #9c5a2c); }
+  .trophy-plaque .line { width: 430px; color: #0008; text-shadow: 0 1px 0 #fff9, 0 -1px 0 #0004; }
+  .trophy-confetti { left: 396px; top: 290px; width: 9px; height: 15px; border-radius: 2px; }
+
+  /* Sticky note: slapped on, tilted, with a strip of tape. */
+  .sticky-note { width: 260px; height: 240px; padding: 34px 22px 18px; box-sizing: border-box; color: #222; text-shadow: none; transform-origin: 50% 0;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--c), #fff 30%), var(--c)); box-shadow: 0 12px 20px #0006; }
+  .sticky-note .line { width: 100%; font-family: 'Bradley Hand', 'Segoe Print', 'Marker Felt', 'Comic Sans MS', cursive; }
+  .sticky-tape { position: absolute; left: 90px; top: -14px; width: 80px; height: 28px; rotate: -3deg; background: #ffffff8c; box-shadow: 0 1px 3px #0003; }
+
+  /* Marquee: a ticker bar as wide as the page, whatever its shape. */
+  .marquee-bar { left: calc(400px - 50vw / var(--k, 1)); width: calc(100vw / var(--k, 1)); top: 193px; height: 64px; overflow: hidden;
+    background: #0f0f14e6; border-top: 3px solid var(--c); }
+  .marquee-tag { position: absolute; left: 0; top: 0; bottom: 0; z-index: 1; padding: 0 18px; display: flex; align-items: center;
+    background: var(--c); color: #111; text-shadow: none; font-size: 24px; font-weight: 900; letter-spacing: 2px; }
+  .marquee-track { position: absolute; left: 0; top: 0; height: 100%; display: flex; align-items: center; white-space: nowrap; font-size: 34px; }
+
+  /* Particles: letters gathering out of a swarm of glowing dots, then bursting. */
+  .particles-text { left: 60px; top: 75px; width: 680px; height: 300px; }
+  .particles-text .line { width: 100%; font-weight: 900; text-shadow: 0 0 12px var(--c), 0 0 30px var(--c); }
+  .particles-text .ch { display: inline-block; }
+  .particles-dot { left: 396px; top: 221px; width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); opacity: 0; }
 </style>
-<div id="alert" class="card"></div>
+<div id="board"></div>
 <script type="module">
-  import { subscribe, wait } from '/widgets/lib.js'
-  const alert = document.getElementById('alert')
-  let timer
+  import { engine } from 'animejs'
+  import { subscribe, wait, el } from '/widgets/lib.js'
+  import { setVolume } from '/widgets/alerts/kit.js'
+  import { life } from '/widgets/alerts/widget.js'
+  import banner from '/widgets/alerts/banner.js'
+  import neon from '/widgets/alerts/neon.js'
+  import ticket from '/widgets/alerts/ticket.js'
+  import bubble from '/widgets/alerts/bubble.js'
+  import arcade from '/widgets/alerts/arcade.js'
+  import flap from '/widgets/alerts/flap.js'
+  import trophy from '/widgets/alerts/trophy.js'
+  import sticky from '/widgets/alerts/sticky.js'
+  import marquee from '/widgets/alerts/marquee.js'
+  import particles from '/widgets/alerts/particles.js'
+  const layouts = { banner, neon, ticket, bubble, arcade, flap, trophy, sticky, marquee, particles }
+  const board = document.getElementById('board')
+
+  // OBS may hide the source: alerts keep time with the server instead of pausing.
+  engine.pauseOnDocumentHidden = false
+
+  const scale = () => document.documentElement.style.setProperty('--k', Math.min(innerWidth / 800, innerHeight / 450))
+  addEventListener('resize', scale)
+  scale()
+
+  // Each layout fills an alert's box (in the page) and returns the anime.js timeline that plays it for ms, from coming
+  // in to gone: layout(box, item, ms, config). Alerts on the page, by id: { box, timer: until it starts, tl }.
+  const shown = new Map()
+  function stop(id) {
+    const alert = shown.get(id)
+    if (!alert) return
+    clearTimeout(alert.timer)
+    alert.tl?.pause()
+    alert.box.remove()
+    shown.delete(id)
+  }
+  const stopAll = () => [...shown.keys()].forEach(stop)
+
+  let layout
   subscribe(({ config, state }) => {
-    const left = state.cancelled ? 0 : state.at + config.duration * 1000 - Date.now()
-    alert.textContent = state.text
-    alert.classList.toggle('on', left > 0)
-    clearTimeout(timer)
-    if (left > 0) timer = setTimeout(() => alert.classList.remove('on'), left)
-    return wait(left + 400) // finished once faded out
-  }, () => {
-    // Cancel: the alert fades out now.
-    clearTimeout(timer)
-    alert.classList.remove('on')
-  })
+    if (state.cancelled || config.layout !== layout) stopAll()
+    layout = config.layout
+    setVolume(Math.min(Math.max(config.volume, 0) / 100, 1))
+    if (state.cancelled) return
+    for (const id of [...shown.keys()]) if (!state.items.some((i) => i.id === id)) stop(id) // replaced by a newer one
+    const ms = life(config)
+    for (const item of state.items) {
+      if (shown.has(item.id) || Date.now() - item.at >= ms) continue
+      const box = el('div', `alert ${layout}`)
+      box.style.setProperty('--c', config.color)
+      const alert = { box }
+      shown.set(item.id, alert)
+      // Queued alerts wait for their turn.
+      alert.timer = setTimeout(() => {
+        const late = Math.max(Date.now() - item.at, 0) // a page opened mid-alert catches up, silently
+        board.append(box)
+        alert.tl = layouts[layout](box, item, ms, { ...config, sound: config.volume > 0 && late < 250 })
+        alert.tl.seek(late).then(() => stop(item.id))
+      }, item.at - Date.now())
+    }
+    return wait(Math.max(0, ...state.items.map((i) => i.at + ms)) - Date.now()) // finished once the last one is gone
+  }, stopAll)
 </script>

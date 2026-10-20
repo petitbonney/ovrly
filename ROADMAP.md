@@ -74,6 +74,7 @@ Small steps; each milestone should be usable on its own.
 - [x] Fan Out: runs what follows once per item of a list
 - [x] Merge Widgets: widget nodes placed on one canvas, served as a single browser source
 - [x] Twitch actions (Streamer mode): chat message or reply, announcement, shoutout, ban/timeout, delete message, stream info, chat mode, ad break, clip, stream marker, redemption status, channel points reward, raid, user info
+- [x] Alerts layouts: banner, neon sign, ticket, speech bubble, arcade, flap board, trophy, sticky note, marquee, particles; queued or stacked alerts; sounds with a volume setting
 
 ## Later
 
