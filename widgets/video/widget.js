@@ -1,7 +1,8 @@
 // Video: plays a short video through the overlay page (an OBS browser source), up to a max duration.
 // The video is the action's value, set on the node: a file path on disk or a URL, typed or from data.
+const ABS = /^([a-z]:[\\/]|[\\/])/i // C:\..., \\server\..., or /...
 const videoUrl = (v) =>
-  /^https?:\/\//.test(v) ? v : v?.startsWith('/') ? `/file?path=${encodeURIComponent(v)}` : ''
+  /^https?:\/\//.test(v) ? v : v && ABS.test(v) ? `/file?path=${encodeURIComponent(v)}` : ''
 
 export default {
   type: 'video',

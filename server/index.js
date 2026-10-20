@@ -172,21 +172,29 @@ app.get('/api/myinstants/search', (req, res) =>
 // uploaded by older versions.
 const MEDIA_EXT = /\.(png|jpe?g|gif|webp|avif|apng|mp3|wav|ogg|m4a|aac|flac|mp4|webm|mov|m4v|ogv)$/i
 app.use('/media', express.static('data/media'))
-// "Browse files" per kind: the dialog's prompt and the file types it allows.
+// "Browse files" per kind: the dialog's prompt, the macOS file types and the extensions (Windows) it allows.
 const BROWSE = {
-  image: ['Pick an image or GIF', ['public.png', 'public.jpeg', 'com.compuserve.gif', 'org.webmproject.webp', 'public.avif']],
-  sound: ['Pick a sound', ['public.mp3', 'com.microsoft.waveform-audio', 'org.xiph.ogg-audio', 'public.mpeg-4-audio', 'public.aac-audio', 'org.xiph.flac']],
-  video: ['Pick a video', ['public.mpeg-4', 'com.apple.quicktime-movie', 'org.webmproject.webm']],
+  image: ['Pick an image or GIF', ['public.png', 'public.jpeg', 'com.compuserve.gif', 'org.webmproject.webp', 'public.avif'], ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'apng']],
+  sound: ['Pick a sound', ['public.mp3', 'com.microsoft.waveform-audio', 'org.xiph.ogg-audio', 'public.mpeg-4-audio', 'public.aac-audio', 'org.xiph.flac'], ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac']],
+  video: ['Pick a video', ['public.mpeg-4', 'com.apple.quicktime-movie', 'org.webmproject.webm'], ['mp4', 'webm', 'mov', 'm4v', 'ogv']],
 }
+// The OS's own file dialog, as a command that prints the picked path (nothing if cancelled).
+const dialog = (prompt, types, exts) => process.platform === 'darwin'
+  ? ['osascript', ['-e', `POSIX path of (choose file with prompt "${prompt}" of type {${types.map((t) => `"${t}"`).join(', ')}})`]]
+  : ['powershell', ['-NoProfile', '-STA', '-Command', `
+    [Console]::OutputEncoding = [Text.Encoding]::UTF8
+    Add-Type -AssemblyName System.Windows.Forms
+    $d = New-Object Windows.Forms.OpenFileDialog
+    $d.Title = '${prompt}'
+    $d.Filter = '${prompt}|${exts.map((e) => `*.${e}`).join(';')}'
+    $owner = New-Object Windows.Forms.Form -Property @{ TopMost = $true } # keeps the dialog in front of the browser
+    if ($d.ShowDialog($owner) -eq 'OK') { $d.FileName }`]]
 app.post('/api/browse-:kind', (req, res) => {
-  const [prompt, types] = BROWSE[req.params.kind] ?? []
+  const [prompt, types, exts] = BROWSE[req.params.kind] ?? []
   if (!prompt) return res.sendStatus(404)
-  if (process.platform !== 'darwin') return res.status(501).json({ error: `Browse files only works on macOS for now: paste the file path or a URL` })
-  const script = `POSIX path of (choose file with prompt "${prompt}" of type {${types.map((t) => `"${t}"`).join(', ')}})`
-  execFile('osascript', ['-e', script], (err, out) => {
-    if (err) return res.json({}) // cancelled
-    res.json({ path: out.trim() })
-  })
+  if (process.platform !== 'darwin' && process.platform !== 'win32') return res.status(501).json({ error: `Browse files only works on macOS and Windows for now: paste the file path or a URL` })
+  const [cmd, args] = dialog(prompt, types, exts)
+  execFile(cmd, args, (err, out) => res.json(err || !out.trim() ? {} : { path: out.trim() })) // an error is a cancel on macOS
 })
 app.get('/file', (req, res) => {
   const file = String(req.query.path ?? '')
