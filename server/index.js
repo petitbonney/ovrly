@@ -278,10 +278,13 @@ app.get('/w/:id{/:events}', async (req, res) => {
 function mergeView(workflow, id) {
   const node = workflow?.nodes.find((n) => n.id === id && n.data.type === 'merge')
   if (!node) return null
-  const { layout = {} } = node.data.config
-  const ids = workflow.edges.filter((e) => e.target === id).map((e) => workflow.nodes.find((n) => n.id === e.source))
-    .filter((n) => n?.data.type === 'widget').map((n) => n.data.config.widget)
-  return { items: [...new Set(ids)].map((w, i) => ({ id: w, ...(layout[w] ?? { x: 0.03 * i, y: 0.03 * i, w: 0.5, h: 0.5 }) })) }
+  const { layout = {}, order = [] } = node.data.config
+  const ids = [...new Set(workflow.edges.filter((e) => e.target === id).map((e) => workflow.nodes.find((n) => n.id === e.source))
+    .filter((n) => n?.data.type === 'widget').map((n) => n.data.config.widget))]
+  // Items from the bottom layer up (the page stacks them in that order): see the node's order setting.
+  const top = [...ids.filter((w) => !order.includes(w)).reverse(), ...order.filter((w) => ids.includes(w))]
+  const items = ids.map((w, i) => ({ id: w, ...(layout[w] ?? { x: 0.03 * i, y: 0.03 * i, w: 0.5, h: 0.5 }) }))
+  return { items: items.sort((a, b) => top.indexOf(b.id) - top.indexOf(a.id)) }
 }
 const mergeClients = {} // workflow id -> Set of { node, res, widgets: widget id -> detach }
 async function pushMerge(workflow, client) {

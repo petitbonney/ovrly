@@ -7,7 +7,8 @@ import { IconCheck, IconCopy, IconHourglassHigh, IconPlayerPlay, IconPlayerStop 
 import Fields from './Fields.jsx'
 import { get, json } from './api.js'
 
-// A widget node's settings: the instance's id and name, the value the node runs its main action with, if it takes one, then its settings. A widget
+// A widget node's settings: the instance's id and name, its mode or layout, then the value the node runs its main action
+// with, if it takes one, and its other settings. A widget
 // type marked `soon` shows a "Coming soon" note instead of settings. onCopy copies the node for pasting. testValue is
 // the node's value, sent as is by the test button (variables like {{user}} aren't filled outside a run).
 export default function WidgetSettings({ widget, type, value, testValue, onChange, onCopy }) {
@@ -41,12 +42,12 @@ export default function WidgetSettings({ widget, type, value, testValue, onChang
           </Tooltip>
         </Group>
         <TextInput size="xs" label="Name" description="Shared by every node that uses this widget" value={name} onChange={(e) => setName(e.target.value)} />
-        {value}
         {/* A widget's mode (e.g. chat votes or a Twitch poll) or layout shapes everything below, so it comes first. */}
         {!type.soon && first.length > 0 && (
           <Fields defaults={type.config} fields={type.fields} values={config} onChange={setConfig} context={{ streamer }} show={first} />
         )}
         <Divider />
+        {value}
         {type.soon ? (
           <Alert variant="light" color="yellow" icon={<IconHourglassHigh size={18} />} title="Coming soon">
             This widget is a work in progress: its settings will come in a later version.

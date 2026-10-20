@@ -59,6 +59,7 @@
 .merge-guide.x { top: 0; bottom: 0; width: 1px; }
 .merge-guide.y { left: 0; right: 0; height: 1px; }
 .merge-box .corner { position: absolute; right: 0; bottom: 0; width: 12px; height: 12px; background: #9147ff; cursor: nwse-resize; }
+.merge-layer { padding: 6px 8px; border-radius: 4px; background: var(--mantine-color-dark-6); cursor: grab; }
 
 /* Space between library sections only, none before the first or after the last. */
 .library-section + .library-section { margin-top: var(--mantine-spacing-xs); }

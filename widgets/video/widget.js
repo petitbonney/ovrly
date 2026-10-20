@@ -11,7 +11,7 @@ export default {
   config: { duration: 0, volume: 100 },
   fields: {
     duration: { label: 'Max duration', unit: 's', presets: [5, 10, 15, 30], hint: 'The video is cut (with a short fade-out) after this long; 0 plays all of it' },
-    volume: { unit: '%' },
+    volume: { unit: '%', slider: true },
   },
   state: { url: '' },
   main: 'play',

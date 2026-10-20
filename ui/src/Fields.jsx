@@ -1,6 +1,8 @@
 // Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
 // { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'input' | 'image' | 'giphy' | 'myinstants' | 'widget' | 'window' }.
 // slider: true shows the options as marks on a slider, from the first to the last, instead of buttons; tips: { option: text } adds a tooltip to each mark.
+// On a number, slider: true is a slider from min to max (0 to 100 by default), its value beside the label; a volume's
+// slider has a mute button.
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
 // (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
@@ -14,7 +16,7 @@ import {
   ActionIcon, Autocomplete, Button, Chip, ColorInput, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
   Select, Slider, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
 } from '@mantine/core'
-import { IconBraces, IconGripVertical, IconPlus, IconFolderOpen, IconX } from '@tabler/icons-react'
+import { IconBraces, IconGripVertical, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX } from '@tabler/icons-react'
 import { get } from './api.js'
 import GiphyPicker from './GiphyPicker.jsx'
 import MyinstantsPicker from './MyinstantsPicker.jsx'
@@ -119,6 +121,34 @@ function PresetInput({ label, description, unit, presets, value, onChange }) {
   )
 }
 
+// A number on a slider, its value beside the label. mute: a button beside it whose icon follows the level, and which
+// mutes (0) or brings back the level it had (all of it if it was muted when the page opened).
+const LEVELS = [[67, IconVolume], [34, IconVolume2], [1, IconVolume4], [0, IconVolume3]] // from this % up
+function SliderInput({ label, description, unit, min = 0, max = 100, mute, value, onChange }) {
+  const last = useRef(value || max)
+  if (value > min) last.current = value
+  const Icon = LEVELS.find(([from]) => ((value - min) / (max - min)) * 100 >= from)[1]
+  return (
+    <Stack gap={4}>
+      <Group gap={6}>
+        <Text size="xs" fw={500}>{label}</Text>
+        <Text size="xs" c="dimmed">{value}{unit && ` ${unit}`}</Text>
+      </Group>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
+      <Group gap="xs" wrap="nowrap">
+        {mute && (
+          <Tooltip label={value > min ? 'Mute' : 'Unmute'}>
+            <ActionIcon variant="subtle" color="gray" aria-label={value > min ? 'Mute' : 'Unmute'} onClick={() => onChange(value > min ? min : last.current)}>
+              <Icon size={18} />
+            </ActionIcon>
+          </Tooltip>
+        )}
+        <Slider size="md" w={200} min={min} max={max} label={null} value={value} onChange={onChange} />
+      </Group>
+    </Stack>
+  )
+}
+
 // An image, sound or video (kind): a preview, and a field to type a URL, a path or
 // {{key}} (e.g. {{gif}} from a GIPHY node), with an icon button beside it to pick a file on disk.
 const FILE_KINDS = { image: 'an image', sound: 'a sound', video: 'a video' }
@@ -139,7 +169,7 @@ function FileInput({ kind, label, description, value, onChange, vars }) {
       {value && !value.includes('{{') && kind === 'image' && <Image src={src} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
       {value && !value.includes('{{') && kind === 'sound' && <audio controls style={{ width: '100%' }} src={src} />}
       {value && !value.includes('{{') && kind === 'video' && <video controls muted style={{ width: '100%', maxHeight: 140 }} src={src} />}
-      {value && <Button size="xs" variant="subtle" color="red" style={{ alignSelf: 'start' }} onClick={() => onChange('')}>Clear</Button>}
+      {value && kind === 'video' && <Button size="xs" variant="subtle" color="red" style={{ alignSelf: 'start' }} onClick={() => onChange('')}>Clear</Button>}
       <Group gap={6} wrap="nowrap" align="start">
         <VarInput size="xs" flex={1} placeholder={`or ${FILE_KINDS[kind]} URL or file path`} vars={vars} value={value} onChange={onChange} />
         <Tooltip label="Browse files">
@@ -323,6 +353,9 @@ function Field({ name, f, fallback, value, set, values, context }) {
   if (f.type === 'action' && options.length <= 1) return null
   if (f.options?.find((o) => o.value === value)?.streamer && !context.streamer) {
     props.description = <Text span size="xs" c="yellow">Needs Twitch in Streamer mode, signed in (Integration → Twitch)</Text>
+  }
+  if (f.slider && typeof fallback === 'number') {
+    return <SliderInput {...props} unit={f.unit} min={f.min} max={f.max} mute={name === 'volume'} value={value} onChange={set} />
   }
   if (f.slider) {
     return (
