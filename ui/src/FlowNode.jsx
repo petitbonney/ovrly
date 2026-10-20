@@ -79,9 +79,9 @@ export function outputsOf(def, config) {
   return [...items.map((item, i) => ({ id: String(i + 1), label: item || String(i + 1) })), ...(def?.outputs ?? []).map((id) => ({ id, label: id }))]
 }
 
-// A node's height: 90px, taller with more than three outputs (24px each).
-export function nodeHeight(def, config) {
-  return Math.max(90, outputsOf(def, config).length * 24)
+// A node's height: 90px, taller with more than three outputs (24px each) or five inputs (18px each).
+export function nodeHeight(def, config, inputs = 0) {
+  return Math.max(90, outputsOf(def, config).length * 24, inputs * 18)
 }
 
 // workflowId: the workflow the node is in. widget: the instance a widget or Widget Callback node points to (undefined for a deleted one), type: its widget type.
@@ -89,7 +89,8 @@ export default function FlowNode({ id, workflowId, data, selected, def, widget, 
   const outputs = outputsOf(def, data.config)
   // Handles added or removed (a switch case) must be measured again, or links to them are misplaced.
   const updateNodeInternals = useUpdateNodeInternals()
-  const handles = outputs.map((o) => o.id).join()
+  const inputs = Math.max(1, data.inputs ?? 0) // one input handle per incoming link, so their ends don't overlap
+  const handles = outputs.map((o) => o.id).join() + inputs
   useEffect(() => updateNodeInternals(id), [handles])
   const isWidget = data.type === 'widget'
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[data.type]) ?? IconBox
@@ -103,7 +104,7 @@ export default function FlowNode({ id, workflowId, data, selected, def, widget, 
     : data.type === 'widget-callback' ? [widget?.name ?? 'no widget', widget && (data.config.action || type?.main)].filter(Boolean).join(': ')
     : key && shown !== '' && `${key}: ${shown}`
   return (
-    <div className={`flow-node${trigger ? ' trigger' : ''}${selected ? ' selected' : ''}`} style={{ height: nodeHeight(def, data.config) }}>
+    <div className={`flow-node${trigger ? ' trigger' : ''}${selected ? ' selected' : ''}`} style={{ height: nodeHeight(def, data.config, inputs) }}>
       {data.type === 'manual' ? (
         <button className="bolt nodrag" title="Run this trigger" onClick={(e) => {
           e.stopPropagation() // don't select the node (which opens its editor)
@@ -112,7 +113,10 @@ export default function FlowNode({ id, workflowId, data, selected, def, widget, 
           <IconBolt size={18} fill="currentColor" />
         </button>
       ) : trigger && <IconBolt className="bolt nodrag" size={18} fill="currentColor" onClick={(e) => e.stopPropagation()} />}
-      {!trigger && <Handle type="target" position="left" className="in" />}
+      {!trigger && <div className="in-bar" style={{ height: (inputs - 1) * 18 + 22 }} />}
+      {!trigger && Array.from({ length: inputs }, (_, i) => (
+        <Handle key={i} id={`in${i}`} type="target" position="left" className="in" style={{ top: `calc(50% + ${(i - (inputs - 1) / 2) * 18}px)` }} />
+      ))}
       <Icon size={40} stroke={1.5} color={colors[def?.category]} />
       {outputs.length ? outputs.map((o, i) => (
         <Handle key={o.id} id={o.id} type="source" position="right" className="out" style={{ top: `${((i + 1) * 100) / (outputs.length + 1)}%` }}>

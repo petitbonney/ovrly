@@ -152,7 +152,8 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     const source = new EventSource('/api/activity')
     source.onmessage = (e) => {
       const a = JSON.parse(e.data)
-      if (a.workflow !== workflow.id || 'running' in a) return
+      if (a.workflow !== workflow.id) return
+      if ('running' in a) return setFirings(a.running)
       if (a.edge) return setLive((l) => ({ ...l, edges: { ...l.edges, [a.edge]: a.target } }))
       setLive((l) => ({ ...l, nodes: { ...l.nodes, [a.node]: a.state } }))
       if (a.state === 'error') notify(`${nodeName(nodes.find((n) => n.id === a.node) ?? { data: { label: 'A node' } })} failed: ${a.error}`, 'red')
@@ -163,8 +164,19 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       timers.forEach(clearTimeout)
     }
   }, [])
-  const shownNodes = nodes.map((n) => (live.nodes[n.id] ? { ...n, className: `run-${live.nodes[n.id]}` } : n))
-  const shownEdges = edges.map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow' } : e))
+  // Each link into a node gets its own input handle, in the order of its source's height so links don't cross.
+  const inputOf = {}
+  const incoming = {}
+  for (const e of edges) (incoming[e.target] ??= []).push(e)
+  for (const list of Object.values(incoming)) {
+    const y = (e) => nodes.find((n) => n.id === e.source)?.position.y ?? 0
+    list.sort((a, b) => y(a) - y(b)).forEach((e, i) => (inputOf[e.id] = `in${i}`))
+  }
+  const shownNodes = nodes.map((n) => {
+    const shown = { ...n, data: { ...n.data, inputs: incoming[n.id]?.length } }
+    return live.nodes[n.id] ? { ...shown, className: `run-${live.nodes[n.id]}` } : shown
+  })
+  const shownEdges = edges.map((e) => ({ ...e, targetHandle: inputOf[e.id] })).map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow', markerEnd: { ...edgeOptions.markerEnd, color: '#4dabf7' } } : e))
 
   // When a pane opens, closes or is resized, the graph area changes size: pan so the graph's center stays put.
   const flowRef = useRef()
@@ -245,7 +257,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   const undo = () => travel('past', 'future')
   const redo = () => travel('future', 'past')
 
-  const onConnect = (c) => setEdges((es) => addEdge(c, es))
+  const onConnect = (c) => setEdges((es) => addEdge({ ...c, targetHandle: null }, es)) // the input handle is picked on display
 
   // A library item is a node type, or a widget type: that creates a new widget instance (with its own id) and a
   // widget node for it.

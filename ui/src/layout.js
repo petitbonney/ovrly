@@ -11,7 +11,7 @@ const GAP = 20 // between a caption and the next node
 // defs: node types, for node heights and output order (if/else's "true" goes above "false", a switch's cases in order).
 export default function layout(nodes, edges, defs) {
   const def = (n) => defs.find((d) => d.type === n?.data.type)
-  const height = (n) => nodeHeight(def(n), n.data.config)
+  const height = (n) => nodeHeight(def(n), n.data.config, edges.filter((e) => e.target === n.id).length)
   // Longest path from a root; relaxing at most once per node also stops on a loop.
   const depth = Object.fromEntries(nodes.map((n) => [n.id, 0]))
   for (let i = 0; i < nodes.length; i++) {
