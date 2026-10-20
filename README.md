@@ -62,6 +62,14 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   - control software over WebSocket (e.g. OBS)
 - **Import/export**: workflows and widgets are plain JSON files.
 
+## Download (no install)
+
+Grab the zip for your OS from the Releases page, unzip it, and double-click **Start Ovrly.command** (macOS) or **Start Ovrly.bat** (Windows). Node is bundled; your data stays in the `data` folder next to it (unzip a new version over the old one to update).
+
+The app is unsigned, so the first launch shows a warning: on macOS right-click the file → Open; on Windows click More info → Run anyway. Pressing keys on macOS needs Accessibility permission (System Settings → Privacy & Security).
+
+Releases are built by `.github/workflows/release.yml` when a `v*` tag is pushed.
+
 ## Quick start
 
 ```bash

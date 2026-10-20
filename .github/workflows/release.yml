@@ -1,0 +1,61 @@
+# Builds a portable zip per OS (app + production deps + bundled Node + launcher) and attaches them to a GitHub release.
+name: release
+on:
+  push:
+    tags: ['v*']
+
+env:
+  NODE_VERSION: 24.11.0
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - { os: macos-14, name: macos-arm64, node: darwin-arm64 }
+          - { os: macos-15-intel, name: macos-x64, node: darwin-x64 }
+          - { os: windows-latest, name: windows-x64, node: win-x64 }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - run: pnpm install --frozen-lockfile && pnpm build
+      # Flat (hoisted) production node_modules: real folders, no symlinks to break in a zip.
+      - run: rm -rf node_modules && pnpm install --prod --frozen-lockfile --node-linker=hoisted
+      - name: Stage
+        run: |
+          out=ovrly
+          mkdir -p $out/node
+          cp -r server widgets dist node_modules package.json LICENSE $out/
+          cp release/* $out/
+          base=https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-${{ matrix.node }}
+          if [[ "${{ matrix.node }}" == win-* ]]; then
+            curl -fsSL $base.zip -o node.zip && 7z x node.zip -onode-dl >/dev/null
+            cp node-dl/*/node.exe $out/node/
+          else
+            curl -fsSL $base.tar.gz | tar xz
+            cp node-v*/bin/node $out/node/
+          fi
+      - name: Zip
+        run: |
+          zip=ovrly-${{ github.ref_name }}-${{ matrix.name }}.zip
+          if [[ "${{ matrix.node }}" == win-* ]]; then 7z a $zip ovrly >/dev/null; else zip -ry $zip ovrly >/dev/null; fi
+          echo "ZIP=$zip" >> $GITHUB_ENV
+      - uses: actions/upload-artifact@v4
+        with: { name: '${{ matrix.name }}', path: '${{ env.ZIP }}' }
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: zips, merge-multiple: true }
+      - run: gh release create ${{ github.ref_name }} zips/*.zip --repo ${{ github.repository }} --generate-notes
+        env: { GH_TOKEN: '${{ github.token }}' }
