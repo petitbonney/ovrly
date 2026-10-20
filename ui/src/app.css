@@ -34,6 +34,9 @@
 .flow-node .port { position: absolute; left: 18px; top: -2px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; color: #999; pointer-events: none; }
 /* Graph controls: outline icons, not filled (ReactFlow fills its control icons). */
 .react-flow__controls-button svg.tabler-icon { fill: none; max-width: 16px; max-height: 16px; }
+.react-flow__controls { border-radius: 8px; overflow: hidden; }
+/* Locked graph: the lock button turns blue so the state is visible at a glance. */
+.react-flow__controls-button.locked, .react-flow__controls-button.locked:hover { background: var(--mantine-color-blue-6); color: #fff; }
 .react-flow { --xy-edge-stroke: #9a9a9a; --xy-edge-stroke-width: 2; --xy-background-color: #2d2e2e; }
 
 /* Live run feedback (Workflow.jsx): running pulses blue, done flashes green, stopped dims, error turns red. */

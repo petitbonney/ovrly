@@ -84,8 +84,10 @@ export function nodeHeight(def, config, inputs = 0) {
   return Math.max(90, outputsOf(def, config).length * 24, inputs * 18)
 }
 
-// workflowId: the workflow the node is in. widget: the instance a widget or Widget Callback node points to (undefined for a deleted one), type: its widget type.
-export default function FlowNode({ id, workflowId, data, selected, def, widget, type }) {
+// The editor passes in data: workflowId, the workflow the node is in; def, its node type; widget, the instance a widget or
+// Widget Callback node points to (undefined for a deleted one); widgetType, that widget's type.
+export default function FlowNode({ id, data, selected }) {
+  const { workflowId, def, widget, widgetType: type } = data
   const outputs = outputsOf(def, data.config)
   // Handles added or removed (a switch case) must be measured again, or links to them are misplaced.
   const updateNodeInternals = useUpdateNodeInternals()

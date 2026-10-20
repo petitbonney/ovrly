@@ -3,11 +3,14 @@
 // node). A widget node runs its widget's main action; a Widget Callback node runs any action on a widget node of the
 // same workflow, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; pasted
 // widget nodes share the same instance, which has one widget node per workflow. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y) undo and redo graph edits.
-import { useEffect, useMemo, useRef, useState } from 'react'
+// Canvas rule: the view never moves on its own, except to keep the selected node in sight. Shift+1 fits the graph,
+// Escape closes the node settings.
+import { useEffect, useRef, useState } from 'react'
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, ControlButton, MarkerType,
-  useNodesState, useEdgesState, addEdge, useReactFlow,
+  useNodesState, useEdgesState, useNodesInitialized, addEdge, useReactFlow,
 } from '@xyflow/react'
+import { animate } from 'animejs'
 import '@xyflow/react/dist/style.css'
 import { ActionIcon, AppShell, Button, Divider, Group, Modal, Notification, Text, TextInput, Tooltip } from '@mantine/core'
 import {
@@ -27,8 +30,13 @@ import { get, json } from './api.js'
 const findWidget = (widgets, ref) => widgets.find((w) => w.id === ref || w.name === ref)
 // Copied nodes and the edges between them; kept in memory so they can be pasted into another workflow.
 let clipboard = null
-// Workflow id -> its last view (pan and zoom), so coming back to a workflow shows it where it was left.
-const views = {}
+// A workflow's last view (pan and zoom), kept by this browser: it reopens where it was left, even after a refresh.
+const savedView = (id) => {
+  try { return JSON.parse(localStorage.getItem(`ovrly-view-${id}`)) } catch {}
+}
+const saveView = (id, view) => {
+  try { localStorage.setItem(`ovrly-view-${id}`, JSON.stringify(view)) } catch {}
+}
 // Widget id -> last known widget instance. The server deletes an instance with its last node; undo or paste
 // puts it back from here.
 const knownWidgets = {}
@@ -75,10 +83,26 @@ function isValidConnection(c, edges, nodes) {
   }
   return true
 }
-// Every node is drawn by FlowNode ("step"); edges get an arrow like n8n.
+// Every node is drawn by FlowNode ("step"), defined once so nodes aren't rebuilt (and measured again) on each render;
+// edges get an arrow like n8n.
+const nodeTypes = { step: FlowNode }
 const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '#9a9a9a' } }
 // Fitting the graph (on open and with the fit view button) never zooms past 100%, so a small graph isn't blown up.
+const MIN_ZOOM = 0.25
 const fitOptions = { maxZoom: 1, padding: 0.3 }
+// Nodes snap to the background's dots. A node box is 90px; its caption (two lines) hangs below it.
+const GRID = 20
+const NODE = 90
+const CAPTION = 50
+const snap = ({ x, y }) => ({ x: Math.round(x / GRID) * GRID, y: Math.round(y / GRID) * GRID })
+// Box around nodes, from their positions and measured sizes.
+function boundsOf(list) {
+  const x = Math.min(...list.map((n) => n.position.x))
+  const y = Math.min(...list.map((n) => n.position.y))
+  const x2 = Math.max(...list.map((n) => n.position.x + (n.measured?.width ?? NODE)))
+  const y2 = Math.max(...list.map((n) => n.position.y + (n.measured?.height ?? NODE)))
+  return { x, y, width: x2 - x, height: y2 - y }
+}
 
 // Settings of the selected node: title, description, then a form built from the node type's fields.
 // A widget node shows its widget instance's settings and preview, with the main action's value; a Widget Callback node
@@ -121,7 +145,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     workflow.nodes.map((n) => ({ ...n, type: 'step', selected: n.id === openNode })),
   )
   const [edges, setEdges, onEdgesChange] = useEdgesState(workflow.edges)
-  const { screenToFlowPosition, getViewport, setViewport, fitView, zoomIn, zoomOut } = useReactFlow()
+  const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView, zoomIn, zoomOut } = useReactFlow()
   // A node's type, from the library's node types.
   const defOf = (n) => defs.find((d) => d.type === n?.data.type)
 
@@ -175,32 +199,58 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     list.sort((a, b) => y(a) - y(b)).forEach((e, i) => (inputOf[e.id] = `in${i}`))
   }
   const shownNodes = nodes.map((n) => {
-    const shown = { ...n, data: { ...n.data, inputs: incoming[n.id]?.length } }
+    const widget = findWidget(widgets, n.data.config.widget)
+    const context = { workflowId: workflow.id, def: defOf(n), widget, widgetType: types.find((t) => t.type === widget?.type) }
+    const shown = { ...n, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
     return live.nodes[n.id] ? { ...shown, className: `run-${live.nodes[n.id]}` } : shown
   })
   const shownEdges = edges.map((e) => ({ ...e, targetHandle: inputOf[e.id] })).map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow', markerEnd: { ...edgeOptions.markerEnd, color: '#4dabf7' } } : e))
 
-  // When a pane opens, closes or is resized, the graph area changes size: pan so the graph's center stays put.
+  // Opening: the workflow's last view if it shows a node, or else the whole graph fitted. Waits until every node is
+  // measured (a fit only counts measured nodes); the graph stays hidden until then.
   const flowRef = useRef()
+  const initialized = useNodesInitialized()
+  const [ready, setReady] = useState(!workflow.nodes.length)
   useEffect(() => {
-    let last
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect
-      if (last) {
-        const v = getViewport()
-        setViewport({ ...v, x: v.x + (width - last.width) / 2, y: v.y + (height - last.height) / 2 })
-      }
-      last = { width, height }
+    if (ready || !initialized) return
+    const view = savedView(workflow.id)
+    const { clientWidth: w, clientHeight: h } = flowRef.current
+    const shows = view && getNodes().some((n) => {
+      const x = n.position.x * view.zoom + view.x
+      const y = n.position.y * view.zoom + view.y
+      return x < w && y < h && x + n.measured.width * view.zoom > 0 && y + n.measured.height * view.zoom > 0
+    })
+    const opening = shows ? setViewport(view) : fitView(fitOptions)
+    opening.then(() => setReady(true))
+  }, [initialized])
+
+  // A pane opening, closing or resized changes the canvas size, keeping its top-left corner: nothing moves. Once the
+  // size settles, the selected node slides into sight (the least needed) if it ended up under a pane or past an edge.
+  useEffect(() => {
+    const reveal = () => {
+      const node = getNodes().find((n) => n.selected)
+      if (!node?.measured) return
+      const { x, y, zoom } = getViewport()
+      const { clientWidth: w, clientHeight: h } = flowRef.current
+      const margin = 40
+      const shift = (start, size, room) => (start < margin ? margin - start : Math.min(0, room - margin - start - size))
+      const dx = shift(node.position.x * zoom + x, node.measured.width * zoom, w)
+      const dy = shift(node.position.y * zoom + y, (node.measured.height + CAPTION) * zoom, h)
+      if (dx || dy) setViewport({ x: x + dx, y: y + dy, zoom }, { duration: 250 })
+    }
+    let first = true
+    let timer
+    const observer = new ResizeObserver(() => {
+      if (first) return (first = false) // the initial size: the opening view handles it
+      clearTimeout(timer)
+      timer = setTimeout(reveal, 50)
     })
     observer.observe(flowRef.current)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      clearTimeout(timer)
+    }
   }, [])
-  const nodeTypes = useMemo(() => ({
-    step: function Step(props) {
-      const widget = findWidget(widgets, props.data.config.widget)
-      return <FlowNode {...props} workflowId={workflow.id} def={defOf(props)} widget={widget} type={types.find((t) => t.type === widget?.type)} />
-    },
-  }), [defs, widgets, types, workflow.id])
 
   // The graph's content: only the fields the engine needs (no selection or drag state).
   const graph = {
@@ -265,7 +315,8 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   // widget node for it.
   const onDrop = async (e) => {
     e.preventDefault()
-    const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    const cursor = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    const position = snap({ x: cursor.x - NODE / 2, y: cursor.y - NODE / 2 }) // centered on the cursor
     const type = types.find((t) => t.type === e.dataTransfer.getData('application/ovrly-widget'))
     const def = defs.find((d) => d.type === (type ? 'widget' : e.dataTransfer.getData('application/ovrly')))
     if (!def) return
@@ -288,15 +339,21 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     const what = picked.length === 1 ? nodeName(picked[0]) : `${picked.length} nodes`
     notify(`Copied ${what}. Paste with Ctrl+V, here or in another workflow.`)
   }
-  // Pasted nodes get new ids and are offset. A widget instance already in this workflow is not pasted again: links
-  // from the copied widget node go to the one already here.
+  // Pasted nodes get new ids and keep their layout, centered on the pointer (or the canvas when the pointer is
+  // elsewhere). A widget instance already in this workflow is not pasted again: links from the copied widget node go
+  // to the one already here.
+  const pointer = useRef(null)
   const paste = () => {
     const here = Object.fromEntries(nodes.filter((n) => n.data.type === 'widget').map((n) => [n.data.config.widget, n.id]))
     const fresh = clipboard.nodes.filter((n) => !(n.data.type === 'widget' && here[n.data.config.widget]))
     const skipped = clipboard.nodes.length - fresh.length
     if (!fresh.length) return notify(skipped === 1 ? 'This widget is already in this workflow.' : 'These widgets are already in this workflow.')
     const ids = Object.fromEntries(clipboard.nodes.map((n) => [n.id, fresh.includes(n) ? crypto.randomUUID() : here[n.data.config.widget]]))
-    const pasted = fresh.map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + 40, y: n.position.y + 40 } }))
+    const r = flowRef.current.getBoundingClientRect()
+    const at = screenToFlowPosition(pointer.current ?? { x: r.x + r.width / 2, y: r.y + r.height / 2 })
+    const b = boundsOf(fresh)
+    const d = snap({ x: at.x - b.x - b.width / 2, y: at.y - b.y - b.height / 2 })
+    const pasted = fresh.map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y } }))
     setNodes((ns) => ns.map((n) => ({ ...n, selected: false })).concat(pasted))
     restoreWidgets(pasted)
     const links = clipboard.edges.filter((ed) => ids[ed.source] && ids[ed.target])
@@ -305,10 +362,13 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     notify(`Pasted ${what}${skipped ? `; skipped ${skipped} widget${skipped > 1 ? 's' : ''} already in this workflow` : ''}.`)
   }
 
-  // Copy, paste, undo and redo shortcuts, skipped while typing in a field (which has its own undo).
+  // Fit, deselect, copy, paste, undo and redo shortcuts, skipped while typing in a field (which has its own undo).
   useEffect(() => {
     const onKey = (e) => {
-      if (!(e.ctrlKey || e.metaKey) || e.target.closest('input, textarea, [contenteditable]')) return
+      if (e.target.closest('input, textarea, [contenteditable]')) return
+      if (e.key === 'Escape') return setNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)))
+      if (e.shiftKey && e.code === 'Digit1') return fitView({ ...fitOptions, duration: 300 })
+      if (!(e.ctrlKey || e.metaKey)) return
       const key = e.key.toLowerCase()
       const picked = nodes.filter((n) => n.selected)
       if (key === 'c' && picked.length) copy(picked)
@@ -327,11 +387,21 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     onNodeSelect(selected?.id ?? null)
   }, [selected?.id])
   const hasManual = nodes.some((n) => n.data.type === 'manual')
-  // One-shot auto layout: moves every node once (a single undo step), then fits the view. Nodes stay movable.
+  // One-shot auto layout: every node glides to its place, the view stays put (a single undo step: history
+  // waits for the edit to settle). Nodes stay movable. Not snapped to the grid, so chains of links stay straight.
   const arrange = () => {
-    const positions = layout(nodes, edges, defs)
-    setNodes((ns) => ns.map((n) => ({ ...n, position: positions[n.id] })))
-    setTimeout(() => fitView({ ...fitOptions, duration: 300 }))
+    const to = layout(nodes, edges, defs)
+    const from = Object.fromEntries(nodes.map((n) => [n.id, n.position]))
+    const move = { t: 0 }
+    animate(move, {
+      t: 1,
+      duration: 300,
+      ease: 'outQuad',
+      onUpdate: () => setNodes((ns) => ns.map((n) => {
+        const [a, b] = [from[n.id], to[n.id]]
+        return a && b ? { ...n, position: { x: a.x + (b.x - a.x) * move.t, y: a.y + (b.y - a.y) * move.t } } : n
+      })),
+    })
   }
   // Links follow switch cases: a moved case keeps its links, a renamed one too, and a removed one takes them along.
   const setConfig = (config) => {
@@ -413,25 +483,28 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           isValidConnection={(c) => isValidConnection(c, edges, nodes)}
           nodesDraggable={!locked}
           nodesConnectable={!locked}
-          deleteKeyCode={locked ? null : 'Backspace'}
+          deleteKeyCode={locked ? null : ['Backspace', 'Delete']}
+          snapToGrid
+          snapGrid={[GRID, GRID]}
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
+          onMouseMove={(e) => (pointer.current = { x: e.clientX, y: e.clientY })}
+          onMouseLeave={() => (pointer.current = null)}
           colorMode="dark"
-          fitView={!views[workflow.id]}
-          fitViewOptions={fitOptions}
-          defaultViewport={views[workflow.id]}
-          onMoveEnd={(e, viewport) => (views[workflow.id] = viewport)}
+          style={{ opacity: ready ? 1 : 0 }}
+          minZoom={MIN_ZOOM}
+          onMoveEnd={(e, viewport) => saveView(workflow.id, viewport)}
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#555" gap={20} />
           {/* All graph controls use the same outline icons (ReactFlow's own zoom and fit icons are filled). */}
           <Controls position="top-left" showZoom={false} showFitView={false} showInteractive={false}>
-            <ControlButton onClick={() => zoomIn()} title="Zoom in"><IconPlus /></ControlButton>
-            <ControlButton onClick={() => zoomOut()} title="Zoom out"><IconMinus /></ControlButton>
-            <ControlButton onClick={() => fitView({ ...fitOptions, duration: 300 })} title="Fit view"><IconMaximize /></ControlButton>
-            <ControlButton onClick={() => setLocked((l) => !l)} title={locked ? 'Unlock the graph' : 'Lock node positions'}>
+            <ControlButton className={locked ? 'locked' : ''} onClick={() => setLocked((l) => !l)} title={locked ? 'Unlock the graph' : 'Lock node positions'}>
               {locked ? <IconLock /> : <IconLockOpen />}
             </ControlButton>
+            <ControlButton onClick={() => zoomIn({ duration: 200 })} title="Zoom in"><IconPlus /></ControlButton>
+            <ControlButton onClick={() => zoomOut({ duration: 200 })} title="Zoom out"><IconMinus /></ControlButton>
+            <ControlButton onClick={() => fitView({ ...fitOptions, duration: 300 })} title="Fit view (Shift+1)"><IconMaximize /></ControlButton>
             <ControlButton onClick={arrange} disabled={locked} title={locked ? 'Unlock the graph to arrange it' : 'Arrange nodes (once)'}>
               <IconSitemap style={{ transform: 'rotate(-90deg)' }} />
             </ControlButton>

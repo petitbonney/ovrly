@@ -235,7 +235,18 @@ export default function App() {
   const togglePanel = (key) => setPanels((p) => ({ ...p, [key]: !p[key] }))
   // Workflow id -> id of its selected node, whose settings show in the bottom pane; kept when switching workflows.
   const [openNodes, setOpenNodes] = useState({})
-  const resize = useAppShellResize({ aside: { min: 160, max: 480 }, footer: { min: 80, max: Math.round(innerHeight * 0.85) } })
+  // Pane sizes the user dragged, kept by this browser.
+  const [initialSizes] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ovrly-panes')) ?? undefined } catch {}
+  })
+  const resize = useAppShellResize({
+    aside: { min: 160, max: 480 },
+    footer: { min: 80, max: Math.round(innerHeight * 0.85) },
+    initialSizes,
+    onResizeEnd: (sizes) => {
+      try { localStorage.setItem('ovrly-panes', JSON.stringify(sizes)) } catch {}
+    },
+  })
   const editing = selected?.kind === 'workflows'
   const showAside = editing && panels.library
   // Panes don't slide when switching workflows: they just show the new workflow's state.
@@ -267,8 +278,8 @@ export default function App() {
       transitionDuration={switched ? 0 : undefined}
       navbar={{ width: 220, breakpoint: 0 }}
       aside={{ width: 220, breakpoint: 0, collapsed: { desktop: !showAside, mobile: !showAside } }}
-      // The settings pane opens at 60% of the window, enough for a widget's settings and preview; dragging resizes it.
-      footer={{ height: Math.max(200, Math.round(innerHeight * 0.6)), collapsed: !(editing && openNodes[selected.id]) }}
+      // The settings pane opens at 45% of the window, leaving room for the graph; dragging resizes it.
+      footer={{ height: Math.max(200, Math.round(innerHeight * 0.45)), collapsed: !(editing && openNodes[selected.id]) }}
     >
       <AppShell.Navbar p="sm">
         {/* The stop button sits at the bottom of the workflows section, below however many workflows there are. */}
