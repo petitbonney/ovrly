@@ -50,7 +50,7 @@
 @keyframes run-pulse { 50% { box-shadow: 0 0 0 6px rgba(77, 171, 247, 0.35); } }
 /* Merge Widgets canvas (Merge.jsx): as large as fits beside its settings; each widget is a live preview box. */
 .merge-fit { flex: 1; min-height: 0; }
-.merge-canvas { position: relative; aspect-ratio: auto; overflow: hidden; }
+.merge-canvas { position: relative; display: block; aspect-ratio: auto; overflow: hidden; }
 .merge-box { position: absolute; outline: 1px dashed #9147ff; background: #9147ff1a; cursor: move; touch-action: none; }
 .merge-box:hover { outline-style: solid; }
 .merge-box iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; pointer-events: none; color-scheme: normal; }

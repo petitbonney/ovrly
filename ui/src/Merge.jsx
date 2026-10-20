@@ -39,11 +39,11 @@ export default function Merge({ workflow, node, config, widgets, types, onChange
   const visual = (w) => types.find((t) => t.type === w.type)?.visual !== false
   const { layout = {} } = config
   const url = `${location.origin}/m/${workflow}/${node}`
-  // Canvas scale: as large as fits the space left in the pane.
+  // Canvas scale per axis: the canvas fills the space left in the pane, as the previews of the other widget nodes do.
   const ref = useRef()
-  const [scale, setScale] = useState(0)
+  const [scale, setScale] = useState({ x: 0, y: 0 })
   useEffect(() => {
-    const observer = new ResizeObserver(([entry]) => setScale(Math.min(entry.contentRect.width / W, entry.contentRect.height / H)))
+    const observer = new ResizeObserver(([entry]) => setScale({ x: entry.contentRect.width / W, y: entry.contentRect.height / H }))
     observer.observe(ref.current)
     return () => observer.disconnect()
   }, [])
@@ -77,9 +77,9 @@ export default function Merge({ workflow, node, config, widgets, types, onChange
     const ys = [0, H / 2, H, ...others.flatMap((o) => [o.y, o.y + o.h])]
     let box = start
     const onMove = (ev) => {
-      const reach = ev.altKey ? 0 : SNAP / scale
-      const dx = (ev.clientX - from.x) / scale
-      const dy = (ev.clientY - from.y) / scale
+      const reach = ev.altKey ? 0 : SNAP / scale.x
+      const dx = (ev.clientX - from.x) / scale.x
+      const dy = (ev.clientY - from.y) / scale.y
       if (mode === 'move') {
         const x = clamp(start.x + dx, 0, W - start.w)
         const y = clamp(start.y + dy, 0, H - start.h)
@@ -110,7 +110,7 @@ export default function Merge({ workflow, node, config, widgets, types, onChange
     <Group className="widget-split" align="stretch" gap="xl" wrap="nowrap">
       <Stack className="settings" gap="md" flex="0 1 320px" miw={0}>
         <Text size="xs" c="dimmed">
-          Any source size works: the canvas scales to fit it, widgets included, and stays centered. Widgets snap to
+          Any source size works: the canvas stretches to the space left, widgets included. Widgets snap to
           edges and center lines while dragged: hold Alt to place one freely.
         </Text>
         {!widgets.length && <Text size="xs" c="dimmed">Link widget nodes into this node to place them here.</Text>}
@@ -130,21 +130,21 @@ export default function Merge({ workflow, node, config, widgets, types, onChange
           </CopyButton>
         </Group>
         <div ref={ref} className="merge-fit">
-          <div className="preview merge-canvas" style={{ width: W * scale, height: H * scale }}>
+          <div className="preview merge-canvas" style={{ width: '100%', height: '100%' }}>
             {widgets.map((w, i) => {
               if (!visual(w)) return <iframe key={w.id} src={`/w/${w.id}`} data-merged="" title={w.name} hidden />
               const b = moving?.id === w.id ? moving.box : toBox(layout[w.id], i)
               return (
-                <div key={w.id} className="merge-box" style={{ left: b.x * scale, top: b.y * scale, width: b.w * scale, height: b.h * scale, zIndex: i }}
+                <div key={w.id} className="merge-box" style={{ left: b.x * scale.x, top: b.y * scale.y, width: b.w * scale.x, height: b.h * scale.y, zIndex: i }}
                   onPointerDown={(e) => grab(e, w.id, i, 'move')}>
-                  <iframe src={`/w/${w.id}`} data-merged="" title={w.name} style={{ width: b.w, height: b.h, transform: `scale(${scale})` }} />
+                  <iframe src={`/w/${w.id}`} data-merged="" title={w.name} style={{ width: b.w, height: b.h, transform: `scale(${scale.x}, ${scale.y})` }} />
                   <span className="name">{w.name}</span>
                   <span className="corner" onPointerDown={(e) => grab(e, w.id, i, 'size')} />
                 </div>
               )
             })}
-            {moving?.guides.x !== undefined && <div className="merge-guide x" style={{ left: moving.guides.x * scale }} />}
-            {moving?.guides.y !== undefined && <div className="merge-guide y" style={{ top: moving.guides.y * scale }} />}
+            {moving?.guides.x !== undefined && <div className="merge-guide x" style={{ left: moving.guides.x * scale.x }} />}
+            {moving?.guides.y !== undefined && <div className="merge-guide y" style={{ top: moving.guides.y * scale.y }} />}
           </div>
         </div>
       </Stack>
