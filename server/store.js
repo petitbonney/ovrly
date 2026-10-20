@@ -28,8 +28,17 @@ export async function get(kind, id) {
 export async function save(kind, item) {
   const saved = { ...item, id: item.id || randomUUID() }
   await fs.mkdir(file(kind), { recursive: true })
-  await fs.writeFile(file(kind, saved.id), JSON.stringify(saved, null, 2))
-  return saved
+  // Write aside, then rename: a crash can't leave half a file. Windows can refuse the rename while antivirus
+  // or another reader holds the file, so retry briefly.
+  const tmp = `${file(kind, saved.id)}.${randomUUID()}.tmp`
+  await fs.writeFile(tmp, JSON.stringify(saved, null, 2))
+  for (let tries = 1; ; tries++) {
+    try { return await fs.rename(tmp, file(kind, saved.id)).then(() => saved) } catch (err) {
+      if (tries < 5 && ['EPERM', 'EBUSY'].includes(err.code)) { await new Promise((r) => setTimeout(r, 50 * tries)); continue }
+      await fs.rm(tmp, { force: true })
+      throw err
+    }
+  }
 }
 
 export async function remove(kind, id) {

@@ -1,7 +1,8 @@
 // Image/GIF: shows an image for a few seconds, fading in and out. The image is the action's value, set on the node:
 // a file path on disk or a URL, typed or from data (e.g. {{gif}} from a GIPHY node).
+const ABS = /^([a-z]:[\\/]|[\\/])/i // C:\..., \\server\..., or /...
 const imageUrl = (v) =>
-  /^(https?:\/\/|\/media\/)/.test(v) ? v : v?.startsWith('/') ? `/file?path=${encodeURIComponent(v)}` : ''
+  /^(https?:\/\/|\/media\/)/.test(v) ? v : v && ABS.test(v) ? `/file?path=${encodeURIComponent(v)}` : ''
 
 export default {
   type: 'image',
