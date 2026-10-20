@@ -1,13 +1,13 @@
-// App shell: left workflow list and integrations (Twitch, OBS), center workflow editor. While editing a workflow: right library
+// App shell: left workflow list and settings button, center workflow editor. While editing a workflow: right library
 // (node and widget types to drag onto the graph) and bottom settings of the selected node; both toggle and resize.
 import { useEffect, useRef, useState } from 'react'
 import {
   ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, SimpleGrid, Stack, Switch, Text,
   TextInput, Tooltip, UnstyledButton, useAppShellResize,
 } from '@mantine/core'
-import { IconChevronRight, IconFile, IconFileImport, IconPlus, IconSearch, IconSos, IconTool, IconX } from '@tabler/icons-react'
+import { IconChevronRight, IconFile, IconFileImport, IconPlus, IconSearch, IconSettings, IconSos, IconTool, IconX } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
-import Integrations from './Integrations.jsx'
+import Settings from './Settings.jsx'
 import Heading from './Heading.jsx'
 import { icons, colors, widgetIcons } from './FlowNode.jsx'
 import templates from './templates.js'
@@ -204,6 +204,7 @@ export default function App() {
   }, [version])
 
   const [modal, setModal] = useState(false)
+  const [settings, setSettings] = useState(false)
   // Developer mode, toggled with Ctrl+Shift+D (Ctrl on macOS too) and remembered by this browser.
   const [devMode, setDevMode] = useState(() => {
     try { return localStorage.getItem('ovrly-dev') === '1' } catch { return false }
@@ -261,9 +262,6 @@ export default function App() {
       footer={{ height: Math.max(200, Math.round(innerHeight * 0.6)), collapsed: !(editing && openNodes[selected.id]) }}
     >
       <AppShell.Navbar p="sm">
-        <AppShell.Section pb="sm" mb="sm" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
-          <Integrations />
-        </AppShell.Section>
         {/* The stop button sits at the bottom of the workflows section, below however many workflows there are. */}
         <AppShell.Section grow style={{ overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
           <List title="Workflows" kind="workflows" selected={selected} onSelect={setSelected} onAdd={() => setModal(true)} version={version} />
@@ -272,6 +270,9 @@ export default function App() {
               <IconSos size={24} />
             </Button>
           </Tooltip>
+          <Button variant="default" size="xs" fullWidth mt="xs" leftSection={<IconSettings size={16} />} onClick={() => setSettings(true)}>
+            Settings
+          </Button>
         </AppShell.Section>
       </AppShell.Navbar>
       {editing ? (
@@ -303,6 +304,7 @@ export default function App() {
           </Tooltip>
         </Affix>
       )}
+      <Settings opened={settings} onClose={() => setSettings(false)} />
       <NewWorkflow opened={modal} onDone={onCreate} onClose={() => setModal(false)} />
     </AppShell>
   )
