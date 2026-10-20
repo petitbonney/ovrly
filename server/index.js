@@ -1,6 +1,7 @@
 // Server entry: REST API over the store, widget pages, plus the UI (Vite in dev, ./dist in production).
 import path from 'node:path'
 import { execFile } from 'node:child_process'
+import os from 'node:os'
 import express from 'express'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
@@ -45,6 +46,9 @@ for (const { config: { image, ...config }, ...widget } of Object.values(images))
 
 const PORT = process.env.PORT || 6875 // OVRL on a phone keypad
 const app = express()
+// Only this computer reaches Ovrly unless "Open to LAN" is on (Settings → Network).
+let lan = !!(await store.get('settings', 'network'))?.lan
+app.use((req, res, next) => /^(::1|(::ffff:)?127\.0\.0\.1)$/.test(req.socket.remoteAddress) || lan ? next() : res.sendStatus(403))
 app.use(express.json())
 
 // Node types for the UI library (metadata only, no run function).
@@ -121,6 +125,16 @@ app.delete('/api/twitch/login', async (req, res) => {
 })
 
 // OBS integration: its settings and status (saving reconnects), and the scene and source lists for node settings.
+const network = () => ({
+  lan, port: PORT,
+  addresses: Object.values(os.networkInterfaces()).flat().filter((i) => i.family === 'IPv4' && !i.internal).map((i) => i.address),
+})
+app.get('/api/network', (req, res) => res.json(network()))
+app.put('/api/network', async (req, res) => {
+  lan = !!req.body.lan
+  await store.save('settings', { id: 'network', lan })
+  res.json(network())
+})
 app.get('/api/obs', (req, res) => res.json(obs.status))
 app.put('/api/obs', async (req, res) => {
   const settings = { url: String(req.body.url ?? '').trim(), password: String(req.body.password ?? '') }
