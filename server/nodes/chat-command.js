@@ -5,7 +5,7 @@ export default {
   category: 'trigger',
   group: 'Chat',
   description: 'Fires when a chat message starts with a command, e.g. "!spin red".',
-  adds: ['user', 'message', 'channel', 'command', 'args'],
+  adds: ['user', 'message', 'channel', 'messageId', 'command', 'args'],
   fields: { command: { hint: 'Including the "!"' } },
   event: 'chat',
   config: { command: '!spin' },

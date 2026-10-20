@@ -47,7 +47,7 @@ async function connect(channel) {
     record('websocket', 'twitch', { channel, connected: false, reason })
   })
   client.on('message', (chan, tags, message) => {
-    bus.emit('chat', { user: tags['display-name'] || tags.username, message, channel: chan.slice(1) })
+    bus.emit('chat', { user: tags['display-name'] || tags.username, message, channel: chan.slice(1), messageId: tags.id })
   })
   // Chat's sub announcements as EventSub events (only while EventSub, which sends the real ones, isn't connected).
   const emit = (type, event) => eventsub.status.connected || bus.emit(type, event)
