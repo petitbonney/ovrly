@@ -4,7 +4,7 @@
 import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
-  IconAccessPoint, IconAccessPointOff, IconDiamond, IconFlame, IconGift, IconHeart, IconSparkles, IconStar, IconSwords,
+  IconAccessPoint, IconDiamond, IconFlame, IconGift, IconHeart, IconSparkles, IconStar, IconSwords,
   IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconLayoutCollage, IconBell, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconCoin, IconDeviceGamepad2, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
   IconMessageCode, IconMovie, IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVideo, IconVolume, IconVariable, IconWebhook, IconWindmill, IconWorld,
@@ -22,8 +22,7 @@ export const icons = {
   cheer: IconDiamond,
   redeem: IconSparkles,
   raid: IconSwords,
-  'stream-online': IconAccessPoint,
-  'stream-offline': IconAccessPointOff,
+  'stream-status': IconAccessPoint,
   'hype-train': IconFlame,
   webhook: IconWebhook,
   schedule: IconClock,
