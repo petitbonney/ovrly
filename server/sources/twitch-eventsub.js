@@ -67,9 +67,16 @@ function open(gen, url, reconnecting) {
           transport: { method: 'websocket', session_id: payload.session.id } })
           .catch((err) => { status.error = err.message })
       }
+      // Outgoing raids too, published as `twitch.raid.out` (the Raid action waits for its raid).
+      helix('POST', 'eventsub/subscriptions', { type: 'channel.raid', version: '1', condition: { from_broadcaster_user_id: account.userId },
+        transport: { method: 'websocket', session_id: payload.session.id } })
+        .catch((err) => { status.error = err.message })
     }
     if (metadata.message_type === 'session_reconnect') open(gen, payload.session.reconnect_url, true)
-    if (metadata.message_type === 'notification') bus.emit(metadata.subscription_type, payload.event)
+    if (metadata.message_type === 'notification') {
+      const out = metadata.subscription_type === 'channel.raid' && payload.event.from_broadcaster_user_id === account.userId
+      bus.emit(out ? 'twitch.raid.out' : metadata.subscription_type, payload.event)
+    }
     if (metadata.message_type === 'revocation') record('websocket', 'twitch-eventsub', { revoked: payload.subscription.type, reason: payload.subscription.status })
   }
 }

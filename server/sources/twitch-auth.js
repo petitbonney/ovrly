@@ -5,9 +5,12 @@ import * as store from '../store.js'
 import { record } from '../bus.js'
 
 export const CLIENT_ID = '6vu8lgkxb5ljuijesmm2rlirke32ns'
-// Polls and predictions (Poll and Bets widgets), then what the EventSub triggers on the roadmap need.
+// Polls and predictions (Poll and Bets widgets), what the EventSub triggers need, then the Twitch action nodes.
 const SCOPES = ['channel:manage:polls', 'channel:manage:predictions', 'channel:read:redemptions', 'moderator:read:followers',
-  'channel:read:subscriptions', 'bits:read', 'channel:read:hype_train']
+  'channel:read:subscriptions', 'bits:read', 'channel:read:hype_train',
+  'user:write:chat', 'moderator:manage:announcements', 'moderator:manage:shoutouts', 'moderator:manage:banned_users',
+  'moderator:manage:chat_messages', 'moderator:manage:chat_settings', 'channel:manage:broadcast', 'channel:edit:commercial',
+  'channel:manage:ads', 'clips:edit', 'channel:manage:redemptions', 'channel:manage:raids']
 
 // login: the signed-in account; device: the code to approve while a sign-in is pending; scopesOk: false when the
 // account was signed in before Ovrly asked for more scopes (sign in again).
@@ -83,17 +86,29 @@ export async function token() {
 }
 
 // One Helix API call as the signed-in streamer, e.g. helix('POST', 'polls', { title, … }); broadcaster_id is added to
-// the body (but for EventSub, which takes a condition instead). Returns the response's data array.
-export async function helix(method, path, body) {
-  const res = await fetch(`https://api.twitch.tv/helix/${path}`, {
+// the body (but for EventSub, which takes a condition instead). With query (the endpoints that take their IDs in the
+// URL), that query is sent instead, and the body as is. Returns the response's data array.
+export async function helix(method, path, body, query) {
+  const res = await fetch(`https://api.twitch.tv/helix/${path}${query && Object.keys(query).length ? `?${new URLSearchParams(query)}` : ''}`, {
     method,
     headers: { 'Client-Id': CLIENT_ID, Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
-    body: body && JSON.stringify(path.startsWith('eventsub') ? body : { broadcaster_id: auth.userId, ...body }),
+    body: body && JSON.stringify(query || path.startsWith('eventsub') ? body : { broadcaster_id: auth.userId, ...body }),
   })
   const json = await res.json().catch(() => ({}))
   record('http', 'twitch-api', { method, path, ...(!res.ok && { error: json.message }) })
   if (!res.ok) throw new Error(`Twitch ${path}: ${json.message || res.status}`)
   return json.data
+}
+
+// The query most moderation endpoints take: the streamer's channel, moderated by the streamer.
+export const channel = () => ({ broadcaster_id: auth?.userId, moderator_id: auth?.userId })
+
+// A Twitch user by login or display name ("@name" too): { id, login, display_name, profile_image_url, created_at, … }.
+export async function user(name) {
+  const login = String(name).trim().replace(/^@/, '').toLowerCase()
+  const [found] = login ? await helix('GET', 'users', undefined, { login }) : []
+  if (!found) throw new Error(`Twitch: no user named "${name}"`)
+  return found
 }
 
 // Stops a pending sign-in; the account signed in before (if any) stays.
