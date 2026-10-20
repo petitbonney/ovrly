@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, ControlButton, MarkerType,
-  useNodesState, useEdgesState, useNodesInitialized, addEdge, useReactFlow,
+  useNodesState, useEdgesState, useNodesInitialized, addEdge, useReactFlow, useStore,
 } from '@xyflow/react'
 import { animate } from 'animejs'
 import '@xyflow/react/dist/style.css'
@@ -22,7 +22,7 @@ import Fields from './Fields.jsx'
 import WidgetSettings from './Widget.jsx'
 import QueueLine from './QueueLine.jsx'
 import Merge from './Merge.jsx'
-import FlowNode, { colors, icons, widgetIcons } from './FlowNode.jsx'
+import FlowNode, { colors, icons, widgetIcons, outputsOf } from './FlowNode.jsx'
 import layout from './layout.js'
 import { exportWorkflow, download } from './share.js'
 import { get, json } from './api.js'
@@ -190,10 +190,41 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       timers.forEach(clearTimeout)
     }
   }, [])
+  // A link being pulled snaps to the node under the pointer, anywhere on it: to its input when pulled from an output,
+  // to its nearest output when pulled from an input. p is in flow coordinates.
+  const linkAt = (c, p) => {
+    const node = nodes.find((n) => n.id !== c.fromNode.id && p.x >= n.position.x && p.x <= n.position.x + (n.measured?.width ?? 0)
+      && p.y >= n.position.y && p.y <= n.position.y + (n.measured?.height ?? 0))
+    if (!node) return null
+    let link
+    if (c.fromHandle.type === 'source') {
+      if (defOf(node)?.category === 'trigger') return null
+      link = { source: c.fromNode.id, sourceHandle: c.fromHandle.id ?? null, target: node.id }
+    } else {
+      const outs = outputsOf(defOf(node), node.data.config)
+      const y = (i) => node.position.y + ((i + 1) * node.measured.height) / (outs.length + 1) // as placed by FlowNode
+      const i = outs.reduce((best, o, i) => (Math.abs(y(i) - p.y) < Math.abs(y(best) - p.y) ? i : best), 0)
+      link = { source: node.id, sourceHandle: outs[i]?.id ?? null, target: c.fromNode.id }
+    }
+    const exists = edges.some((e) => e.source === link.source && (e.sourceHandle ?? null) === link.sourceHandle && e.target === link.target)
+    return !exists && isValidConnection(link, edges, nodes) ? { ...link, targetHandle: null } : null // the input handle is picked on display
+  }
+  const onConnectEnd = (event, c) => {
+    const { clientX, clientY } = event.changedTouches?.[0] ?? event
+    const link = linkAt(c, screenToFlowPosition({ x: clientX, y: clientY }))
+    if (link) setEdges((es) => addEdge(link, es))
+  }
+  // While pulling, the link it would make is drawn as a real one (in the input slot it would take), in place of the
+  // pulled line. The connection's pointer is in screen pixels within the canvas. Selected as a string so this
+  // re-renders only when the previewed link changes.
+  const preview = JSON.parse(useStore(({ connection: c, transform: [tx, ty, zoom] }) =>
+    JSON.stringify(c.inProgress && linkAt(c, { x: (c.pointer.x - tx) / zoom, y: (c.pointer.y - ty) / zoom }))))
+  const allEdges = preview ? [...edges, { ...preview, id: 'preview', selectable: false, focusable: false }] : edges
+
   // Each link into a node gets its own input handle, in the order of its source's height so links don't cross.
   const inputOf = {}
   const incoming = {}
-  for (const e of edges) (incoming[e.target] ??= []).push(e)
+  for (const e of allEdges) (incoming[e.target] ??= []).push(e)
   for (const list of Object.values(incoming)) {
     const y = (e) => nodes.find((n) => n.id === e.source)?.position.y ?? 0
     list.sort((a, b) => y(a) - y(b)).forEach((e, i) => (inputOf[e.id] = `in${i}`))
@@ -204,7 +235,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     const shown = { ...n, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
     return live.nodes[n.id] ? { ...shown, className: `run-${live.nodes[n.id]}` } : shown
   })
-  const shownEdges = edges.map((e) => ({ ...e, targetHandle: inputOf[e.id] })).map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow', markerEnd: { ...edgeOptions.markerEnd, color: '#4dabf7' } } : e))
+  const shownEdges = allEdges.map((e) => ({ ...e, targetHandle: inputOf[e.id] })).map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow', markerEnd: { ...edgeOptions.markerEnd, color: '#4dabf7' } } : e))
 
   // Opening: the workflow's last view if it shows a node, or else the whole graph fitted. Waits until every node is
   // measured (a fit only counts measured nodes); the graph stays hidden until then.
@@ -308,8 +339,6 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   }
   const undo = () => travel('past', 'future')
   const redo = () => travel('future', 'past')
-
-  const onConnect = (c) => setEdges((es) => addEdge({ ...c, targetHandle: null }, es)) // the input handle is picked on display
 
   // A library item is a node type, or a widget type: that creates a new widget instance (with its own id) and a
   // widget node for it.
@@ -529,8 +558,9 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           selectNodesOnDrag={false} // moving a node must not open its settings; a click does
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          isValidConnection={(c) => isValidConnection(c, edges, nodes)}
+          onConnectEnd={onConnectEnd}
+          connectionRadius={0} // links snap to whole nodes (see linkAt), not to nearby handles
+          className={preview ? 'previewing' : ''}
           nodesDraggable={!locked}
           nodesConnectable={!locked}
           deleteKeyCode={locked ? null : ['Backspace', 'Delete']}
