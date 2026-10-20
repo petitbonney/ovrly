@@ -12,7 +12,7 @@ import '@xyflow/react/dist/style.css'
 import { ActionIcon, AppShell, Button, Divider, Group, Modal, Notification, Text, TextInput, Tooltip } from '@mantine/core'
 import {
   IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
-  IconPlayerPlay, IconPlus, IconSitemap,
+  IconPlayerPlay, IconPlayerStop, IconPlus, IconSitemap,
   IconTrash,
 } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
@@ -139,6 +139,8 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   // Live run feedback from the engine (/api/activity): node id -> running | done | stopped | error | waiting, and
   // edge id -> its target node while data travels on it. Only for display: not saved, not part of undo.
   const [live, setLive] = useState({ nodes: {}, edges: {} })
+  // Firings of this workflow in progress, for the Cancel button.
+  const [firings, setFirings] = useState(0)
   useEffect(() => {
     const timers = []
     // Finished states stay visible a moment, unless the node started again meanwhile.
@@ -367,6 +369,11 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           <Tooltip label={hasManual ? 'Run manual triggers' : 'Add a Manual Trigger to run this workflow by hand'}>
             <ActionIcon size="md" variant="light" color="green" disabled={!hasManual} onClick={() => fetch(`/api/workflows/${workflow.id}/run`, { method: 'POST' })}>
               <IconPlayerPlay size={18} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Cancel the running workflow and its nodes">
+            <ActionIcon size="md" variant="light" color="red" disabled={!firings} onClick={() => fetch(`/api/workflows/${workflow.id}/cancel`, { method: 'POST' })}>
+              <IconPlayerStop size={18} />
             </ActionIcon>
           </Tooltip>
           <Divider orientation="vertical" />
