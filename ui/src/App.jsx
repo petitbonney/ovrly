@@ -46,7 +46,7 @@ function List({ title, kind, selected, onSelect, onAdd, version }) {
       {items.map((item) => (
         <NavLink
           key={item.id}
-          label={item.name || item.id}
+          label={<Text inherit truncate title={item.name || item.id}>{item.name || item.id}</Text>}
           rightSection={running[item.id] > 0 && <Loader size={10} />}
           c={item.enabled === false ? 'dimmed' : undefined}
           active={selected?.id === item.id}
