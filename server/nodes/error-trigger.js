@@ -3,6 +3,7 @@ export default {
   type: 'error-trigger',
   label: 'Error Trigger',
   category: 'trigger',
+  group: 'Other',
   description: 'Fires when a node fails in another workflow.',
   adds: ['workflow', 'node', 'error'],
   event: 'workflow-error',

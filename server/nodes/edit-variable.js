@@ -7,6 +7,7 @@ export default {
   type: 'edit-variable',
   label: 'Edit Variable',
   category: 'logic',
+  group: 'Data',
   description: 'Sets, adds to or deletes a variable: shared by all workflows, kept across runs and restarts.',
   adds: ['value'],
   fields: {

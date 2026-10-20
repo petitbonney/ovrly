@@ -6,6 +6,7 @@ export default {
   type: 'filter',
   label: 'Filter',
   category: 'logic',
+  group: 'Flow',
   description: 'Continues only if the comparison holds.',
   fields: {
     value: { vars: true },

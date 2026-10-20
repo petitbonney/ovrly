@@ -8,6 +8,7 @@ export default {
   type: 'http-request',
   label: 'HTTP Request',
   category: 'action',
+  group: 'System',
   description: 'Sends an HTTP request.',
   adds: ['status', 'response', 'json'],
   fields: {

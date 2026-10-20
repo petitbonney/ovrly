@@ -7,6 +7,7 @@ export default {
   type: 'widget-callback',
   label: 'Widget Callback',
   category: 'action',
+  group: 'System',
   description: 'Runs an action on a widget of this workflow, and waits until it has finished playing.',
   fields: {
     widget: { type: 'widget', label: 'Widget', hint: 'A widget node of this workflow, by name or instance ID' },

@@ -7,6 +7,7 @@ export default {
   type: 'code',
   label: 'Code',
   category: 'logic',
+  group: 'Data',
   description: 'Runs JavaScript: `data` is the current data, `$vars` the variables; return the new data, or null to stop.',
   fields: { code: { type: 'code', hint: 'await works. Returning nothing keeps the data as it is.' } },
   config: { code: 'return { ...data, shout: String(data.message ?? "").toUpperCase() }' },

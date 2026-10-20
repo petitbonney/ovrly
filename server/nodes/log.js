@@ -5,6 +5,7 @@ export default {
   type: 'log',
   label: 'Log',
   category: 'action',
+  group: 'System',
   description: 'Prints a message and the current data to the server console and the events view.',
   config: { message: 'log' },
   run({ config, data }) {

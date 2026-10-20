@@ -3,23 +3,26 @@
 // node). A widget node runs its widget's main action; a Widget Callback node runs any action on a widget node of the
 // same workflow, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; pasted
 // widget nodes share the same instance, which has one widget node per workflow. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y) undo and redo graph edits.
-import { useEffect, useMemo, useRef, useState } from 'react'
+// Canvas rule: the view never moves on its own, except to keep the selected node in sight. Shift+1 fits the graph,
+// Escape closes the node settings.
+import { useEffect, useRef, useState } from 'react'
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, ControlButton, MarkerType,
-  useNodesState, useEdgesState, addEdge, useReactFlow,
+  useNodesState, useEdgesState, useNodesInitialized, addEdge, useReactFlow, useStore,
 } from '@xyflow/react'
+import { animate } from 'animejs'
 import '@xyflow/react/dist/style.css'
 import { ActionIcon, AppShell, Button, Divider, Group, Modal, Notification, Text, TextInput, Tooltip } from '@mantine/core'
 import {
   IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
-  IconPlayerPlay, IconPlus, IconSitemap,
+  IconPlayerPlay, IconPlayerStop, IconPlus, IconSitemap,
   IconTrash,
 } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import WidgetSettings from './Widget.jsx'
 import QueueLine from './QueueLine.jsx'
 import Merge from './Merge.jsx'
-import FlowNode, { colors, icons, widgetIcons } from './FlowNode.jsx'
+import FlowNode, { colors, icons, widgetIcons, outputsOf } from './FlowNode.jsx'
 import layout from './layout.js'
 import { exportWorkflow, download } from './share.js'
 import { get, json } from './api.js'
@@ -27,8 +30,13 @@ import { get, json } from './api.js'
 const findWidget = (widgets, ref) => widgets.find((w) => w.id === ref || w.name === ref)
 // Copied nodes and the edges between them; kept in memory so they can be pasted into another workflow.
 let clipboard = null
-// Workflow id -> its last view (pan and zoom), so coming back to a workflow shows it where it was left.
-const views = {}
+// A workflow's last view (pan and zoom), kept by this browser: it reopens where it was left, even after a refresh.
+const savedView = (id) => {
+  try { return JSON.parse(localStorage.getItem(`ovrly-view-${id}`)) } catch {}
+}
+const saveView = (id, view) => {
+  try { localStorage.setItem(`ovrly-view-${id}`, JSON.stringify(view)) } catch {}
+}
 // Widget id -> last known widget instance. The server deletes an instance with its last node; undo or paste
 // puts it back from here.
 const knownWidgets = {}
@@ -75,10 +83,26 @@ function isValidConnection(c, edges, nodes) {
   }
   return true
 }
-// Every node is drawn by FlowNode ("step"); edges get an arrow like n8n.
+// Every node is drawn by FlowNode ("step"), defined once so nodes aren't rebuilt (and measured again) on each render;
+// edges get an arrow like n8n.
+const nodeTypes = { step: FlowNode }
 const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '#9a9a9a' } }
 // Fitting the graph (on open and with the fit view button) never zooms past 100%, so a small graph isn't blown up.
+const MIN_ZOOM = 0.25
 const fitOptions = { maxZoom: 1, padding: 0.3 }
+// Nodes snap to the background's dots. A node box is 90px; its caption (two lines) hangs below it.
+const GRID = 20
+const NODE = 90
+const CAPTION = 50
+const snap = ({ x, y }) => ({ x: Math.round(x / GRID) * GRID, y: Math.round(y / GRID) * GRID })
+// Box around nodes, from their positions and measured sizes.
+function boundsOf(list) {
+  const x = Math.min(...list.map((n) => n.position.x))
+  const y = Math.min(...list.map((n) => n.position.y))
+  const x2 = Math.max(...list.map((n) => n.position.x + (n.measured?.width ?? NODE)))
+  const y2 = Math.max(...list.map((n) => n.position.y + (n.measured?.height ?? NODE)))
+  return { x, y, width: x2 - x, height: y2 - y }
+}
 
 // Settings of the selected node: title, description, then a form built from the node type's fields.
 // A widget node shows its widget instance's settings and preview, with the main action's value; a Widget Callback node
@@ -121,7 +145,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     workflow.nodes.map((n) => ({ ...n, type: 'step', selected: n.id === openNode })),
   )
   const [edges, setEdges, onEdgesChange] = useEdgesState(workflow.edges)
-  const { screenToFlowPosition, getViewport, setViewport, fitView, zoomIn, zoomOut } = useReactFlow()
+  const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView, zoomIn, zoomOut } = useReactFlow()
   // A node's type, from the library's node types.
   const defOf = (n) => defs.find((d) => d.type === n?.data.type)
 
@@ -139,6 +163,8 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   // Live run feedback from the engine (/api/activity): node id -> running | done | stopped | error | waiting, and
   // edge id -> its target node while data travels on it. Only for display: not saved, not part of undo.
   const [live, setLive] = useState({ nodes: {}, edges: {} })
+  // Firings of this workflow in progress, for the Cancel button.
+  const [firings, setFirings] = useState(0)
   useEffect(() => {
     const timers = []
     // Finished states stay visible a moment, unless the node started again meanwhile.
@@ -152,7 +178,8 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     const source = new EventSource('/api/activity')
     source.onmessage = (e) => {
       const a = JSON.parse(e.data)
-      if (a.workflow !== workflow.id || 'running' in a) return
+      if (a.workflow !== workflow.id) return
+      if ('running' in a) return setFirings(a.running)
       if (a.edge) return setLive((l) => ({ ...l, edges: { ...l.edges, [a.edge]: a.target } }))
       setLive((l) => ({ ...l, nodes: { ...l.nodes, [a.node]: a.state } }))
       if (a.state === 'error') notify(`${nodeName(nodes.find((n) => n.id === a.node) ?? { data: { label: 'A node' } })} failed: ${a.error}`, 'red')
@@ -163,30 +190,98 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       timers.forEach(clearTimeout)
     }
   }, [])
-  const shownNodes = nodes.map((n) => (live.nodes[n.id] ? { ...n, className: `run-${live.nodes[n.id]}` } : n))
-  const shownEdges = edges.map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow' } : e))
+  // A link being pulled snaps to the node under the pointer, anywhere on it: to its input when pulled from an output,
+  // to its nearest output when pulled from an input. p is in flow coordinates.
+  const linkAt = (c, p) => {
+    const node = nodes.find((n) => n.id !== c.fromNode.id && p.x >= n.position.x && p.x <= n.position.x + (n.measured?.width ?? 0)
+      && p.y >= n.position.y && p.y <= n.position.y + (n.measured?.height ?? 0))
+    if (!node) return null
+    let link
+    if (c.fromHandle.type === 'source') {
+      if (defOf(node)?.category === 'trigger') return null
+      link = { source: c.fromNode.id, sourceHandle: c.fromHandle.id ?? null, target: node.id }
+    } else {
+      const outs = outputsOf(defOf(node), node.data.config)
+      const y = (i) => node.position.y + ((i + 1) * node.measured.height) / (outs.length + 1) // as placed by FlowNode
+      const i = outs.reduce((best, o, i) => (Math.abs(y(i) - p.y) < Math.abs(y(best) - p.y) ? i : best), 0)
+      link = { source: node.id, sourceHandle: outs[i]?.id ?? null, target: c.fromNode.id }
+    }
+    const exists = edges.some((e) => e.source === link.source && (e.sourceHandle ?? null) === link.sourceHandle && e.target === link.target)
+    return !exists && isValidConnection(link, edges, nodes) ? { ...link, targetHandle: null } : null // the input handle is picked on display
+  }
+  const onConnectEnd = (event, c) => {
+    const { clientX, clientY } = event.changedTouches?.[0] ?? event
+    const link = linkAt(c, screenToFlowPosition({ x: clientX, y: clientY }))
+    if (link) setEdges((es) => addEdge(link, es))
+  }
+  // While pulling, the link it would make is drawn as a real one (in the input slot it would take), in place of the
+  // pulled line. The connection's pointer is in screen pixels within the canvas. Selected as a string so this
+  // re-renders only when the previewed link changes.
+  const preview = JSON.parse(useStore(({ connection: c, transform: [tx, ty, zoom] }) =>
+    JSON.stringify(c.inProgress && linkAt(c, { x: (c.pointer.x - tx) / zoom, y: (c.pointer.y - ty) / zoom }))))
+  const allEdges = preview ? [...edges, { ...preview, id: 'preview', selectable: false, focusable: false }] : edges
 
-  // When a pane opens, closes or is resized, the graph area changes size: pan so the graph's center stays put.
+  // Each link into a node gets its own input handle, in the order of its source's height so links don't cross.
+  const inputOf = {}
+  const incoming = {}
+  for (const e of allEdges) (incoming[e.target] ??= []).push(e)
+  for (const list of Object.values(incoming)) {
+    const y = (e) => nodes.find((n) => n.id === e.source)?.position.y ?? 0
+    list.sort((a, b) => y(a) - y(b)).forEach((e, i) => (inputOf[e.id] = `in${i}`))
+  }
+  const shownNodes = nodes.map((n) => {
+    const widget = findWidget(widgets, n.data.config.widget)
+    const context = { workflowId: workflow.id, def: defOf(n), widget, widgetType: types.find((t) => t.type === widget?.type) }
+    const shown = { ...n, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
+    return live.nodes[n.id] ? { ...shown, className: `run-${live.nodes[n.id]}` } : shown
+  })
+  const shownEdges = allEdges.map((e) => ({ ...e, targetHandle: inputOf[e.id] })).map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow', markerEnd: { ...edgeOptions.markerEnd, color: '#4dabf7' } } : e))
+
+  // Opening: the workflow's last view if it shows a node, or else the whole graph fitted. Waits until every node is
+  // measured (a fit only counts measured nodes); the graph stays hidden until then.
   const flowRef = useRef()
+  const initialized = useNodesInitialized()
+  const [ready, setReady] = useState(!workflow.nodes.length)
   useEffect(() => {
-    let last
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect
-      if (last) {
-        const v = getViewport()
-        setViewport({ ...v, x: v.x + (width - last.width) / 2, y: v.y + (height - last.height) / 2 })
-      }
-      last = { width, height }
+    if (ready || !initialized) return
+    const view = savedView(workflow.id)
+    const { clientWidth: w, clientHeight: h } = flowRef.current
+    const shows = view && getNodes().some((n) => {
+      const x = n.position.x * view.zoom + view.x
+      const y = n.position.y * view.zoom + view.y
+      return x < w && y < h && x + n.measured.width * view.zoom > 0 && y + n.measured.height * view.zoom > 0
+    })
+    const opening = shows ? setViewport(view) : fitView(fitOptions)
+    opening.then(() => setReady(true))
+  }, [initialized])
+
+  // A pane opening, closing or resized changes the canvas size, keeping its top-left corner: nothing moves. Once the
+  // size settles, the selected node slides into sight (the least needed) if it ended up under a pane or past an edge.
+  useEffect(() => {
+    const reveal = () => {
+      const node = getNodes().find((n) => n.selected)
+      if (!node?.measured) return
+      const { x, y, zoom } = getViewport()
+      const { clientWidth: w, clientHeight: h } = flowRef.current
+      const margin = 40
+      const shift = (start, size, room) => (start < margin ? margin - start : Math.min(0, room - margin - start - size))
+      const dx = shift(node.position.x * zoom + x, node.measured.width * zoom, w)
+      const dy = shift(node.position.y * zoom + y, (node.measured.height + CAPTION) * zoom, h)
+      if (dx || dy) setViewport({ x: x + dx, y: y + dy, zoom }, { duration: 250 })
+    }
+    let first = true
+    let timer
+    const observer = new ResizeObserver(() => {
+      if (first) return (first = false) // the initial size: the opening view handles it
+      clearTimeout(timer)
+      timer = setTimeout(reveal, 50)
     })
     observer.observe(flowRef.current)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      clearTimeout(timer)
+    }
   }, [])
-  const nodeTypes = useMemo(() => ({
-    step: function Step(props) {
-      const widget = findWidget(widgets, props.data.config.widget)
-      return <FlowNode {...props} workflowId={workflow.id} def={defOf(props)} widget={widget} type={types.find((t) => t.type === widget?.type)} />
-    },
-  }), [defs, widgets, types, workflow.id])
 
   // The graph's content: only the fields the engine needs (no selection or drag state).
   const graph = {
@@ -245,16 +340,36 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   const undo = () => travel('past', 'future')
   const redo = () => travel('future', 'past')
 
-  const onConnect = (c) => setEdges((es) => addEdge(c, es))
-
   // A library item is a node type, or a widget type: that creates a new widget instance (with its own id) and a
   // widget node for it.
-  const onDrop = async (e) => {
-    e.preventDefault()
-    const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
-    const type = types.find((t) => t.type === e.dataTransfer.getData('application/ovrly-widget'))
-    const def = defs.find((d) => d.type === (type ? 'widget' : e.dataTransfer.getData('application/ovrly')))
+  // Where a double-clicked library item goes: the canvas center when empty; a trigger goes above the top-right trigger,
+  // or left of the leftmost node when there is none; anything else goes right of the top-right node.
+  const spawnPosition = (def) => {
+    const topRight = (list) => list.reduce((a, b) => (b.position.x > a.position.x || (b.position.x === a.position.x && b.position.y < a.position.y) ? b : a))
+    const triggers = nodes.filter((n) => defOf(n)?.category === 'trigger')
+    let p
+    if (!nodes.length) {
+      const r = flowRef.current.getBoundingClientRect()
+      const c = screenToFlowPosition({ x: r.x + r.width / 2, y: r.y + r.height / 2 })
+      p = { x: c.x - NODE / 2, y: c.y - NODE / 2 }
+    } else if (def.category === 'trigger' && triggers.length) {
+      const t = topRight(triggers).position
+      p = { x: t.x, y: t.y - NODE - CAPTION }
+    } else if (def.category === 'trigger') {
+      const l = nodes.reduce((a, b) => (b.position.x < a.position.x ? b : a)).position
+      p = { x: l.x - NODE - GRID * 3, y: l.y }
+    } else {
+      const t = topRight(nodes)
+      p = { x: t.position.x + (t.measured?.width ?? NODE) + GRID * 3, y: t.position.y }
+    }
+    return snap(p)
+  }
+  const addItem = async (widgetType, nodeType, position) => {
+    const type = types.find((t) => t.type === widgetType)
+    const def = defs.find((d) => d.type === (type ? 'widget' : nodeType))
     if (!def) return
+    const spawned = !position // double-clicked, not dropped
+    position ??= spawnPosition(def)
     let config = {}
     if (type) {
       // Signed in to Twitch (Streamer mode): a widget with a Twitch mode (Poll, Bets) starts in it.
@@ -265,7 +380,36 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       onWidgetChange()
     }
     setNodes((ns) => ns.concat({ id: crypto.randomUUID(), type: 'step', position, data: { type: def.type, label: def.label, config } }))
+    if (spawned) showBox({ ...position, width: NODE, height: NODE + CAPTION })
   }
+  // Pans, keeping the zoom, until the box is inside the visible canvas.
+  const showBox = (box) => {
+    const r = flowRef.current.getBoundingClientRect()
+    const tl = screenToFlowPosition({ x: r.left, y: r.top })
+    const br = screenToFlowPosition({ x: r.right, y: r.bottom })
+    const margin = GRID
+    const shift = (lo, hi, from, to) => (lo < from ? lo - from - margin : hi > to ? hi - to + margin : 0)
+    const dx = shift(box.x, box.x + box.width, tl.x, br.x)
+    const dy = shift(box.y, box.y + box.height, tl.y, br.y)
+    if (!dx && !dy) return
+    const { x, y, zoom } = getViewport()
+    setViewport({ x: x - dx * zoom, y: y - dy * zoom, zoom }, { duration: 300 })
+  }
+
+  const onDrop = (e) => {
+    e.preventDefault()
+    const cursor = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    const position = snap({ x: cursor.x - NODE / 2, y: cursor.y - NODE / 2 }) // centered on the cursor
+    addItem(e.dataTransfer.getData('application/ovrly-widget'), e.dataTransfer.getData('application/ovrly'), position)
+  }
+  // Double-clicking a library item adds it next to the existing nodes.
+  const addRef = useRef()
+  addRef.current = addItem
+  useEffect(() => {
+    const onAdd = (e) => addRef.current(e.detail.widget, e.detail.node)
+    window.addEventListener('ovrly-add', onAdd)
+    return () => window.removeEventListener('ovrly-add', onAdd)
+  }, [])
 
   const nodeName = (n) => (n.data.type === 'widget' ? findWidget(widgets, n.data.config.widget)?.name : defOf(n)?.label) ?? n.data.label
   const copy = (picked) => {
@@ -274,15 +418,21 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     const what = picked.length === 1 ? nodeName(picked[0]) : `${picked.length} nodes`
     notify(`Copied ${what}. Paste with Ctrl+V, here or in another workflow.`)
   }
-  // Pasted nodes get new ids and are offset. A widget instance already in this workflow is not pasted again: links
-  // from the copied widget node go to the one already here.
+  // Pasted nodes get new ids and keep their layout, centered on the pointer (or the canvas when the pointer is
+  // elsewhere). A widget instance already in this workflow is not pasted again: links from the copied widget node go
+  // to the one already here.
+  const pointer = useRef(null)
   const paste = () => {
     const here = Object.fromEntries(nodes.filter((n) => n.data.type === 'widget').map((n) => [n.data.config.widget, n.id]))
     const fresh = clipboard.nodes.filter((n) => !(n.data.type === 'widget' && here[n.data.config.widget]))
     const skipped = clipboard.nodes.length - fresh.length
     if (!fresh.length) return notify(skipped === 1 ? 'This widget is already in this workflow.' : 'These widgets are already in this workflow.')
     const ids = Object.fromEntries(clipboard.nodes.map((n) => [n.id, fresh.includes(n) ? crypto.randomUUID() : here[n.data.config.widget]]))
-    const pasted = fresh.map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + 40, y: n.position.y + 40 } }))
+    const r = flowRef.current.getBoundingClientRect()
+    const at = screenToFlowPosition(pointer.current ?? { x: r.x + r.width / 2, y: r.y + r.height / 2 })
+    const b = boundsOf(fresh)
+    const d = snap({ x: at.x - b.x - b.width / 2, y: at.y - b.y - b.height / 2 })
+    const pasted = fresh.map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y } }))
     setNodes((ns) => ns.map((n) => ({ ...n, selected: false })).concat(pasted))
     restoreWidgets(pasted)
     const links = clipboard.edges.filter((ed) => ids[ed.source] && ids[ed.target])
@@ -291,10 +441,13 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     notify(`Pasted ${what}${skipped ? `; skipped ${skipped} widget${skipped > 1 ? 's' : ''} already in this workflow` : ''}.`)
   }
 
-  // Copy, paste, undo and redo shortcuts, skipped while typing in a field (which has its own undo).
+  // Fit, deselect, copy, paste, undo and redo shortcuts, skipped while typing in a field (which has its own undo).
   useEffect(() => {
     const onKey = (e) => {
-      if (!(e.ctrlKey || e.metaKey) || e.target.closest('input, textarea, [contenteditable]')) return
+      if (e.target.closest('input, textarea, [contenteditable]')) return
+      if (e.key === 'Escape') return setNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)))
+      if (e.shiftKey && e.code === 'Digit1') return fitView({ ...fitOptions, duration: 300 })
+      if (!(e.ctrlKey || e.metaKey)) return
       const key = e.key.toLowerCase()
       const picked = nodes.filter((n) => n.selected)
       if (key === 'c' && picked.length) copy(picked)
@@ -313,11 +466,21 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     onNodeSelect(selected?.id ?? null)
   }, [selected?.id])
   const hasManual = nodes.some((n) => n.data.type === 'manual')
-  // One-shot auto layout: moves every node once (a single undo step), then fits the view. Nodes stay movable.
+  // One-shot auto layout: every node glides to its place, the view stays put (a single undo step: history
+  // waits for the edit to settle). Nodes stay movable and land on the grid.
   const arrange = () => {
-    const positions = layout(nodes, edges, defs)
-    setNodes((ns) => ns.map((n) => ({ ...n, position: positions[n.id] })))
-    setTimeout(() => fitView({ ...fitOptions, duration: 300 }))
+    const to = Object.fromEntries(Object.entries(layout(nodes, edges, defs)).map(([id, p]) => [id, snap(p)]))
+    const from = Object.fromEntries(nodes.map((n) => [n.id, n.position]))
+    const move = { t: 0 }
+    animate(move, {
+      t: 1,
+      duration: 300,
+      ease: 'outQuad',
+      onUpdate: () => setNodes((ns) => ns.map((n) => {
+        const [a, b] = [from[n.id], to[n.id]]
+        return a && b ? { ...n, position: { x: a.x + (b.x - a.x) * move.t, y: a.y + (b.y - a.y) * move.t } } : n
+      })),
+    })
   }
   // Links follow switch cases: a moved case keeps its links, a renamed one too, and a removed one takes them along.
   const setConfig = (config) => {
@@ -357,6 +520,11 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
               <IconPlayerPlay size={18} />
             </ActionIcon>
           </Tooltip>
+          <Tooltip label="Cancel the running workflow and its nodes">
+            <ActionIcon size="md" variant="light" color="red" disabled={!firings} onClick={() => fetch(`/api/workflows/${workflow.id}/cancel`, { method: 'POST' })}>
+              <IconPlayerStop size={18} />
+            </ActionIcon>
+          </Tooltip>
           <Divider orientation="vertical" />
           <Tooltip label="Export as JSON">
             <ActionIcon size="md" variant="default" onClick={() => exportWorkflow(workflow.id).then((b) => download(b, name))}><IconDownload size={18} /></ActionIcon>
@@ -390,29 +558,33 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           selectNodesOnDrag={false} // moving a node must not open its settings; a click does
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          isValidConnection={(c) => isValidConnection(c, edges, nodes)}
+          onConnectEnd={onConnectEnd}
+          connectionRadius={0} // links snap to whole nodes (see linkAt), not to nearby handles
+          className={preview ? 'previewing' : ''}
           nodesDraggable={!locked}
           nodesConnectable={!locked}
-          deleteKeyCode={locked ? null : 'Backspace'}
+          deleteKeyCode={locked ? null : ['Backspace', 'Delete']}
+          snapToGrid
+          snapGrid={[GRID, GRID]}
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
+          onMouseMove={(e) => (pointer.current = { x: e.clientX, y: e.clientY })}
+          onMouseLeave={() => (pointer.current = null)}
           colorMode="dark"
-          fitView={!views[workflow.id]}
-          fitViewOptions={fitOptions}
-          defaultViewport={views[workflow.id]}
-          onMoveEnd={(e, viewport) => (views[workflow.id] = viewport)}
+          style={{ opacity: ready ? 1 : 0 }}
+          minZoom={MIN_ZOOM}
+          onMoveEnd={(e, viewport) => saveView(workflow.id, viewport)}
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#555" gap={20} />
           {/* All graph controls use the same outline icons (ReactFlow's own zoom and fit icons are filled). */}
           <Controls position="top-left" showZoom={false} showFitView={false} showInteractive={false}>
-            <ControlButton onClick={() => zoomIn()} title="Zoom in"><IconPlus /></ControlButton>
-            <ControlButton onClick={() => zoomOut()} title="Zoom out"><IconMinus /></ControlButton>
-            <ControlButton onClick={() => fitView({ ...fitOptions, duration: 300 })} title="Fit view"><IconMaximize /></ControlButton>
-            <ControlButton onClick={() => setLocked((l) => !l)} title={locked ? 'Unlock the graph' : 'Lock node positions'}>
+            <ControlButton className={locked ? 'locked' : ''} onClick={() => setLocked((l) => !l)} title={locked ? 'Unlock the graph' : 'Lock node positions'}>
               {locked ? <IconLock /> : <IconLockOpen />}
             </ControlButton>
+            <ControlButton onClick={() => zoomIn({ duration: 200 })} title="Zoom in"><IconPlus /></ControlButton>
+            <ControlButton onClick={() => zoomOut({ duration: 200 })} title="Zoom out"><IconMinus /></ControlButton>
+            <ControlButton onClick={() => fitView({ ...fitOptions, duration: 300 })} title="Fit view (Shift+1)"><IconMaximize /></ControlButton>
             <ControlButton onClick={arrange} disabled={locked} title={locked ? 'Unlock the graph to arrange it' : 'Arrange nodes (once)'}>
               <IconSitemap style={{ transform: 'rotate(-90deg)' }} />
             </ControlButton>

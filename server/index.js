@@ -87,6 +87,11 @@ app.post('/api/workflows/:id/run', async (req, res) => {
   fire(workflow, 'manual', {}, {}, req.query.node)
   res.sendStatus(204)
 })
+// Cancels a workflow's firings in progress (the Cancel button in the editor); the workflow stays on.
+app.post('/api/workflows/:id/cancel', (req, res) => {
+  cancel(req.params.id)
+  res.sendStatus(204)
+})
 // Emergency stop: switches every workflow off and cancels what is running.
 app.post('/api/stop', async (req, res) => {
   for (const workflow of await store.list('workflows')) {

@@ -7,6 +7,7 @@ export default {
   type: 'myinstants',
   label: 'MyInstants',
   category: 'action',
+  group: 'Media',
   description: 'Finds a sound on Myinstants and adds its URL as {{sound}}.',
   adds: ['sound', 'title'],
   fields: {

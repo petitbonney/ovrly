@@ -7,6 +7,7 @@ export default {
   type: 'cooldown',
   label: 'Cooldown',
   category: 'logic',
+  group: 'Timing',
   description: 'Lets data through, then sends the next to "blocked" for a while, for everyone and optionally per data key (e.g. per viewer).',
   fields: {
     seconds: { label: 'Global cooldown', unit: 's', presets: [5, 10, 30, 60, 300] },

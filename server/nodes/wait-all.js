@@ -4,6 +4,7 @@ export default {
   type: 'wait-all',
   label: 'Wait For All',
   category: 'logic',
+  group: 'Flow',
   description: 'Continues once every incoming link has delivered, with all their data merged.',
   join: true,
   config: {},

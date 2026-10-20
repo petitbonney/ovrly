@@ -6,6 +6,7 @@ export default {
   type: 'execute-workflow',
   label: 'Execute Workflow',
   category: 'logic',
+  group: 'Flow',
   description: 'Runs another workflow with the current data, and waits for its result.',
   fields: { workflow: { type: 'workflow' }, wait: { label: 'Wait for it to finish' } },
   config: { workflow: '', wait: true },

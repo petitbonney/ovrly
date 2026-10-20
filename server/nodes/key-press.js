@@ -9,6 +9,7 @@ export default {
   type: 'key-press',
   label: 'Key Press',
   category: 'action',
+  group: 'System',
   description: 'Presses a key combo on this machine, optionally only while a given window is focused.',
   fields: {
     keys: {
