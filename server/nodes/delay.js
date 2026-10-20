@@ -3,6 +3,7 @@ export default {
   type: 'delay',
   label: 'Delay',
   category: 'logic',
+  group: 'Timing',
   description: 'Waits before passing data on.',
   fields: { seconds: { label: 'Delay', unit: 's', presets: [1, 3, 5, 10, 30] } },
   config: { seconds: 1 },

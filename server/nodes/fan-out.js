@@ -6,6 +6,7 @@ export default {
   type: 'fan-out',
   label: 'Fan Out',
   category: 'logic',
+  group: 'Flow',
   description: 'Runs what follows once per item of a list, e.g. {{recipients}}.',
   fields: { list: { vars: true, hint: 'A list, e.g. {{recipients}}' } },
   adds: ['item', 'index', 'count'],

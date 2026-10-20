@@ -3,6 +3,7 @@ export default {
   type: 'follow',
   label: 'Follow',
   category: 'trigger',
+  group: 'Twitch',
   streamer: true,
   description: 'Fires when someone follows the channel.',
   adds: ['user'],

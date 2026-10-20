@@ -11,6 +11,7 @@ export default {
   type: 'subscription',
   label: 'Subscription',
   category: 'trigger',
+  group: 'Twitch',
   description: 'Fires when someone receives a sub: new, resub or gifted; "kind" says which.',
   adds: ['kind', 'user', 'tier', 'months', 'streak', 'message'],
   fields: { kinds: { label: 'Fires on', options: kinds } },

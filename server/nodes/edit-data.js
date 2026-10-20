@@ -5,6 +5,7 @@ export default {
   type: 'edit-data',
   label: 'Edit Data',
   category: 'logic',
+  group: 'Data',
   description: 'Adds or overwrites data keys for this run only, from text and {{ }} expressions.',
   addsFrom: 'values', // the editor offers these items' names as {{key}} in later nodes
   fields: { values: { label: 'Keys', hint: 'The value can use expressions, e.g. {{ score * 2 }}' } },

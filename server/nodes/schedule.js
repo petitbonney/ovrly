@@ -7,6 +7,7 @@ export default {
   type: 'schedule',
   label: 'Schedule',
   category: 'trigger',
+  group: 'Other',
   description: 'Fires every so often while the workflow is on.',
   adds: ['time'],
   fields: { unit: { options: Object.keys(unit) } },

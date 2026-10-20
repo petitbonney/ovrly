@@ -1,6 +1,6 @@
 // App shell: left workflow list and settings button, center workflow editor. While editing a workflow: right library
 // (node and widget types to drag onto the graph) and bottom settings of the selected node; both toggle and resize.
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import {
   ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, SimpleGrid, Stack, Switch, Text,
   TextInput, Tooltip, UnstyledButton, useAppShellResize,
@@ -88,6 +88,33 @@ function Section({ title, forceOpen, children }) {
   )
 }
 
+// A draggable node type in the library.
+function Item({ d, color }) {
+  const Icon = icons[d.type]
+  return (
+    <Tooltip label={d.description} position="left" openDelay={400} multiline w={240}>
+      <NavLink
+        label={d.label}
+        leftSection={Icon && <Icon size={18} color={color} />}
+        draggable
+        style={{ cursor: 'grab' }}
+        onDragStart={(e) => e.dataTransfer.setData('application/ovrly', d.type)}
+      />
+    </Tooltip>
+  )
+}
+
+// Library items under "—— Group ——" dividers; items without a group come first, with no divider.
+function Groups({ items }) {
+  const groups = [...Map.groupBy(items, (i) => i.group)].sort(([a], [b]) => !b - !a)
+  return groups.map(([group, list]) => (
+    <Fragment key={group ?? ''}>
+      {group && <Divider label={group} labelPosition="center" my="xs" />}
+      {list.map((i) => i.el)}
+    </Fragment>
+  ))
+}
+
 // Drag a node type or a widget type onto the graph; each widget dropped is a new instance.
 function Library({ defs, types }) {
   const [query, setQuery] = useState('')
@@ -104,49 +131,31 @@ function Library({ defs, types }) {
         const items = defs.filter((d) => d.category === category && match(d))
         return items.length > 0 && (
         <Section key={category} title={category} forceOpen={!!q}>
-          {items.map((d) => {
-            const Icon = icons[d.type]
-            return (
-              <Tooltip key={d.type} label={d.description} position="left" openDelay={400} multiline w={240}>
-                <NavLink
-                  label={d.label}
-                  leftSection={Icon && <Icon size={18} color={colors[category]} />}
-                  draggable
-                  style={{ cursor: 'grab' }}
-                  onDragStart={(e) => e.dataTransfer.setData('application/ovrly', d.type)}
-                />
-              </Tooltip>
-            )
-          })}
+          <Groups items={items.map((d) => ({ group: d.group, el: <Item key={d.type} d={d} color={colors[category]} /> }))} />
         </Section>
         )
       })}
       {(types.some(match) || defs.some((d) => d.category === 'widget' && d.type !== 'widget' && match(d))) && <Section title="Widget" forceOpen={!!q}>
         {/* Widget node types (Merge Widgets) come first; the widget node itself is created by dropping a widget type. */}
-        {defs.filter((d) => d.category === 'widget' && d.type !== 'widget' && match(d)).map((d) => {
-          const Icon = icons[d.type]
-          return (
-            <Tooltip key={d.type} label={d.description} position="left" openDelay={400} multiline w={240}>
-              <NavLink label={d.label} leftSection={Icon && <Icon size={18} color={colors.widget} />} draggable style={{ cursor: 'grab' }}
-                onDragStart={(e) => e.dataTransfer.setData('application/ovrly', d.type)} />
-            </Tooltip>
-          )
-        })}
-        {types.filter(match).map((t) => {
-          const Icon = widgetIcons[t.type]
-          return (
-            <Tooltip key={t.type} label={t.soon ? `Coming soon. ${t.description}` : t.description} position="left" openDelay={400} multiline w={240}>
-              <NavLink
-                label={t.label}
-                leftSection={Icon && <Icon size={18} color={colors.widget} />}
-                rightSection={t.soon && <Badge size="xs" variant="light" color="yellow">Soon</Badge>}
-                draggable
-                style={{ cursor: 'grab' }}
-                onDragStart={(e) => e.dataTransfer.setData('application/ovrly-widget', t.type)}
-              />
-            </Tooltip>
-          )
-        })}
+        <Groups items={[
+          ...defs.filter((d) => d.category === 'widget' && d.type !== 'widget' && match(d))
+            .map((d) => ({ group: d.group, el: <Item key={d.type} d={d} color={colors.widget} /> })),
+          ...types.filter(match).map((t) => {
+            const Icon = widgetIcons[t.type]
+            return { el: (
+              <Tooltip key={t.type} label={t.soon ? `Coming soon. ${t.description}` : t.description} position="left" openDelay={400} multiline w={240}>
+                <NavLink
+                  label={t.label}
+                  leftSection={Icon && <Icon size={18} color={colors.widget} />}
+                  rightSection={t.soon && <Badge size="xs" variant="light" color="yellow">Soon</Badge>}
+                  draggable
+                  style={{ cursor: 'grab' }}
+                  onDragStart={(e) => e.dataTransfer.setData('application/ovrly-widget', t.type)}
+                />
+              </Tooltip>
+            ) }
+          }),
+        ]} />
       </Section>}
     </>
   )

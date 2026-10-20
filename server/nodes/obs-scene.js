@@ -4,8 +4,9 @@ import { fill } from '../template.js'
 
 export default {
   type: 'obs-scene',
-  label: 'OBS - Switch Scene',
+  label: 'Switch Scene',
   category: 'action',
+  group: 'OBS',
   description: 'Switches the OBS program scene.',
   fields: { scene: { vars: true, obs: 'scenes' } },
   config: { scene: '' },

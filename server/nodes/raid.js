@@ -4,6 +4,7 @@ export default {
   type: 'raid',
   label: 'Raid',
   category: 'trigger',
+  group: 'Twitch',
   description: 'Fires when another channel raids this one.',
   adds: ['user', 'viewers'],
   fields: { minViewers: { label: 'Minimum viewers' } },

@@ -6,6 +6,7 @@ export default {
   type: 'switch',
   label: 'Switch',
   category: 'logic',
+  group: 'Flow',
   description: 'Sends data to the first case equal to the value (not case-sensitive), else to "else".',
   fields: { value: { vars: true }, cases: { hint: 'Each case gets its own output' } },
   outputsFrom: 'cases', // one output per case, before the fixed "else"

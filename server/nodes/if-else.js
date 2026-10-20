@@ -30,6 +30,7 @@ export default {
   type: 'if-else',
   label: 'If / Else',
   category: 'logic',
+  group: 'Flow',
   description: 'Sends data to "true" or "false" by comparing two values.',
   fields: {
     value: { vars: true },

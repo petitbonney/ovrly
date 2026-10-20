@@ -23,7 +23,7 @@ pnpm dev      # server + UI on http://localhost:6875
 
 ## Conventions
 
-- One node type = one file in `server/nodes/`, exporting `{ type, label, category, config, run }`.
+- One node type = one file in `server/nodes/`, exporting `{ type, label, category, group, config, run }` (`group` is its sub-section in the library).
 - One widget type = one folder in `widgets/`.
 - Data lives in `./data` as JSON files (gitignored). Never commit it.
 - Scope is Twitch chat and OBS only for now. Don't add other platforms until the roadmap says so.

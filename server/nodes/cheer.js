@@ -4,6 +4,7 @@ export default {
   type: 'cheer',
   label: 'Cheer',
   category: 'trigger',
+  group: 'Twitch',
   description: 'Fires when someone cheers bits.',
   adds: ['user', 'bits', 'message'],
   fields: { minBits: { label: 'Minimum bits' } },

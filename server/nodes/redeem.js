@@ -4,6 +4,7 @@ export default {
   type: 'redeem',
   label: 'Channel Points',
   category: 'trigger',
+  group: 'Twitch',
   streamer: true,
   description: 'Fires when a viewer redeems a channel points reward.',
   adds: ['user', 'reward', 'cost', 'input'],
