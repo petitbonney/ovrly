@@ -88,6 +88,9 @@ function Section({ title, forceOpen, children }) {
   )
 }
 
+// Tells the open workflow editor to add a library item.
+const addToWorkflow = (detail) => window.dispatchEvent(new CustomEvent('ovrly-add', { detail }))
+
 // A draggable node type in the library.
 function Item({ d, color }) {
   const Icon = icons[d.type]
@@ -99,6 +102,7 @@ function Item({ d, color }) {
         draggable
         style={{ cursor: 'grab' }}
         onDragStart={(e) => e.dataTransfer.setData('application/ovrly', d.type)}
+        onDoubleClick={() => addToWorkflow({ node: d.type })}
       />
     </Tooltip>
   )
@@ -151,6 +155,7 @@ function Library({ defs, types }) {
                   draggable
                   style={{ cursor: 'grab' }}
                   onDragStart={(e) => e.dataTransfer.setData('application/ovrly-widget', t.type)}
+                  onDoubleClick={() => addToWorkflow({ widget: t.type })}
                 />
               </Tooltip>
             ) }

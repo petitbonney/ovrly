@@ -313,13 +313,34 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
 
   // A library item is a node type, or a widget type: that creates a new widget instance (with its own id) and a
   // widget node for it.
-  const onDrop = async (e) => {
-    e.preventDefault()
-    const cursor = screenToFlowPosition({ x: e.clientX, y: e.clientY })
-    const position = snap({ x: cursor.x - NODE / 2, y: cursor.y - NODE / 2 }) // centered on the cursor
-    const type = types.find((t) => t.type === e.dataTransfer.getData('application/ovrly-widget'))
-    const def = defs.find((d) => d.type === (type ? 'widget' : e.dataTransfer.getData('application/ovrly')))
+  // Where a double-clicked library item goes: the canvas center when empty; a trigger goes above the top-right trigger,
+  // or left of the leftmost node when there is none; anything else goes right of the top-right node.
+  const spawnPosition = (def) => {
+    const topRight = (list) => list.reduce((a, b) => (b.position.x > a.position.x || (b.position.x === a.position.x && b.position.y < a.position.y) ? b : a))
+    const triggers = nodes.filter((n) => defOf(n)?.category === 'trigger')
+    let p
+    if (!nodes.length) {
+      const r = flowRef.current.getBoundingClientRect()
+      const c = screenToFlowPosition({ x: r.x + r.width / 2, y: r.y + r.height / 2 })
+      p = { x: c.x - NODE / 2, y: c.y - NODE / 2 }
+    } else if (def.category === 'trigger' && triggers.length) {
+      const t = topRight(triggers).position
+      p = { x: t.x, y: t.y - NODE - CAPTION }
+    } else if (def.category === 'trigger') {
+      const l = nodes.reduce((a, b) => (b.position.x < a.position.x ? b : a)).position
+      p = { x: l.x - NODE - GRID * 3, y: l.y }
+    } else {
+      const t = topRight(nodes)
+      p = { x: t.position.x + (t.measured?.width ?? NODE) + GRID * 3, y: t.position.y }
+    }
+    return snap(p)
+  }
+  const addItem = async (widgetType, nodeType, position) => {
+    const type = types.find((t) => t.type === widgetType)
+    const def = defs.find((d) => d.type === (type ? 'widget' : nodeType))
     if (!def) return
+    const spawned = !position // double-clicked, not dropped
+    position ??= spawnPosition(def)
     let config = {}
     if (type) {
       // Signed in to Twitch (Streamer mode): a widget with a Twitch mode (Poll, Bets) starts in it.
@@ -330,7 +351,36 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       onWidgetChange()
     }
     setNodes((ns) => ns.concat({ id: crypto.randomUUID(), type: 'step', position, data: { type: def.type, label: def.label, config } }))
+    if (spawned) showBox({ ...position, width: NODE, height: NODE + CAPTION })
   }
+  // Pans, keeping the zoom, until the box is inside the visible canvas.
+  const showBox = (box) => {
+    const r = flowRef.current.getBoundingClientRect()
+    const tl = screenToFlowPosition({ x: r.left, y: r.top })
+    const br = screenToFlowPosition({ x: r.right, y: r.bottom })
+    const margin = GRID
+    const shift = (lo, hi, from, to) => (lo < from ? lo - from - margin : hi > to ? hi - to + margin : 0)
+    const dx = shift(box.x, box.x + box.width, tl.x, br.x)
+    const dy = shift(box.y, box.y + box.height, tl.y, br.y)
+    if (!dx && !dy) return
+    const { x, y, zoom } = getViewport()
+    setViewport({ x: x - dx * zoom, y: y - dy * zoom, zoom }, { duration: 300 })
+  }
+
+  const onDrop = (e) => {
+    e.preventDefault()
+    const cursor = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    const position = snap({ x: cursor.x - NODE / 2, y: cursor.y - NODE / 2 }) // centered on the cursor
+    addItem(e.dataTransfer.getData('application/ovrly-widget'), e.dataTransfer.getData('application/ovrly'), position)
+  }
+  // Double-clicking a library item adds it next to the existing nodes.
+  const addRef = useRef()
+  addRef.current = addItem
+  useEffect(() => {
+    const onAdd = (e) => addRef.current(e.detail.widget, e.detail.node)
+    window.addEventListener('ovrly-add', onAdd)
+    return () => window.removeEventListener('ovrly-add', onAdd)
+  }, [])
 
   const nodeName = (n) => (n.data.type === 'widget' ? findWidget(widgets, n.data.config.widget)?.name : defOf(n)?.label) ?? n.data.label
   const copy = (picked) => {
@@ -388,9 +438,9 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   }, [selected?.id])
   const hasManual = nodes.some((n) => n.data.type === 'manual')
   // One-shot auto layout: every node glides to its place, the view stays put (a single undo step: history
-  // waits for the edit to settle). Nodes stay movable. Not snapped to the grid, so chains of links stay straight.
+  // waits for the edit to settle). Nodes stay movable and land on the grid.
   const arrange = () => {
-    const to = layout(nodes, edges, defs)
+    const to = Object.fromEntries(Object.entries(layout(nodes, edges, defs)).map(([id, p]) => [id, snap(p)]))
     const from = Object.fromEntries(nodes.map((n) => [n.id, n.position]))
     const move = { t: 0 }
     animate(move, {
