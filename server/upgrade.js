@@ -48,7 +48,8 @@ function upgradeObs(workflow) {
   return { ...workflow, version: 3, nodes }
 }
 
-export default function upgrade(old) {
+// typeOf(ref): the type of a widget instance, by id or name (for upgradeWidgetActions).
+export default function upgrade(old, typeOf) {
   const workflow = upgradeObs(upgradePlaceholders(old))
   let changed = false
   const nodes = workflow.nodes?.map((n) => {
@@ -57,7 +58,28 @@ export default function upgrade(old) {
     changed = true
     return { ...n, data: { ...n.data, config } }
   })
-  return upgradeFireWidget(upgradeWidgetNodes(changed ? { ...workflow, nodes } : workflow))
+  return upgradeWidgetActions(upgradeFireWidget(upgradeWidgetNodes(changed ? { ...workflow, nodes } : workflow)), typeOf)
+}
+
+// Widget Callback nodes picked a widget and ran one of its actions with a value: each became a Widget Action node
+// linked to that widget's node (if the workflow has it). Every action, a widget node's main one too, now asks for its
+// own named inputs: the value goes to the action's first one.
+function upgradeWidgetActions(workflow, typeOf) {
+  const old = (n) => n.data.type === 'widget-callback' || (n.data.type === 'widget' && 'value' in (n.data.config ?? {}))
+  if (!workflow.nodes?.some(old)) return workflow
+  const edges = [...(workflow.edges ?? [])]
+  const nodes = workflow.nodes.map((n) => {
+    if (!old(n)) return n
+    const { widget, action = '', value = '', ...config } = n.data.config
+    const type = typeOf(widget)
+    const [first] = Object.keys(type?.inputs?.[action || type.main] ?? {})
+    const input = value && first ? { [first]: value } : {}
+    if (n.data.type === 'widget') return { ...n, data: { ...n.data, config: { ...config, widget, input } } }
+    const target = workflow.nodes.find((w) => w.data.type === 'widget' && w.data.config.widget === widget)
+    if (target && !edges.some((e) => e.source === n.id && e.target === target.id)) edges.push({ id: `${n.id}-widget`, source: n.id, target: target.id })
+    return { ...n, data: { ...n.data, type: 'widget-action', label: 'Widget Action', config: { ...config, action, input } } }
+  })
+  return { ...workflow, nodes, edges }
 }
 
 // Widgets used to run inside the flow ("widget-update" nodes, and "event-bus" nodes that sent actions to any widget):

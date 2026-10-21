@@ -46,14 +46,17 @@ export default {
     const i = mode(state, config) === 'democracy' ? (top ? state.counts.indexOf(top) : -1) : find(config, state.log[0]?.command ?? '')
     return { command: config.commands[i]?.command ?? '', keys: config.commands[i]?.keys ?? '' }
   },
-  main: 'push', // what a widget node runs; other actions go through Widget Callback nodes
-  inputs: { push: 'The chat text, e.g. {{message}}', mode: 'anarchy or democracy' }, // actions that take a value, and what it is
+  main: 'push', // what a widget node runs; other actions go through Widget Action nodes
+  inputs: {
+    push: { text: { vars: true, hint: 'The chat text, e.g. {{message}}' }, user: { vars: true, default: '{{user}}', hint: 'Who sent it' } },
+    mode: { mode: { vars: true, hint: 'anarchy or democracy' } },
+  },
   // Democracy: each vote's run waits until the window closes; the next vote cancels it, so only the last one goes on.
   playTime: (action, config, state) => (action === 'push' && mode(state, config) === 'democracy' ? Math.max(0, state.endsAt - Date.now()) : 0),
   actions: {
     // Anything that isn't a command does nothing (the run stops there).
-    push(state, { value, user }, config) {
-      const i = find(config, value)
+    push(state, { text, user }, config) {
+      const i = find(config, text)
       if (i < 0) return state
       const log = [{ user, command: config.commands[i].command, at: Date.now() }, ...state.log].slice(0, config.max)
       if (mode(state, config) === 'anarchy') return { ...state, log }
@@ -64,8 +67,8 @@ export default {
       return { ...state, log, votes, counts, endsAt: fresh ? now + config.window * 1000 : state.endsAt }
     },
     // Switches mode; the vote under way, if any, is dropped (this action cancels its run).
-    mode(state, { value }, config) {
-      const next = value.toLowerCase()
+    mode(state, input, config) {
+      const next = input.mode.toLowerCase()
       if (!['anarchy', 'democracy'].includes(next) || next === mode(state, config)) return state
       return { ...state, mode: next, over: config.mode, votes: {}, counts: [], endsAt: 0 }
     },

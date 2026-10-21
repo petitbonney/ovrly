@@ -1,13 +1,13 @@
 // Twitch EventSub over WebSocket (Streamer mode): subscribes to the streamer's channel events and publishes each one on
-// the bus under its EventSub type, e.g. `channel.poll.progress` with the event as data. Reconnects every 5s when
+// the bus under its EventSub type, e.g. `channel.follow` with the event as data. Reconnects every 5s when
 // dropped, and follows Twitch's reconnect messages. Connecting and errors are recorded as `twitch-eventsub` events.
 import bus, { record } from '../bus.js'
 import { helix, status as account } from './twitch-auth.js'
 
-// EventSub type -> version: what the Poll and Bets widgets and the Twitch triggers follow.
+// EventSub type -> version: what the Voting widget and the Twitch triggers follow.
 const TYPES = {
-  'channel.poll.begin': '1', 'channel.poll.progress': '1', 'channel.poll.end': '1',
-  'channel.prediction.begin': '1', 'channel.prediction.progress': '1', 'channel.prediction.lock': '1', 'channel.prediction.end': '1',
+  'channel.poll.progress': '1', 'channel.poll.end': '1',
+  'channel.prediction.progress': '1', 'channel.prediction.lock': '1', 'channel.prediction.end': '1',
   'channel.follow': '2', 'channel.subscribe': '1', 'channel.subscription.message': '1', 'channel.subscription.gift': '1',
   'channel.cheer': '1', 'channel.channel_points_custom_reward_redemption.add': '1', 'channel.raid': '1',
   'stream.online': '1', 'stream.offline': '1',

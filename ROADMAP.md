@@ -35,12 +35,12 @@ Small steps; each milestone should be usable on its own.
 - [x] Widget runtime: `/w/:id` page plus live state updates (SSE)
 - [x] `widget-update` action node
 - [x] Widget config panel (center pane)
-- [x] Built-ins: alerts → poll → lottery → bets → TwitchPlays
+- [x] Built-ins: alerts → lottery → TwitchPlays
 
 ## M5: Templates & sharing
 
 - [x] "New workflow" modal: blank or from a template
-- [x] Starter templates (e.g. `!spin` → lottery, chat poll)
+- [x] Starter templates (e.g. `!spin` → lottery)
 - [x] Import/export of workflows and widgets as JSON
 
 ## M6: More nodes
@@ -48,7 +48,7 @@ Small steps; each milestone should be usable on its own.
 - [x] Triggers: API call (`/hooks/<path>`), manual (Run button)
 - [x] Logic: if/else, switch, wait for all (multi-output nodes and joins in the engine)
 - [x] Logic: cooldown (global, plus optional per data key) and queue; widget actions cancel and restart the one still playing
-- [x] Widget nodes run their widget's main action in the flow; Widget Callback nodes run any action on a widget node of the same workflow
+- [x] Widget nodes run their widget's main action in the flow; a Widget Action node linked in front of one makes it run another action, with that action's inputs
 
 ## M7: Editor polish
 
@@ -60,7 +60,8 @@ Small steps; each milestone should be usable on its own.
 - [x] Video widget: a short video (file on disk or URL), with a max duration and volume
 - [x] GIPHY and MyInstants action nodes (Myinstants: HTML parsed, no API) add a URL for the Image/GIF and Sound widgets
 - [x] Twitch connection in the sidebar
-- [x] Twitch Guest/Streamer modes (Device Code sign-in, EventSub over WebSocket); Twitch poll and prediction modes in Poll and Bets
+- [x] Twitch Guest/Streamer modes (Device Code sign-in, EventSub over WebSocket)
+- [x] Voting widget: a poll or a prediction, by chat (Guest mode) or as a native Twitch poll or prediction (Streamer mode)
 
 ## M8: Engine
 

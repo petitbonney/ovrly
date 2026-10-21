@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Voting</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<script type="importmap">{ "imports": { "animejs": "/vendor/animejs/index.js" } }</script>
+<style>
+  h1 { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+  #kind { font-size: 16px; padding: 2px 10px; border-radius: 999px; background: #9147ff; white-space: nowrap; }
+  #status { display: flex; justify-content: space-between; gap: 16px; }
+  .row b { white-space: nowrap; }
+  .row.win { outline: 3px solid #ffb400; }
+  .row.lose { opacity: .5; }
+</style>
+<div class="card">
+  <h1><span id="title"></span><span id="kind"></span></h1>
+  <div id="status" class="muted"><span id="state"></span><span id="total"></span></div>
+  <div id="rows"></div>
+  <div id="winners" class="muted"></div>
+</div>
+<script type="module">
+  import { animate } from 'animejs'
+  import { subscribe, el } from '/widgets/lib.js'
+  const $ = (id) => document.getElementById(id)
+  let widths = [] // bars' last widths, so they grow from there
+  let shown = -1 // the winner already revealed, so it pops once
+  let timer
+
+  subscribe(function render({ config, state }) {
+    clearTimeout(timer)
+    const poll = config.kind !== 'prediction'
+    const left = Math.ceil((state.endsAt - Date.now()) / 1000)
+    const open = state.open && left > 0
+    // A countdown, ticking every second while voting is open.
+    if (open) timer = setTimeout(() => render({ config, state }), 1000 - ((state.endsAt - Date.now()) % 1000))
+    // Voters per option; for a Twitch prediction, the channel points on it.
+    const points = !poll && state.twitch
+    const counts = config.options.map((o, i) => (points ? state.points[i] : state.counts[i]) ?? 0)
+    const total = counts.reduce((a, b) => a + b, 0)
+    const voters = state.counts.reduce((a, b) => a + b, 0)
+    const top = Math.max(0, ...counts)
+    const winner = poll ? (!open && top ? counts.indexOf(top) : -1) : state.winner
+
+    $('title').textContent = config.title
+    $('kind').textContent = poll ? 'Poll' : 'Prediction'
+    $('state').textContent = winner >= 0 && !poll ? `Winner: ${config.options[winner]}`
+      : open ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} left`
+      : state.endsAt ? (poll ? 'Voting closed' : 'Bets are locked') : (poll ? 'Waiting for the poll' : 'Waiting for bets')
+    $('total').textContent = `${voters} ${poll ? 'vote' : 'bet'}${voters === 1 ? '' : 's'}`
+    $('rows').replaceChildren(...config.options.map((option, i) => {
+      const pct = total ? (counts[i] / total) * 100 : 0
+      const bar = el('div', 'bar')
+      bar.style.width = `${widths[i] ?? 0}%`
+      if (pct !== widths[i]) animate(bar, { width: `${pct}%`, duration: 500, ease: 'outQuad' })
+      widths[i] = pct
+      const value = points ? `${counts[i].toLocaleString()} pts` : `${Math.round(pct)}%`
+      const row = el('div', 'row', bar, el('span', '', `${i + 1}. ${option}`), el('b', '', value))
+      if (winner >= 0) row.classList.add(i === winner ? 'win' : 'lose')
+      if (i === winner && shown !== winner) animate(row, { scale: [1, 1.06, 1], duration: 600, ease: 'outBack' })
+      return row
+    }))
+    shown = winner
+    // Prediction: who guessed right (a Twitch prediction's top predictors).
+    const winners = state.twitch ? state.top[winner] ?? [] : Object.keys(state.votes).filter((user) => state.votes[user] === winner)
+    $('winners').textContent = !poll && winner >= 0 ? `Right: ${winners.join(', ') || 'nobody'}` : ''
+  })
+</script>

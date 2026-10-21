@@ -1,5 +1,5 @@
 // Video: plays a short video through the overlay page (an OBS browser source), up to a max duration.
-// The video is the action's value, set on the node: a file path on disk or a URL, typed or from data.
+// The video is the action's input, set on the node: a file path on disk or a URL, typed or from data.
 const ABS = /^([a-z]:[\\/]|[\\/])/i // C:\..., \\server\..., or /...
 const videoUrl = (v) =>
   /^https?:\/\//.test(v) ? v : v && ABS.test(v) ? `/file?path=${encodeURIComponent(v)}` : ''
@@ -16,9 +16,9 @@ export default {
   state: { url: '' },
   main: 'play',
   // No playTime: the server can't know a video's length, so the page tells when it has ended (or been cut).
-  inputs: { play: { type: 'video', hint: 'Browse files, or a URL or path (mp4 or webm)' } },
+  inputs: { play: { video: { type: 'video', hint: 'Browse files, or a URL or path (mp4 or webm)' } } },
   actions: {
-    // A value that isn't a video (e.g. text left in a widget node) plays nothing.
-    play: (state, { value }) => ({ url: videoUrl(value) }),
+    // An input that isn't a video (e.g. text left in a widget node) plays nothing.
+    play: (state, { video }) => ({ url: videoUrl(video) }),
   },
 }

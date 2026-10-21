@@ -5,7 +5,7 @@ import * as store from '../store.js'
 import { record } from '../bus.js'
 
 export const CLIENT_ID = '6vu8lgkxb5ljuijesmm2rlirke32ns'
-// Polls and predictions (Poll and Bets widgets), what the EventSub triggers need, then the Twitch action nodes.
+// Polls and predictions (Voting widget), what the EventSub triggers need, then the Twitch action nodes.
 const SCOPES = ['channel:manage:polls', 'channel:manage:predictions', 'channel:read:redemptions', 'moderator:read:followers',
   'channel:read:subscriptions', 'bits:read', 'channel:read:hype_train',
   'user:write:chat', 'moderator:manage:announcements', 'moderator:manage:shoutouts', 'moderator:manage:banned_users',

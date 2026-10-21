@@ -1,4 +1,4 @@
-// Widget instance settings, shown in a widget node's settings pane: id, name, main action's value, OBS link, settings and
+// Widget instance settings, shown in a widget node's settings pane: id, name, main action's inputs, OBS link, settings and
 // preview, with buttons to test the main action and cancel it.
 // Autosaved; the instance itself is created when its widget is dropped onto the graph.
 import { useEffect, useState } from 'react'
@@ -7,11 +7,11 @@ import { IconCheck, IconCopy, IconHourglassHigh, IconPlayerPlay, IconPlayerStop 
 import Fields from './Fields.jsx'
 import { get, json } from './api.js'
 
-// A widget node's settings: the instance's id and name, its mode or layout, then the value the node runs its main action
-// with, if it takes one, and its other settings. A widget
-// type marked `soon` shows a "Coming soon" note instead of settings. onCopy copies the node for pasting. testValue is
-// the node's value, sent as is by the test button (variables like {{user}} aren't filled outside a run).
-export default function WidgetSettings({ widget, type, value, testValue, onChange, onCopy }) {
+// A widget node's settings: the instance's id and name, its mode or layout, then the inputs the node runs its main action
+// with (inputs: their fields), if it takes any, and its other settings. A widget
+// type marked `soon` shows a "Coming soon" note instead of settings. onCopy copies the node for pasting. testInput is
+// the node's inputs, sent as they are by the test button (variables like {{user}} aren't filled outside a run).
+export default function WidgetSettings({ widget, type, inputs, testInput, onChange, onCopy }) {
   const [name, setName] = useState(widget.name)
   const [config, setConfig] = useState(widget.config)
   // Whether Twitch features (options marked streamer) can run, for the settings to say so.
@@ -28,7 +28,7 @@ export default function WidgetSettings({ widget, type, value, testValue, onChang
   }, [name, config])
 
   const url = `${location.origin}/w/${widget.id}`
-  const act = (action, value) => fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, value }))
+  const act = (action, input) => fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, input }))
   const first = ['mode', 'layout'].filter((key) => key in type.config)
   return (
     // Settings on the left scroll; the preview on the right never does, it shrinks to fit the pane's height.
@@ -47,7 +47,7 @@ export default function WidgetSettings({ widget, type, value, testValue, onChang
           <Fields defaults={type.config} fields={type.fields} values={config} onChange={setConfig} context={{ streamer }} show={first} />
         )}
         <Divider />
-        {value}
+        {inputs}
         {type.soon ? (
           <Alert variant="light" color="yellow" icon={<IconHourglassHigh size={18} />} title="Coming soon">
             This widget is a work in progress: its settings will come in a later version.
@@ -74,7 +74,7 @@ export default function WidgetSettings({ widget, type, value, testValue, onChang
         {/* A widget with nothing to see (visual: false) keeps its page, hidden, so the test button still plays it here. */}
         <div className="preview-fit" hidden={type.visual === false}><iframe className="preview" src={url} title="Preview" /></div>
         <Group gap="xs" mt="xs">
-          <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => act(type.main, type.inputs?.[type.main] ? testValue : '')}
+          <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => act(type.main, testInput)}
             tt="capitalize">{type.main}</Button>
           <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} onClick={() => act('cancel')}>Cancel</Button>
         </Group>

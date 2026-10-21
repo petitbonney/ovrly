@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
   IconAccessPoint, IconDiamond, IconFlame, IconGift, IconHeart, IconSparkles, IconStar, IconSwords,
-  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconLayoutCollage, IconBell, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconCoin, IconDeviceGamepad2, IconEdit,
+  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconLayoutCollage, IconBell, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconDeviceGamepad2, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
   IconMessageCode, IconMovie, IconAd, IconBan, IconBookmark, IconChecks, IconMessageCog, IconMessageShare, IconPencil, IconRocket,
   IconScissors, IconTicket, IconTrash, IconUserSearch, IconMessageStar, IconHeartHandshake,
@@ -65,16 +65,15 @@ export const icons = {
   'twitch-reward': IconTicket,
   'twitch-raid': IconRocket,
   'twitch-user': IconUserSearch,
-  'widget-callback': IconBroadcast,
+  'widget-action': IconBroadcast,
   widget: IconLayoutDashboard,
   merge: IconLayoutCollage,
 }
 
 export const widgetIcons = {
   alerts: IconBell,
-  poll: IconChartBar,
-  bets: IconCoin,
   lottery: IconClover,
+  voting: IconChartBar,
   image: IconPhoto,
   sound: IconVolume,
   video: IconVideo,
@@ -101,7 +100,7 @@ export function nodeHeight(def, config, inputs = 0) {
 }
 
 // The editor passes in data: workflowId, the workflow the node is in; def, its node type; widget, the instance a widget or
-// Widget Callback node points to (undefined for a deleted one); widgetType, that widget's type.
+// Widget Action node points to (undefined for a deleted one, or none linked); widgetType, that widget's type.
 export default function FlowNode({ id, data, selected }) {
   const { workflowId, def, widget, widgetType: type } = data
   const outputs = outputsOf(def, data.config)
@@ -113,13 +112,13 @@ export default function FlowNode({ id, data, selected }) {
   const isWidget = data.type === 'widget'
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[data.type]) ?? IconBox
   const trigger = def?.category === 'trigger'
-  // Subtitle like n8n's "mode: Rules": the node's first setting. A widget node shows its main action, a Widget Callback
+  // Subtitle like n8n's "mode: Rules": the node's first setting. A widget node shows its main action, a Widget Action
   // node its widget and action.
   const [key, value] = Object.entries({ ...def?.config, ...data.config })[0] ?? []
   const shown = Array.isArray(value) ? value.map((v) => v?.name ?? v).join(', ') : value
   const sub = isWidget ? type?.main
     : data.type === 'merge' ? null // its only setting is the placement
-    : data.type === 'widget-callback' ? [widget?.name ?? 'no widget', widget && (data.config.action || type?.main)].filter(Boolean).join(': ')
+    : data.type === 'widget-action' ? [widget?.name ?? 'no widget', widget && (data.config.action || type?.main)].filter(Boolean).join(': ')
     : key && shown !== '' && `${key}: ${shown}`
   return (
     <div className={`flow-node${trigger ? ' trigger' : ''}${selected ? ' selected' : ''}`} style={{ height: nodeHeight(def, data.config, inputs) }}>

@@ -1,5 +1,5 @@
 // Sound: plays a sound through the overlay page (an OBS browser source, so it reaches the stream), up to a max duration.
-// The sound is the action's value, set on the node: a file path on disk or a URL, typed or from data (e.g. {{sound}} from a MyInstants node).
+// The sound is the action's input, set on the node: a file path on disk or a URL, typed or from data (e.g. {{sound}} from a MyInstants node).
 const ABS = /^([a-z]:[\\/]|[\\/])/i // C:\..., \\server\..., or /...
 const soundUrl = (v) =>
   /^https?:\/\//.test(v) ? v : v && ABS.test(v) ? `/file?path=${encodeURIComponent(v)}` : ''
@@ -17,9 +17,9 @@ export default {
   state: { url: '' },
   main: 'play',
   // No playTime: the server can't know a sound's length, so the page tells when it has ended (or been cut).
-  inputs: { play: { type: 'sound', hint: 'Browse files, or a URL or path, e.g. {{sound}} from a MyInstants node' } },
+  inputs: { play: { sound: { type: 'sound', hint: 'Browse files, or a URL or path, e.g. {{sound}} from a MyInstants node' } } },
   actions: {
-    // A value that isn't a sound (e.g. text left in a widget node) plays nothing.
-    play: (state, { value }) => ({ url: soundUrl(value) }),
+    // An input that isn't a sound (e.g. text left in a widget node) plays nothing.
+    play: (state, { sound }) => ({ url: soundUrl(sound) }),
   },
 }

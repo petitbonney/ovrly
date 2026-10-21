@@ -23,16 +23,9 @@ if (!(await store.get('settings', 'obs'))) {
   await store.save('settings', { id: 'obs', url: node?.data.config.url ?? 'ws://localhost:4455', password: node?.data.config.password ?? '' })
 }
 
-// Items saved by older versions are upgraded once, before anything reads them.
-const upgraded = (kind, item) => kind === 'workflows' ? upgrade(item) : kind === 'widgets' ? upgradeWidget(item, widgets.types) : item
-for (const kind of ['workflows', 'widgets']) {
-  for (const item of await store.list(kind)) {
-    if (upgraded(kind, item) !== item) await store.save(kind, upgraded(kind, item))
-  }
-}
-
 // The Image/GIF widget's image used to be a widget setting, shown when its "show" action had no value; it is now that
-// value, set on the node: nodes that showed the widget's image get it (the setting is then dropped).
+// value, set on the node: nodes that showed the widget's image get it (the setting is then dropped). Done before the
+// upgrade below, which moves that value to the node's inputs.
 const images = Object.fromEntries((await store.list('widgets')).filter((w) => w.type === 'image' && 'image' in (w.config ?? {})).map((w) => [w.id, w]))
 for (const workflow of Object.keys(images).length ? await store.list('workflows') : []) {
   const nodes = workflow.nodes?.map((n) => {
@@ -43,6 +36,21 @@ for (const workflow of Object.keys(images).length ? await store.list('workflows'
   if (nodes?.some((n, i) => n !== workflow.nodes[i])) await store.save('workflows', { ...workflow, nodes })
 }
 for (const { config: { image, ...config }, ...widget } of Object.values(images)) await store.save('widgets', { ...widget, config })
+
+// Items saved by older versions are upgraded once, before anything reads them. Widgets come first: upgrading a workflow
+// looks up its widgets' types.
+async function upgraded(kind, item) {
+  if (kind === 'widgets') return upgradeWidget(item, widgets.types)
+  if (kind !== 'workflows') return item
+  const list = await store.list('widgets')
+  return upgrade(item, (ref) => widgets.types[list.find((w) => w.id === ref || w.name === ref)?.type])
+}
+for (const kind of ['widgets', 'workflows']) {
+  for (const item of await store.list(kind)) {
+    const next = await upgraded(kind, item)
+    if (next !== item) await store.save(kind, next)
+  }
+}
 
 const PORT = process.env.PORT || 6875 // OVRL on a phone keypad
 const app = express()
@@ -208,8 +216,8 @@ app.get('/api/windows', (req, res) =>
 
 // Widget types for the UI (metadata plus action names, no functions).
 app.get('/api/widget-types', (req, res) =>
-  res.json(Object.values(widgets.types).map(({ actions, output, playTime, fades, on, queues, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
-// Run a widget action by hand, e.g. POST /api/widgets/<id>/action { action: 'vote', value: '1', user }.
+  res.json(Object.values(widgets.types).map(({ actions, output, playTime, fades, on, queues, over, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
+// Run a widget action by hand, e.g. POST /api/widgets/<id>/action { action: 'vote', input: { option: '1', user } }.
 app.post('/api/widgets/:id/action', async (req, res) => {
   const widget = await store.get('widgets', req.params.id)
   if (!widget) return res.sendStatus(404)
@@ -232,11 +240,11 @@ app.get('/api/:kind/:id', async (req, res) => {
   const item = await store.get(req.params.kind, req.params.id)
   item ? res.json(item) : res.sendStatus(404)
 })
-app.post('/api/:kind', async (req, res) => res.json(await store.save(req.params.kind, upgraded(req.params.kind, req.body))))
+app.post('/api/:kind', async (req, res) => res.json(await store.save(req.params.kind, await upgraded(req.params.kind, req.body))))
 app.put('/api/:kind/:id', async (req, res) => {
   // Workflow updates are merged, so the editor's autosave keeps fields it doesn't send (e.g. enabled).
   const old = req.params.kind === 'workflows' && await store.get('workflows', req.params.id)
-  const item = await store.save(req.params.kind, upgraded(req.params.kind, { ...old, ...req.body, id: req.params.id }))
+  const item = await store.save(req.params.kind, await upgraded(req.params.kind, { ...old, ...req.body, id: req.params.id }))
   if (old && req.body.enabled === false) cancel(item.id) // switched off: stop what is running
   if (old) pushMerges(item) // widgets moved on a Merge Widgets canvas
   if (req.params.kind === 'widgets') widgets.push(item) // live config changes on the overlay

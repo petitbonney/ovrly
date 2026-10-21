@@ -44,18 +44,19 @@ export default {
   },
   // items: the alerts on screen or waiting their turn, { id, text, at: when it starts (ms) }; n: the last id given.
   state: { items: [], n: 0 },
-  main: 'show', // what a widget node runs; other actions go through Widget Callback nodes
-  inputs: { show: 'Text to show, e.g. {{user}} just ran !hype' }, // actions that take a value, and what it is
+  main: 'show', // what a widget node runs; other actions go through Widget Action nodes
+  // What each action asks for on the node (fields like a node's), filled from the data when it runs.
+  inputs: { show: { text: { vars: true, hint: 'Text to show, e.g. {{user}} just ran !hype' } } },
   // A queued or stacked alert doesn't cut the one showing (server/widgets.js).
   queues: (config) => arrive(config) !== 'replace',
   // The workflow waits until its own alert has gone, queued ones too.
   playTime: (action, config, state) => state.items.at(-1).at + life(config) - Date.now(),
   actions: {
-    show(state, { value }, config) {
+    show(state, { text }, config) {
       const now = Date.now()
       const kept = arrive(config) === 'replace' || state.cancelled ? [] : state.items.filter((i) => i.at + life(config) > now)
       const at = arrive(config) === 'queue' ? Math.max(now, ...kept.map((i) => i.at + life(config) + GAP)) : now
-      return { items: [...kept, { id: state.n + 1, text: value, at }], n: state.n + 1 }
+      return { items: [...kept, { id: state.n + 1, text, at }], n: state.n + 1 }
     },
   },
 }

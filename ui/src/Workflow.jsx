@@ -1,7 +1,7 @@
 // Workflow editor: ReactFlow graph (center) and selected node settings (bottom), autosaved.
 // Nodes are dropped from the library: node types, or widget types (each drop creates a widget instance and its widget
-// node). A widget node runs its widget's main action; a Widget Callback node runs any action on a widget node of the
-// same workflow, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; pasted
+// node). A widget node runs its widget's main action; a Widget Action node linked in front of it makes it run another
+// one, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; pasted
 // widget nodes share the same instance, which has one widget node per workflow. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y) undo and redo graph edits.
 // Canvas rule: the view never moves on its own, except to keep the selected node in sight. Shift+1 fits the graph,
 // Escape closes the node settings.
@@ -28,6 +28,9 @@ import { exportWorkflow, download } from './share.js'
 import { get, json } from './api.js'
 
 const findWidget = (widgets, ref) => widgets.find((w) => w.id === ref || w.name === ref)
+// The widget instance a node points to (id or name): a widget node's own, or a Widget Action node's linked widget node's.
+const widgetRef = (node, nodes, edges) => node?.data.type !== 'widget-action' ? node?.data.config.widget
+  : nodes.find((n) => n.data.type === 'widget' && edges.some((e) => e.source === node.id && e.target === n.id))?.data.config.widget
 // Copied nodes and the edges between them; kept in memory so they can be pasted into another workflow.
 let clipboard = null
 // A workflow's last view (pan and zoom), kept by this browser: it reopens where it was left, even after a refresh.
@@ -42,7 +45,7 @@ const saveView = (id, view) => {
 const knownWidgets = {}
 
 // Data keys a node can use as {{key}}: what every node upstream of it adds (a manual trigger adds its JSON's keys,
-// a widget or Widget Callback node what its widget type outputs).
+// a widget node what its widget type outputs).
 function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
   const keys = new Set()
   const seen = new Set()
@@ -68,10 +71,12 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
 }
 
 // A link is allowed if it doesn't close a loop: the target must not already lead back to the source (or be the
-// source itself). Only widget nodes link into a Merge Widgets node.
+// source itself). Only widget nodes link into a Merge Widgets node, and a Widget Action node links to one widget node at most.
 function isValidConnection(c, edges, nodes) {
   const type = (id) => nodes.find((n) => n.id === id)?.data.type
   if (type(c.target) === 'merge' && type(c.source) !== 'widget') return false
+  if (type(c.source) === 'widget-action' && type(c.target) === 'widget'
+    && edges.some((e) => e.source === c.source && e.target !== c.target && type(e.target) === 'widget')) return false
   const seen = new Set()
   const queue = [c.target]
   while (queue.length) {
@@ -105,9 +110,9 @@ function boundsOf(list) {
 }
 
 // Settings of the selected node: title, description, then a form built from the node type's fields.
-// A widget node shows its widget instance's settings and preview, with the main action's value; a Widget Callback node
-// picks a widget node of this workflow (context.instances), then the action to run on it. context.widget is the
-// widget the node points to. A Queue node also shows who waits in its line. A Merge Widgets node shows its canvas, with
+// A widget node shows its widget instance's settings and preview, with the main action's inputs; a Widget Action node
+// the action to run on the widget node it links to, and that action's inputs. context.widget is the widget the node
+// points to. A Queue node also shows who waits in its line. A Merge Widgets node shows its canvas, with
 // the widgets linked into it (context.inputs).
 function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy }) {
   if (!node || !def) return null
@@ -126,8 +131,9 @@ function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy
         </Group>
         <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
         {def.streamer && <Text size="xs" c="orange" mb="sm">Needs Twitch in Streamer mode, signed in (Integration → Twitch).</Text>}
+        {def.type === 'widget-action' && !widget && <Text size="sm" c="yellow">Link this node to a widget node to pick its action.</Text>}
         {isWidget ? (
-          type ? <WidgetSettings key={widget.id} widget={widget} type={type} value={type.inputs?.[type.main] && fields} testValue={node.data.config.value} onChange={onWidgetChange} onCopy={onCopy} />
+          type ? <WidgetSettings key={widget.id} widget={widget} type={type} inputs={fields} testInput={node.data.config.input} onChange={onWidgetChange} onCopy={onCopy} />
             : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>
         ) : isMerge ? (
           <Merge workflow={workflow} node={node.id} config={{ ...def.config, ...node.data.config }} widgets={context.inputs} types={context.types} onChange={onChange} />
@@ -161,7 +167,8 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   // Locked graph: nodes can't be moved, linked or deleted, but can still be clicked to open their settings.
   const [locked, setLocked] = useState(false)
   // Live run feedback from the engine (/api/activity): node id -> running | done | stopped | error | waiting, and
-  // edge id -> its target node while data travels on it. Only for display: not saved, not part of undo.
+  // edge id -> a token while data travels on it: a link animates for a moment, even into a node that runs for minutes
+  // (an open vote). Only for display: not saved, not part of undo.
   const [live, setLive] = useState({ nodes: {}, edges: {} })
   // Firings of this workflow in progress, for the Cancel button.
   const [firings, setFirings] = useState(0)
@@ -172,15 +179,26 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       if (l.nodes[node] !== state) return l
       const nodes = { ...l.nodes }
       delete nodes[node]
-      const edges = Object.fromEntries(Object.entries(l.edges).filter(([, target]) => target !== node))
-      return { nodes, edges }
+      return { ...l, nodes }
     }), ms))
+    // A link stops animating 1.5s after data last went along it.
+    let sent = 0
+    const pass = (edge) => {
+      const token = ++sent
+      setLive((l) => ({ ...l, edges: { ...l.edges, [edge]: token } }))
+      timers.push(setTimeout(() => setLive((l) => {
+        if (l.edges[edge] !== token) return l
+        const edges = { ...l.edges }
+        delete edges[edge]
+        return { ...l, edges }
+      }), 1500))
+    }
     const source = new EventSource('/api/activity')
     source.onmessage = (e) => {
       const a = JSON.parse(e.data)
       if (a.workflow !== workflow.id) return
       if ('running' in a) return setFirings(a.running)
-      if (a.edge) return setLive((l) => ({ ...l, edges: { ...l.edges, [a.edge]: a.target } }))
+      if (a.edge) return pass(a.edge)
       setLive((l) => ({ ...l, nodes: { ...l.nodes, [a.node]: a.state } }))
       if (a.state === 'error') notify(`${nodeName(nodes.find((n) => n.id === a.node) ?? { data: { label: 'A node' } })} failed: ${a.error}`, 'red')
       if (a.state !== 'running' && a.state !== 'waiting') fade(a.node, a.state, a.state === 'error' ? 4000 : 1500)
@@ -230,7 +248,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     list.sort((a, b) => y(a) - y(b)).forEach((e, i) => (inputOf[e.id] = `in${i}`))
   }
   const shownNodes = nodes.map((n) => {
-    const widget = findWidget(widgets, n.data.config.widget)
+    const widget = findWidget(widgets, widgetRef(n, nodes, edges))
     const context = { workflowId: workflow.id, def: defOf(n), widget, widgetType: types.find((t) => t.type === widget?.type) }
     const shown = { ...n, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
     return live.nodes[n.id] ? { ...shown, className: `run-${live.nodes[n.id]}` } : shown
@@ -372,7 +390,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     position ??= spawnPosition(def)
     let config = {}
     if (type) {
-      // Signed in to Twitch (Streamer mode): a widget with a Twitch mode (Poll, Bets) starts in it.
+      // Signed in to Twitch (Streamer mode): a widget with a Twitch mode (Voting) starts in it.
       const twitch = type.fields?.mode?.options?.find((o) => o.streamer)
       const mode = twitch && (await get('/api/twitch')).streamer ? { mode: twitch.value } : {}
       const res = await fetch('/api/widgets', json('POST', { name: type.label, type: type.type, config: mode }))
@@ -603,10 +621,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
         def={defOf(selected)}
         context={{
           vars: selected ? upstreamKeys(selected.id, { nodes, edges, defs, widgets, types }) : [],
-          widget: findWidget(widgets, selected?.data.config.widget),
-          // The widgets a Widget Callback node can pick: those with a widget node here.
-          instances: nodes.filter((n) => n.data.type === 'widget').map((n) => findWidget(widgets, n.data.config.widget)).filter(Boolean)
-            .map((w) => ({ value: w.id, label: `${w.name} (${w.id.slice(0, 8)})` })),
+          widget: findWidget(widgets, widgetRef(selected, nodes, edges)),
           // The widgets linked into the selected node (for a Merge Widgets node), in link order.
           inputs: [...new Set(edges.filter((e) => e.target === selected?.id).map((e) => nodes.find((n) => n.id === e.source))
             .filter((n) => n?.data.type === 'widget').map((n) => n.data.config.widget))].map((ref) => findWidget(widgets, ref)).filter(Boolean),
