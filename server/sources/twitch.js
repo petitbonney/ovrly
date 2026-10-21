@@ -47,7 +47,17 @@ async function connect(channel) {
     record('websocket', 'twitch', { channel, connected: false, reason })
   })
   client.on('message', (chan, tags, message) => {
-    bus.emit('chat', { user: tags['display-name'] || tags.username, message, channel: chan.slice(1), messageId: tags.id })
+    const badges = tags.badges ?? {}
+    const emotes = Object.values(tags.emotes ?? {}).flat().map((range) => { const [from, to] = range.split('-'); return message.slice(from, Number(to) + 1) })
+    bus.emit('chat', {
+      user: tags['display-name'] || tags.username, message, channel: chan.slice(1), messageId: tags.id,
+      login: tags.username, userId: tags['user-id'], color: tags.color, timestamp: Number(tags['tmi-sent-ts']),
+      broadcaster: 'broadcaster' in badges, mod: !!tags.mod, vip: 'vip' in badges, sub: !!tags.subscriber,
+      subMonths: Number(tags['badge-info']?.subscriber) || 0,
+      firstMessage: tags['first-msg'] === '1', returning: tags['returning-chatter'] === '1',
+      emotes, action: tags['message-type'] === 'action', highlighted: tags['msg-id'] === 'highlighted-message', rewardId: tags['custom-reward-id'] ?? '',
+      replyToId: tags['reply-parent-msg-id'] ?? '', replyToUser: tags['reply-parent-display-name'] ?? '', replyToMessage: tags['reply-parent-msg-body'] ?? '',
+    })
   })
   // Chat's sub announcements as EventSub events (only while EventSub, which sends the real ones, isn't connected).
   const emit = (type, event) => eventsub.status.connected || bus.emit(type, event)
