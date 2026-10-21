@@ -1,5 +1,6 @@
 // Sound: plays a sound through the overlay page (an OBS browser source, so it reaches the stream), up to a max duration.
 // The sound is the action's input, set on the node: a file path on disk or a URL, typed or from data (e.g. {{sound}} from a MyInstants node).
+export const FADE = 200 // ms: the sound fading out at its max duration, or on "stop"
 const ABS = /^([a-z]:[\\/]|[\\/])/i // C:\..., \\server\..., or /...
 const soundUrl = (v) =>
   /^https?:\/\//.test(v) ? v : v && ABS.test(v) ? `/file?path=${encodeURIComponent(v)}` : ''
@@ -15,11 +16,16 @@ export default {
     volume: { unit: '%', slider: true, hint: 'Myinstants sounds are often loud' },
   },
   state: { url: '' },
-  main: 'play',
   // No playTime: the server can't know a sound's length, so the page tells when it has ended (or been cut).
-  inputs: { play: { sound: { type: 'sound', hint: 'Browse files, or a URL or path, e.g. {{sound}} from a MyInstants node' } } },
+  stopTime: () => FADE,
   actions: {
-    // An input that isn't a sound (e.g. text left in a widget node) plays nothing.
-    play: (state, { sound }) => ({ url: soundUrl(sound) }),
+    start: {
+      description: 'Plays the sound, up to the max duration; the workflow goes on once it has ended.',
+      inputs: { sound: { type: 'sound', hint: 'Browse files, or a URL or path, e.g. {{sound}} from a MyInstants node' } },
+      // An input that isn't a sound (e.g. text left in a widget node) plays nothing.
+      run: (state, { sound }) => ({ url: soundUrl(sound) }),
+    },
+    stop: { description: 'The sound fades out now; the workflow goes on.' },
+    cancel: { description: 'The sound is cut at once; the workflow stops there.' },
   },
 }

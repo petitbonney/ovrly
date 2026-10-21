@@ -1,6 +1,6 @@
 // n8n-style graph node: icon box with the label underneath; triggers get a rounded left side and a bolt.
 // Nodes with several outputs (if/else, switch) get one labelled handle each, and grow taller with more than three. Widget nodes show their
-// widget's icon and name, with the main action they run underneath.
+// widget's icon and name, with the action they run underneath unless it is "start".
 import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
@@ -112,13 +112,13 @@ export default function FlowNode({ id, data, selected }) {
   const isWidget = data.type === 'widget'
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[data.type]) ?? IconBox
   const trigger = def?.category === 'trigger'
-  // Subtitle like n8n's "mode: Rules": the node's first setting. A widget node shows its main action, a Widget Action
-  // node its widget and action.
+  // Subtitle like n8n's "mode: Rules": the node's first setting. A widget node shows the action it runs unless it is
+  // "start" (TwitchPlays: "push"), a Widget Action node its widget and action.
   const [key, value] = Object.entries({ ...def?.config, ...data.config })[0] ?? []
   const shown = Array.isArray(value) ? value.map((v) => v?.name ?? v).join(', ') : value
-  const sub = isWidget ? type?.main
+  const sub = isWidget ? type?.linked !== 'start' && type?.linked
     : data.type === 'merge' ? null // its only setting is the placement
-    : data.type === 'widget-action' ? [widget?.name ?? 'no widget', widget && (data.config.action || type?.main)].filter(Boolean).join(': ')
+    : data.type === 'widget-action' ? [widget?.name ?? 'no widget', widget && (data.config.action || 'stop')].filter(Boolean).join(': ')
     : key && shown !== '' && `${key}: ${shown}`
   return (
     <div className={`flow-node${trigger ? ' trigger' : ''}${selected ? ' selected' : ''}`} style={{ height: nodeHeight(def, data.config, inputs) }}>

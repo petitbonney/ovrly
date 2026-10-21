@@ -16,15 +16,17 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   and marquee (queued, one after another) and sticky notes (stacked); the workflow waits until its own alert has gone.
   Most layouts play sounds, made in the page (no files), at a volume setting (0 mutes them).
 - **Voting**: a poll (the most voted option leads) or a prediction (viewers bet, then "win" reveals who guessed right),
-  open for its duration after "open", or until "close". Its widget node keeps firing until voting ends, then outputs
-  the result; cancelling the workflow, or the Cancel button in its settings, closes the vote. In Chat mode, viewers vote through the "vote" action (`!vote 2`,
+  open for its duration after "start", or until "stop". Its widget node keeps firing until voting ends, then outputs
+  the result; "cancel" (or cancelling the workflow) closes the vote too, and nothing goes on. In Chat mode, viewers vote through the "vote" action (`!vote 2`,
   `!vote red`), one vote per viewer, in Guest or Streamer mode. Twitch mode (Streamer mode, the default once signed in)
   runs a native Twitch poll or prediction (channel points; Twitch Affiliates and Partners only), with live results over
   EventSub. It outputs `winner`, `votes` and `winners` (who bet right).
 - **TwitchPlays**: translates chat into keys, through a list of command → keys pairs (`up` → `Up`); a Key Press node
-  set to `{{keys}}` presses them. Anarchy passes on every command; democracy counts one vote per viewer during the
-  vote window, then passes on the winner. Widget Action's `mode` action switches modes mid-stream (dropping a vote
-  under way). Key Press's "Only when focused" presses only while that app or window is focused, picked from those
+  set to `{{keys}}` presses them. "start" (its Start button, or a Widget Action) makes it listen; its widget node runs
+  "push" with each chat message. Anarchy passes on every command at once; democracy counts one vote per viewer in
+  loops of the vote window, counted from "start", and passes on each loop's winner when it ends. "stop" and "cancel"
+  stop listening (stop passes on the winner of the loop under way; cancel drops it and resets the log and votes). Widget Action's `mode` action
+  switches modes until stop or cancel (dropping a vote under way). Key Press's "Only when focused" presses only while that app or window is focused, picked from those
   open (macOS: window titles need the Accessibility permission Key Press already needs).
 - **Twitch features**: in Streamer mode, the Voting widget can run a native Twitch poll or prediction. Twitch triggers (follow, subscription, gift subs, cheer, channel points, raids, stream online/offline, hype train) follow EventSub in Streamer mode; subs, gift subs, cheers and raids also work in Guest mode, from what chat announces. Twitch actions (Streamer mode) send chat messages and replies, announcements and shoutouts, time out, ban or delete messages, change the title, category, tags and chat modes, run ads, make clips and stream markers, raid, look up a viewer (follow age, sub tier), and manage channel points rewards and redemptions (Twitch only lets Ovrly change rewards it made: the Channel Points Reward node makes them).
 - **Multiple instances**: run several widgets and workflows side by side.
@@ -43,15 +45,16 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   Execute Workflow (runs another workflow, which starts with a Called By Workflow trigger, and merges its result in).
 - **Errors and history**: a node that fails stops the firing there. An Error Trigger workflow runs when a node fails
   in another one. `GET /api/runs` has the last 100 firings (in memory), with each node's input and output.
-- **Widget concurrency**: an action sent to a widget that is still playing one (e.g. a second `!spin`) cancels it and
-  plays the new one; the cancelled run stops there. Put a queue node before the widget to play them in turn instead.
+- **Widget concurrency**: starting a widget that is still playing (e.g. a second `!spin`) replaces what plays; the
+  replaced run stops there. Put a queue node before the widget to play them in turn instead.
 - **Widgets in a workflow**: a widget node is one overlay instance, run in the flow like any node: it runs its
-  widget's **main action** (lottery: spin, alerts and image: show, voting: open, TwitchPlays: push) with
-  the inputs set in its settings. To run another action (e.g. `!stop` cancels the lottery, `!vote` votes), link a
-  **Widget Action** node in front of the widget node (one widget node per Widget Action): its settings pick the action
-  and ask for that action's inputs (`vote`: the option and who votes). The widget node waits until the overlay has
-  finished playing; after its main action, it adds the widget's output to the data and the flow goes on, after another
-  action the flow stops there. Other nodes linked after a Widget Action node get the data as it came in, right away.
+  widget's **start** action (TwitchPlays: push) with the inputs set in its settings, keeps firing until the widget has
+  stopped, then adds the widget's output to the data and the flow goes on. To run another action (e.g. `!stop` stops
+  the lottery, `!vote` votes), link a **Widget Action** node in front of the widget node (one widget node per Widget
+  Action): its settings pick the action (stop by default) and ask for that action's inputs (`vote`: the option and who
+  votes); the flow stops at the widget node. Other nodes linked after a Widget Action node get the data as it came in,
+  right away. The ⓘ next to a widget node's name lists its actions, with what they do and the inputs they ask for, as
+  its settings allow them (e.g. Voting's `win` only for a prediction).
 - **List settings** (voting and lottery options) are edited row by row: add, remove, move up or down.
   Each lottery option (wheel, slot) has a label, a color and a weight: a bigger weight is a likelier winner.
   The die's six faces are renamed in place (a face labelled 1 to 6 shows as dots); its color and dots color are settings.
@@ -62,9 +65,12 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   link, `http://localhost:6875/m/<workflow>/<node>`, shows them all where they were placed, and follows changes live.
   Placement is relative to the canvas, which scales to fit any browser source size (widgets included) and stays
   centered, so resizing the source in OBS resizes everything. In the flow it only passes data on.
-- **Show, hide, cancel**: every widget has these actions. "show" and "hide" fade the whole overlay in or out without
-  interrupting what it plays (the alert's own "show" shows a text, and the overlay with it). "cancel" stops its
-  animation (the lottery freezes, an alert fades out) and stops the run waiting on it. Cancelling a workflow (switch off, Stop all) cancels the widget actions it is playing.
+- **Start, stop, cancel**: every widget has these actions, also as buttons under its preview. "start" plays it (a
+  draw, an alert, a vote…); its run keeps firing until the widget stops. A widget stops by itself when it is over, or
+  with "stop", which ends it properly (the lottery jumps to its winner, an alert fades out, a vote closes) and lets the
+  workflow that started it go on with the result. "cancel" cuts it (the lottery freezes, an alert disappears) and the
+  workflow that started it stops there. Cancelling a workflow (its Cancel button, switching it off, SOS) cancels the
+  widgets it is playing.
 - **Actions**:
   - run an action on a widget overlay (web source) with its widget node, or a **Widget Action** node in front of it
   - press a key on the broadcaster's machine
@@ -108,7 +114,7 @@ To show a widget in OBS, select its node and copy the browser-source link from t
 
 - **Left**: **Integration** on top: one row each for Twitch, OBS and Giphy; clicking a row opens its settings (Twitch: **Guest** reads any channel's chat with no sign-in, **Streamer** signs in as the channel owner with a code to approve on twitch.tv/activate, for Twitch features; OBS: WebSocket URL and password; Giphy: API key, checked on save) and a status dot (green connected, red not). Below it the workflow list (**+** opens the template picker; the switch next to each name turns a workflow off: what it is running is cancelled and its triggers ignore chat and API calls, while ▶ Run still works; the red **SOS** button below the list turns them all off at once). OBS nodes use that one OBS connection, and their scene and source settings suggest the names from OBS while it is connected.
 - **Center**: the node graph of the selected workflow. The toolbar has undo/redo, the name, run manual triggers (▶), then export and delete, then show/hide the library.
-- **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance and its widget node, set up from the node's settings: instance ID, name, OBS link, settings and live preview. Deleting the node deletes the instance. Its settings also have the value its main action runs with, when that action takes one.
+- **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance and its widget node, set up from the node's settings: instance ID, name, OBS link, settings and live preview. Deleting the node deletes the instance. Its settings also have the inputs of the action it runs (start, or TwitchPlays' push), when that action takes any.
 - **Copy/paste**: Ctrl/⌘+C and Ctrl/⌘+V copy the selected nodes, also into another workflow. Pasted widget nodes share the same instance (once per workflow); it is deleted once no workflow uses it anymore. Each instance has its own id, shown in its node's settings with a button that copies the node.
 - **Undo/redo**: Ctrl/⌘+Z and Ctrl/⌘+Shift+Z (or Ctrl+Y), or the toolbar arrows. Undoing a widget node's deletion brings its instance back too.
 - **Bottom**: settings of the selected node (workflow only; each workflow remembers which node was open, and the graph stays centered as the pane opens), with pickers for options and a **{ }** menu to insert data from previous nodes, e.g. `{{user}}`.
@@ -193,15 +199,19 @@ export default {
   config: { title: 'Count' },
   state: { count: 0 },
   actions: {
-    add: (state, { value }, config) => ({ count: state.count + Number(value || 1) }),
-    reset: () => ({ count: 0 }),
+    start: { description: 'Counts from zero.', run: () => ({ count: 0 }) },
+    add: {
+      description: 'Adds to the count.',
+      inputs: { value: { vars: true, hint: 'How much, e.g. {{args}}' } },
+      run: (state, { value }, config) => ({ ...state, count: state.count + Number(value || 1) }),
+    },
   },
 }
 ```
 
 Actions may be async (e.g. to call the Twitch API), and `on: { 'channel.follow': (state, data, config) => state }` updates a widget's state from bus events, such as Twitch EventSub notifications. `fields` gives settings hints, as for nodes (see `ui/src/Fields.jsx`); a duration lists its usual values, e.g. `duration: { unit: 's', presets: [3, 5, 10] }`, shown as buttons next to an input for any other value.
 
-The page calls `subscribe(({ config, state }) => …)` from `/widgets/lib.js`. A workflow runs a widget's main action (`main`, the type's first action if not set) with its widget node (drag the widget type from the library), and its other actions with Widget Action nodes in front of it. `inputs` says what each action asks for on the node, as node fields: e.g. `{ vote: { option: { vars: true, hint }, user: { vars: true, default: '{{user}}' } } }`, or `{ show: { image: { type: 'image', hint } } }` for a file picker (`image`, `sound` or `video`). The action gets them filled from the data, e.g. `vote(state, { option, user }, config)`; an action not listed asks for nothing. A widget type can also give data back to the workflow: `output(state, config)` returns e.g. `{ winner: 'Red' }`, merged into the data for the next nodes, and `adds: ['winner']` lists those keys for the `{ }` menu. The lottery outputs `winner`, voting `winner`, `votes` and `winners`. The widget node waits until the action has finished playing before the next nodes run. If the widget type knows how long an action plays, it says so with `playTime(action, config)` (ms) and the server waits that long, whether or not an overlay page is open (the lottery and alerts do). An action arriving while another plays cancels it, unless `queues(config, action)` says the type queues them (alerts in some layouts, votes while a vote is open): then both play. `over(state, config)` ends what plays early, as played (a vote closed before its time), and `onCancel` names an action the "cancel" action also runs (Voting: `close`). Otherwise the page reports the end: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays.
+The page calls `subscribe(({ config, state }) => …, { stop, cancel })` from `/widgets/lib.js`: when "stop" or "cancel" ends what plays, its handler runs instead of render (e.g. play an outro, or cut); a page without one renders the new state, marked `ended` so a reloaded page doesn't replay it. Each action is `{ description, inputs, only, run(state, input, config) }`; every type has `start`, plus `stop` and `cancel`, which keep the state unless the type gives its own `run` (Voting's closes the vote). A workflow runs `start` with the widget node (drag the widget type from the library), or the action named by `linked` (TwitchPlays: `'push'`), and the others with Widget Action nodes in front of it. `inputs` says what an action asks for on the node, as node fields: e.g. `{ option: { vars: true, hint }, user: { vars: true, default: '{{user}}' } }`, or `{ image: { type: 'image', hint } }` for a file picker (`image`, `sound` or `video`). The action gets them filled from the data, e.g. `run(state, { option, user }, config)`. `only` shows an action only with some settings, as for fields (Voting's `vote`: `{ mode: 'chat' }`); `description` and `inputs` are listed in the node's ⓘ tooltip. A widget type can also give data back to the workflow: `output(state, config)` returns e.g. `{ winner: 'Red' }`, merged into the data for the next nodes, and `adds: ['winner']` lists those keys for the `{ }` menu. The lottery outputs `winner`, voting `winner`, `votes` and `winners`. The widget node waits until the widget has stopped before the next nodes run. If the widget type knows how long an action plays, it says so with `playTime(action, config, state)` (ms) and the server waits that long, whether or not an overlay page is open (the lottery and alerts do). Otherwise the page reports the end: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays. After "stop", the workflow goes on once the outro has played: `stopTime(config)` (ms, 0 by default). An action arriving while another plays replaces it, unless `queues(config, action)` says the type queues them (alerts in some layouts, votes while a vote is open): then both play. `over(state, config)` ends what plays early, as stopped (a vote closed on Twitch).
 
 ## Import / export
 

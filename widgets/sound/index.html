@@ -6,8 +6,8 @@
 <script type="module">
   import { animate } from 'animejs'
   import { subscribe } from '/widgets/lib.js'
+  import { FADE } from '/widgets/sound/widget.js'
   const audio = document.getElementById('audio')
-  const OUT = 200 // fade-out when a sound is cut
   let current // { resolve, timer } of the sound playing now
   let fading // the fade-out in progress
   const volume = (config) => Math.min(Math.max(config.volume, 0) / 100, 1)
@@ -21,12 +21,12 @@
     audio.onended = audio.onerror = null
     if (!fade) return audio.pause()
     const level = { v: audio.volume }
-    fading = animate(level, { v: 0, duration: OUT, ease: 'linear', onUpdate: () => (audio.volume = level.v), onComplete: () => audio.pause() })
+    fading = animate(level, { v: 0, duration: FADE, ease: 'linear', onUpdate: () => (audio.volume = level.v), onComplete: () => audio.pause() })
   }
 
   subscribe(({ config, state, run }) => {
     // Only an action plays, not a config change or a reload; a volume change applies to the sound playing.
-    if (!run || state.cancelled || !state.url) {
+    if (!run || state.ended || !state.url) {
       if (current) audio.volume = volume(config)
       return
     }
@@ -39,8 +39,8 @@
       audio.onended = audio.onerror = () => stop(false)
       // OBS plays without a click; a plain browser tab may refuse, which ends the action at once.
       audio.play().then(() => {
-        if (current?.resolve === resolve && config.duration > 0) current.timer = setTimeout(() => stop(true), config.duration * 1000 - OUT)
+        if (current?.resolve === resolve && config.duration > 0) current.timer = setTimeout(() => stop(true), config.duration * 1000 - FADE)
       }, () => stop(false))
     })
-  }, () => stop(true))
+  }, { stop: () => stop(true), cancel: () => stop(false) })
 </script>

@@ -91,20 +91,21 @@
   }
   addEventListener('resize', () => shown && build(shown))
 
+  let tl // the draw playing, or played last
   subscribe(({ config, state }) => {
     if (JSON.stringify(config) !== key) {
       key = JSON.stringify(config)
       build(config)
     }
-    if (state.winner < 0 || state.at === lastSpin || state.cancelled || state.layout !== config.layout) return
+    if (state.winner < 0 || state.at === lastSpin || state.ended || state.layout !== config.layout) return
     lastSpin = state.at
     const ms = playMs(config)
     const played = Math.min(Math.max(Date.now() - state.at, 0), ms) // a page opened mid-draw catches up
     layout.stop()
-    layout.play(state.winner, ms).seek(played)
+    tl = layout.play(state.winner, ms).seek(played)
     return wait(ms - played) // finished once the draw is over
-  }, () => {
-    // Cancel: the draw freezes where it is.
-    layout?.stop()
+  }, {
+    stop: () => tl?.seek(tl.duration), // the draw jumps to its end, on the winner
+    cancel: () => layout?.stop(), // the draw freezes where it is
   })
 </script>

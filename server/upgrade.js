@@ -48,7 +48,7 @@ function upgradeObs(workflow) {
   return { ...workflow, version: 3, nodes }
 }
 
-// typeOf(ref): the type of a widget instance, by id or name (for upgradeWidgetActions).
+// typeOf(ref): the type of a widget instance, by id or name (for upgradeWidgetActions and upgradeActionNames).
 export default function upgrade(old, typeOf) {
   const workflow = upgradeObs(upgradePlaceholders(old))
   let changed = false
@@ -58,11 +58,36 @@ export default function upgrade(old, typeOf) {
     changed = true
     return { ...n, data: { ...n.data, config } }
   })
-  return upgradeWidgetActions(upgradeFireWidget(upgradeWidgetNodes(changed ? { ...workflow, nodes } : workflow)), typeOf)
+  return upgradeActionNames(upgradeWidgetActions(upgradeFireWidget(upgradeWidgetNodes(changed ? { ...workflow, nodes } : workflow)), typeOf), typeOf)
+}
+
+// Widget actions renamed when every widget got "start", "stop" and "cancel": the main action a widget node ran (also
+// run by Widget Action nodes with no action set) became "start", except TwitchPlays' "push", still what its widget
+// node runs; Voting's "close" became "stop"; the built-in "show" and "hide", gone, became "stop" too.
+const MAIN = { alerts: 'show', image: 'show', lottery: 'spin', sound: 'play', video: 'play', voting: 'open', 'twitch-plays': 'push' }
+function renamed(type, action) {
+  if (!MAIN[type]) return action // no widget linked, or a type that came later
+  action ||= MAIN[type]
+  if (action === MAIN[type]) return type === 'twitch-plays' ? action : 'start'
+  if (action === 'show' || action === 'hide' || (type === 'voting' && action === 'close')) return 'stop'
+  return action
+}
+
+// Version 4: Widget Action nodes get their action's new name (see renamed), from the widget node they link to.
+function upgradeActionNames(workflow, typeOf) {
+  if (workflow.version >= 4) return workflow
+  const node = (id) => workflow.nodes.find((n) => n.id === id)
+  const nodes = workflow.nodes?.map((n) => {
+    if (n.data.type !== 'widget-action') return n
+    const target = (workflow.edges ?? []).filter((e) => e.source === n.id).map((e) => node(e.target)).find((t) => t?.data.type === 'widget')
+    const action = renamed(typeOf(target?.data.config.widget)?.type, n.data.config?.action)
+    return { ...n, data: { ...n.data, config: { ...n.data.config, action: action || 'stop' } } }
+  })
+  return { ...workflow, version: 4, nodes }
 }
 
 // Widget Callback nodes picked a widget and ran one of its actions with a value: each became a Widget Action node
-// linked to that widget's node (if the workflow has it). Every action, a widget node's main one too, now asks for its
+// linked to that widget's node (if the workflow has it). Every action, a widget node's own one too, now asks for its
 // own named inputs: the value goes to the action's first one.
 function upgradeWidgetActions(workflow, typeOf) {
   const old = (n) => n.data.type === 'widget-callback' || (n.data.type === 'widget' && 'value' in (n.data.config ?? {}))
@@ -72,7 +97,7 @@ function upgradeWidgetActions(workflow, typeOf) {
     if (!old(n)) return n
     const { widget, action = '', value = '', ...config } = n.data.config
     const type = typeOf(widget)
-    const [first] = Object.keys(type?.inputs?.[action || type.main] ?? {})
+    const [first] = Object.keys(type?.actions[renamed(type.type, action)]?.inputs ?? {})
     const input = value && first ? { [first]: value } : {}
     if (n.data.type === 'widget') return { ...n, data: { ...n.data, config: { ...config, widget, input } } }
     const target = workflow.nodes.find((w) => w.data.type === 'widget' && w.data.config.widget === widget)

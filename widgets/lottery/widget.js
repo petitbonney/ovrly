@@ -1,4 +1,4 @@
-// Lottery: "spin" draws a winner at random, shown with one of four layouts: a wheel of weighted, colored options, a
+// Lottery: "start" draws a winner at random, shown with one of four layouts: a wheel of weighted, colored options, a
 // roulette (0-36), a slot (one reel) or a die. Outputs { winner }, the winning label.
 // The page (index.html) imports choices() too, so both sides agree on what each index means.
 
@@ -8,6 +8,8 @@ export const REDS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 
 // ms a draw lasts: the duration setting, except for the dice, whose throw follows physics and always takes DICE_MS.
 export const DICE_MS = 3500
 export const playMs = (config) => (config.layout === 'dice' ? DICE_MS : config.duration * 1000)
+// ms the winner shows after "stop" jumps to the end of the draw, before the workflow goes on.
+const REVEAL = 1000
 
 // What can win with this layout, as [{ label, weight }]; index = winner.
 export function choices(config) {
@@ -51,14 +53,19 @@ export default {
   state: { winner: -1, at: 0 },
   adds: ['winner'],
   output: (state, config) => ({ winner: choices(config)[state.winner]?.label ?? '' }),
-  main: 'spin', // what a widget node runs; other actions go through Widget Action nodes
   playTime: (action, config) => playMs(config), // the workflow waits for the draw to end
+  stopTime: () => REVEAL,
   actions: {
-    spin(state, input, config) {
-      const weights = choices(config).map((o) => Math.max(0, Number(o.weight) || 0))
-      let r = Math.random() * weights.reduce((a, b) => a + b, 0)
-      // layout: the page only replays a draw made with the layout it shows.
-      return { winner: weights.findIndex((w) => (r -= w) < 0), at: Date.now(), layout: config.layout }
+    start: {
+      description: 'Draws a winner at random; the workflow goes on with {{winner}} once the draw has ended.',
+      run(state, input, config) {
+        const weights = choices(config).map((o) => Math.max(0, Number(o.weight) || 0))
+        let r = Math.random() * weights.reduce((a, b) => a + b, 0)
+        // layout: the page only replays a draw made with the layout it shows.
+        return { winner: weights.findIndex((w) => (r -= w) < 0), at: Date.now(), layout: config.layout }
+      },
     },
+    stop: { description: 'The draw jumps to its end, on the winner; the workflow goes on with {{winner}}.' },
+    cancel: { description: 'The draw freezes where it is; the workflow stops there.' },
   },
 }

@@ -329,18 +329,20 @@ function Field({ name, f, fallback, value, set, values, context }) {
     return <TagsInput {...props} data={f.options} value={tags} onChange={(v) => set(v.join('+'))}
       rightSection={<VarMenu vars={context.vars ?? []} onPick={(k) => set([...tags, `{{${k}}}`].join('+'))} />} />
   }
-  // A widget's actions come from its type (nothing to pick if there is only one); short option lists are buttons.
+  // A widget's actions come from its type: those that apply with the widget's settings. Short option lists are buttons.
   const type = context.types?.find((t) => t.type === context.widget?.type)
   // A widget action's inputs, as their own settings: the fields its widget type asks for that action (none: nothing
-  // shown). A widget node runs its main action, a Widget Action node the one picked (the main one by default).
+  // shown). A widget node's (linked: true) are those of the action its type links to it ("start", unless the type says
+  // otherwise), a Widget Action node's those of the one picked ("stop" by default).
   if (f.type === 'inputs') {
-    const fields = type?.inputs?.[values.action || type.main] ?? {}
+    const fields = type?.actions[f.linked ? type.linked : values.action || 'stop']?.inputs ?? {}
     if (!Object.keys(fields).length) return null
     const defaults = Object.fromEntries(Object.entries(fields).map(([key, f]) => [key, f.default ?? '']))
     return <Fields defaults={defaults} values={value} fields={fields} context={context} onChange={set} />
   }
   // Twitch features can't be picked unless Streamer mode is on; one picked earlier says why it won't run.
-  const options = f.type === 'action' ? type?.actions ?? [] : f.options?.map((o) => {
+  const config = { ...type?.config, ...context.widget?.config }
+  const options = f.type === 'action' ? Object.keys(type?.actions ?? {}).filter((a) => applies(type.actions[a], config)) : f.options?.map((o) => {
     if (!o.streamer) return o
     const { streamer, ...option } = o
     return { ...option, disabled: !context.streamer }
@@ -350,7 +352,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
     ...o,
     label: <Tooltip label="Needs Twitch in Streamer mode, signed in (Integration → Twitch)" withinPortal><span>{o.label}</span></Tooltip>,
   })
-  if (f.type === 'action' && options.length <= 1) return null
+  if (f.type === 'action' && !options.length) return null
   if (f.options?.find((o) => o.value === value)?.streamer && !context.streamer) {
     props.description = <Text span size="xs" c="yellow">Needs Twitch in Streamer mode, signed in (Integration → Twitch)</Text>
   }
@@ -372,12 +374,12 @@ function Field({ name, f, fallback, value, set, values, context }) {
       <Stack gap={4}>
         <Text size="xs" fw={500}>{props.label}</Text>
         {props.description && <Text size="xs" c="dimmed">{props.description}</Text>}
-        {/* A Widget Action node with no action set runs its widget's main one. */}
-        <SegmentedControl size="xs" data={explained} value={f.type === 'action' ? value || type.main : value} onChange={set} style={{ alignSelf: 'start' }} />
+        {/* A Widget Action node with no action set runs "stop". */}
+        <SegmentedControl size="xs" data={explained} value={f.type === 'action' ? value || 'stop' : value} onChange={set} style={{ alignSelf: 'start' }} />
       </Stack>
     )
   }
-  if (options) return <Select {...props} data={options} value={f.type === 'action' ? value || type.main : value} onChange={set} allowDeselect={false} />
+  if (options) return <Select {...props} data={options} value={f.type === 'action' ? value || 'stop' : value} onChange={set} allowDeselect={false} />
   if (f.type === 'var') return <Autocomplete {...props} data={context.vars ?? []} value={value} onChange={set} />
   if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} />
   if (f.type === 'code') {
@@ -397,10 +399,12 @@ function Field({ name, f, fallback, value, set, values, context }) {
   return <TextInput {...props} value={value} onChange={(e) => set(e.target.value)} />
 }
 
+// Whether a setting, or a widget action, applies with these settings (values, then defaults): its only matches them.
+export const applies = (f, values, defaults = {}) => !f?.only || Object.entries(f.only).every(([k, v]) => [v].flat().includes(values[k] ?? defaults[k]))
+
 // show: the settings to show (all by default), e.g. to show some of them elsewhere in the pane.
 export default function Fields({ defaults, values, onChange, fields = {}, context = {}, show = Object.keys(defaults) }) {
-  const only = (f) => !f?.only || Object.entries(f.only).every(([k, v]) => [v].flat().includes(values[k] ?? defaults[k]))
-  const keys = show.filter((key) => !fields[key]?.hidden && only(fields[key]))
+  const keys = show.filter((key) => !fields[key]?.hidden && applies(fields[key], values, defaults))
   if (keys.length === 0) return <Text size="sm" c="dimmed">No settings</Text>
   return (
     <Stack gap="sm" maw={420}>

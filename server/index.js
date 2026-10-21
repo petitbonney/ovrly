@@ -214,9 +214,11 @@ app.get('/file', (req, res) => {
 app.get('/api/windows', (req, res) =>
   windows.list().then((list) => res.json([...new Set(list.filter(Boolean))]), (err) => res.status(503).json({ error: err.message })))
 
-// Widget types for the UI (metadata plus action names, no functions).
-app.get('/api/widget-types', (req, res) =>
-  res.json(Object.values(widgets.types).map(({ actions, output, playTime, fades, on, queues, over, ...meta }) => ({ ...meta, actions: Object.keys(actions) }))))
+// Widget types for the UI: metadata, and each action's description, inputs and only (no functions).
+app.get('/api/widget-types', (req, res) => res.json(Object.values(widgets.types).map(({ actions, output, playTime, stopTime, on, queues, over, ...meta }) => ({
+  ...meta,
+  actions: Object.fromEntries(Object.entries(actions).map(([name, { run, ...action }]) => [name, action])),
+}))))
 // Run a widget action by hand, e.g. POST /api/widgets/<id>/action { action: 'vote', input: { option: '1', user } }.
 app.post('/api/widgets/:id/action', async (req, res) => {
   const widget = await store.get('widgets', req.params.id)

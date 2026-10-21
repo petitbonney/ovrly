@@ -5,79 +5,75 @@ import bus, { record } from './bus.js'
 import * as store from './store.js'
 import { fill } from './template.js'
 
-// Load every widget type from ../widgets/<type>/widget.js, keyed by type. Every type also gets "show" and "hide" (fade
-// the whole overlay in or out; a type's own "show", like the alert's, also shows the overlay) and "cancel" (see cancel()).
-// `main` is the action a widget node runs (the type's first one if it doesn't say). `inputs` says what each action asks
-// for, as node fields: { vote: { option: { vars: true, hint }, user: { vars: true, default: '{{user}}' } } }.
+// Load every widget type from ../widgets/<type>/widget.js, keyed by type. Each action is { description, inputs, only,
+// run(state, input, config) → state }: inputs says what it asks for, as node fields ({ option: { vars: true, hint },
+// user: { vars: true, default: '{{user}}' } }), and only when it applies, as a setting's only (e.g. { mode: 'chat' }).
+// Every type has "start", which its widget node runs unless the type links another action to it (linked), and "stop"
+// and "cancel" (see end()), which it may extend with its own run or description.
 const dir = new URL('../widgets/', import.meta.url)
+const keep = (state) => state
+const builtIn = {
+  stop: { description: 'Ends what is playing, as finished: the workflow that started it goes on.', run: keep },
+  cancel: { description: 'Cuts what is playing: the workflow that started it stops there.', run: keep },
+}
 export const types = {}
 for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
   if (!entry.isDirectory()) continue
   const def = (await import(new URL(`${entry.name}/widget.js`, dir))).default
-  const keep = (state) => state
-  // fades: the built-in actions this type doesn't define itself, which play for the 400ms fade.
-  const fades = ['show', 'hide'].filter((a) => !def.actions[a])
-  types[def.type] = { ...def, main: def.main ?? Object.keys(def.actions)[0], fades, actions: { ...def.actions, show: def.actions.show ?? keep, hide: def.actions.hide ?? keep, cancel: keep } }
+  const { stop, cancel } = def.actions
+  types[def.type] = { ...def, linked: def.linked ?? 'start', actions: { ...def.actions, stop: { ...builtIn.stop, ...stop }, cancel: { ...builtIn.cancel, ...cancel } } }
 }
 
 // Live state lives in memory only: it resets when the server restarts.
 const states = {} // widget id -> state
-const hidden = {} // widget id -> true while hidden by "hide"
 const clients = {} // widget id -> Set of open SSE responses
 const waiting = new Map() // run id -> resolve, until a page reports that action finished
-const playing = {} // widget id -> Map of run id -> stop, for the actions still playing on it (one, unless it queues)
+const playing = {} // widget id -> Map of run id -> settle, for the actions still playing on it (one, unless it queues)
 let runs = 0
 
 const pages = (widget) => clients[widget.id]?.size ?? 0 // pages showing this widget now
 
 function snapshot(widget) {
   const def = types[widget.type]
-  return { config: { ...def.config, ...widget.config }, state: states[widget.id] ?? structuredClone(def.state), hidden: !!hidden[widget.id] }
+  return { config: { ...def.config, ...widget.config }, state: states[widget.id] ?? structuredClone(def.state) }
 }
 
 // Sends the current { config, state } to every page showing this widget, plus the run id when an action caused it,
-// or cancel: true to make pages stop their animation.
-export function push(widget, run, cancel) {
-  const msg = `data: ${JSON.stringify({ ...snapshot(widget), run, cancel })}\n\n`
+// or end: 'stop' | 'cancel' when what plays ends (the page plays its outro, or cuts).
+export function push(widget, run, end) {
+  const msg = `data: ${JSON.stringify({ ...snapshot(widget), run, end })}\n\n`
   for (const res of clients[widget.id] ?? []) res.write(msg)
 }
 
 // Applies one action with its inputs, e.g. { action: 'vote', input: { option: '2', user: 'bob' } }, then pushes the new state.
-// `done` resolves to true once the action has finished playing. If the widget type says how long it plays (playTime),
-// the server waits that long itself: pages may be closed, or hidden and slowed down by the browser. Otherwise it waits
-// for a page to report the end: right away if no page is open, after 60s if none answers.
-// Cancel and restart: an action arriving while another still plays on the same widget cancels it (its `done` resolves
-// to false, so that run stops) and plays instead, unless the type queues them (queues(config, action), e.g. alerts
-// shown one after another, or votes while a vote is open): then both play. A type's over(state, config) says when
-// what plays is over before its time (e.g. a vote closed early): those runs end there, as played. An action that returns the same state did nothing (e.g. an invalid
-// vote): it cancels nothing and its own run stops. playTime(action, config, state) may depend on the new state. The "cancel" action only stops what is playing; the built-in "show"
-// and "hide" only fade the overlay.
+// `done` resolves to true once the action has stopped: it has finished playing, or "stop" ended it. If the widget type
+// says how long it plays (playTime), the server waits that long itself: pages may be closed, or hidden and slowed down
+// by the browser. Otherwise it waits for a page to report the end: right away if no page is open, after 60s if none
+// answers. `done` resolves to false if it was cancelled, or replaced: an action arriving while another still plays on
+// the same widget replaces it (that run stops there) and plays instead, unless the type queues them
+// (queues(config, action), e.g. alerts shown one after another, or votes while a vote is open): then both play. A
+// type's over(state, config) says when what plays is over before its time (e.g. a vote closed on Twitch): those runs
+// stop there, as finished. An action that returns the same state did nothing (e.g. an invalid vote): it replaces
+// nothing and its own run stops. playTime(action, config, state) may depend on the new state. "stop" and "cancel"
+// end what plays instead (see end()).
 // An action may be async (e.g. it starts a Twitch poll); if it throws, the state is kept and update rejects.
 export async function update(widget, { action, input = {} }) {
   const def = types[widget.type]
-  const fn = def.actions[action]
-  if (!fn) throw new Error(`${def.label}: unknown action "${action}"`)
-  if (action === 'cancel') return { state: cancel(widget), done: Promise.resolve(true) }
-  // Built-in show/hide only fade the overlay: they don't interrupt what is playing on it.
-  if (def.fades.includes(action)) {
-    hidden[widget.id] = action === 'hide'
-    push(widget)
-    record('sse', 'widget', { widget: widget.name, action, pages: pages(widget) })
-    return { state: states[widget.id], done: new Promise((resolve) => setTimeout(resolve, 400, true)) }
-  }
+  const act = def.actions[action]
+  if (!act) throw new Error(`${def.label}: unknown action "${action}"`)
+  input = Object.fromEntries(Object.keys(act.inputs ?? {}).map((key) => [key, String(input[key] ?? '').trim()]))
+  if (action === 'stop' || action === 'cancel') return { state: await end(widget, action, input), done: Promise.resolve(true) }
   const { config, state } = snapshot(widget)
-  input = Object.fromEntries(Object.keys(def.inputs?.[action] ?? {}).map((key) => [key, String(input[key] ?? '').trim()]))
-  const next = await fn(state, input, config)
-  if (next === state) return { state, done: Promise.resolve(false) } // did nothing: nothing is cancelled
-  if (!def.queues?.(config, action)) stopAll(widget)
+  const next = await act.run(state, input, config)
+  if (next === state) return { state, done: Promise.resolve(false) } // did nothing: nothing is replaced
+  if (!def.queues?.(config, action)) settleAll(widget, false)
   states[widget.id] = next
-  if (def.over?.(next, config)) endAll(widget)
-  if (action === 'show') hidden[widget.id] = false // a type's own "show" (e.g. an alert) shows the overlay too
+  if (def.over?.(next, config)) settleAll(widget, true)
   const run = ++runs
   const ms = def.playTime?.(action, config, next)
   const done = new Promise((resolve) => {
-    if (ms === 0) return resolve(true) // over at once: never "playing", so the next action can't cancel it
-    // settle(true): it has finished playing; settle(false): it was cancelled.
+    if (ms === 0) return resolve(true) // over at once: never "playing", so the next action can't replace it
+    // settle(true): it has stopped; settle(false): it was cancelled or replaced.
     const runs = (playing[widget.id] ??= new Map())
     const settle = (played) => {
       runs.delete(run)
@@ -97,24 +93,58 @@ export async function update(widget, { action, input = {} }) {
   return { state: states[widget.id], done, run }
 }
 
+// Stops ("stop") or cancels ("cancel") what plays on a widget, after the type's own stop or cancel (e.g. Voting closes
+// the vote). Stopped runs go on once the outro has played (stopTime(config), ms); cancelled ones stop there. Pages play
+// the outro or cut, and the state is marked ended, so a page opened (or reloaded) afterwards doesn't replay it. With a
+// run id, only if that run still plays (a workflow cancels its own actions, not newer ones). Should the type's own
+// action fail (e.g. a Twitch call), what plays still ends, then end rejects.
+async function end(widget, how, input = {}, run) {
+  if (run && !playing[widget.id]?.has(run)) return states[widget.id]
+  const { config, state } = snapshot(widget)
+  const def = types[widget.type]
+  let next = state, error
+  try {
+    next = await def.actions[how].run(state, input, config)
+  } catch (err) {
+    error = err
+  }
+  // Out of `playing` at once: an action arriving during the outro can't replace them anymore.
+  const settles = [...(playing[widget.id]?.values() ?? [])]
+  playing[widget.id]?.clear()
+  const ms = how === 'stop' ? def.stopTime?.(config) ?? 0 : 0
+  for (const settle of settles) setTimeout(settle, ms, how === 'stop')
+  states[widget.id] = { ...next, ended: true }
+  push(widget, undefined, how)
+  record('sse', 'widget', { widget: widget.name, action: how, pages: pages(widget) })
+  if (error) throw error
+  return states[widget.id]
+}
+
+// Ends every run playing on a widget at once: played (true), they go on; otherwise they stop there.
+function settleAll(widget, played) {
+  for (const settle of [...(playing[widget.id]?.values() ?? [])]) settle(played)
+}
+
 // What the widget type's output(state, config) gives back to the workflow now, e.g. { winner: 'Red' }.
 function output(widget) {
   const { config, state } = snapshot(widget)
   return types[widget.type].output?.(state, config) ?? {}
 }
 
-// Runs an action from a workflow on a widget instance (by id or name), its main one if none is given, with its inputs
-// (templates, or the field's default) filled from the data. Resolves once it has finished playing, with the data plus the widget's output then (e.g. { winner }),
-// or null if another action cancelled it (the run stops there). Cancelling the workflow (signal) cancels the action.
+// Runs an action from a workflow on a widget instance (by id or name), the one its type links to its widget node if
+// none is given, with its inputs (templates, or the field's default) filled from the data. Resolves once it has
+// stopped, with the data plus the widget's output then (e.g. { winner }), or null if it was cancelled or replaced (the
+// run stops there). Cancelling the workflow (signal) cancels the widget, with its "cancel" action, if its run still plays.
 export async function play(ref, action, input, data, signal) {
   const widget = (await store.list('widgets')).find((w) => w.id === ref || w.name === ref)
   if (!widget) throw new Error(ref ? `Widget not found: ${ref}` : 'No widget picked')
   const def = types[widget.type]
-  action ||= def.main
-  const fields = Object.entries(def.inputs?.[action] ?? {})
+  action ||= def.linked
+  const fields = Object.entries(def.actions[action]?.inputs ?? {})
   const filled = Object.fromEntries(fields.map(([key, f]) => [key, fill(input?.[key] ?? f.default ?? '', data)]))
   const { done, run } = await update(widget, { action, input: filled })
-  signal.addEventListener('abort', () => cancel(widget, run), { once: true })
+  const cancel = () => end(widget, 'cancel', {}, run).catch((err) => record('sse', 'widget-error', { widget: widget.name, action: 'cancel', error: err.message }))
+  if (run) signal.addEventListener('abort', cancel, { once: true })
   return (await done) ? { ...data, ...output(widget) } : null
 }
 
@@ -128,36 +158,11 @@ for (const def of Object.values(types)) {
         const next = handle(state, data, config)
         if (next === state) continue
         states[widget.id] = next
-        if (def.over?.(next, config)) endAll(widget)
+        if (def.over?.(next, config)) settleAll(widget, true)
         push(widget)
       }
     })
   }
-}
-
-// Stops what is playing on a widget: its run stops waiting (`done` resolves to false) and pages stop their animation.
-// With a run id, only if that action is still playing (a workflow cancels its own actions, not newer ones).
-export function cancel(widget, run) {
-  if (run && !playing[widget.id]?.has(run)) return states[widget.id]
-  stopAll(widget)
-  // Marked in the state too, so a page opened (or reloaded) afterwards doesn't replay the cancelled animation.
-  states[widget.id] = { ...snapshot(widget).state, cancelled: true }
-  push(widget, undefined, true)
-  record('sse', 'widget', { widget: widget.name, action: 'cancel', pages: pages(widget) })
-  // A type may also undo what it started: onCancel names the action that does it (Voting: "close" ends the vote).
-  const undo = types[widget.type].onCancel
-  if (undo) update(widget, { action: undo }).catch((err) => record('sse', 'widget-error', { widget: widget.name, action: undo, error: err.message }))
-  return states[widget.id]
-}
-
-// Stops every action playing on a widget: their runs stop waiting (cancelled).
-function stopAll(widget) {
-  for (const settle of [...(playing[widget.id]?.values() ?? [])]) settle(false)
-}
-
-// Ends every action playing on a widget, as played: their runs go on.
-function endAll(widget) {
-  for (const settle of [...(playing[widget.id]?.values() ?? [])]) settle(true)
 }
 
 // Called by POST /w/:id/done when a page has finished playing an action.

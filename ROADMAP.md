@@ -48,7 +48,8 @@ Small steps; each milestone should be usable on its own.
 - [x] Triggers: API call (`/hooks/<path>`), manual (Run button)
 - [x] Logic: if/else, switch, wait for all (multi-output nodes and joins in the engine)
 - [x] Logic: cooldown (global, plus optional per data key) and queue; widget actions cancel and restart the one still playing
-- [x] Widget nodes run their widget's main action in the flow; a Widget Action node linked in front of one makes it run another action, with that action's inputs
+- [x] Widget nodes start their widget in the flow and go on once it has stopped; a Widget Action node linked in front of one makes it run another action, with that action's inputs
+- [x] Every widget has start, stop and cancel (also as buttons in its settings); stop lets the workflow go on, cancel ends it; the node's ⓘ lists the actions its settings allow
 
 ## M7: Editor polish
 

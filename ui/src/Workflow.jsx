@@ -1,7 +1,7 @@
 // Workflow editor: ReactFlow graph (center) and selected node settings (bottom), autosaved.
 // Nodes are dropped from the library: node types, or widget types (each drop creates a widget instance and its widget
-// node). A widget node runs its widget's main action; a Widget Action node linked in front of it makes it run another
-// one, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; pasted
+// node). A widget node starts its widget (or runs the action its type links instead); a Widget Action node linked in
+// front of it makes it run another one, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; pasted
 // widget nodes share the same instance, which has one widget node per workflow. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y) undo and redo graph edits.
 // Canvas rule: the view never moves on its own, except to keep the selected node in sight. Shift+1 fits the graph,
 // Escape closes the node settings.
@@ -14,12 +14,12 @@ import { animate } from 'animejs'
 import '@xyflow/react/dist/style.css'
 import { ActionIcon, AppShell, Button, Divider, Group, Modal, Notification, Text, TextInput, Tooltip } from '@mantine/core'
 import {
-  IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
+  IconArrowBackUp, IconArrowForwardUp, IconDownload, IconInfoCircle, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
   IconPlayerPlay, IconPlayerStop, IconPlus, IconSitemap,
   IconTrash,
 } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
-import WidgetSettings from './Widget.jsx'
+import WidgetSettings, { ActionsInfo } from './Widget.jsx'
 import QueueLine from './QueueLine.jsx'
 import Merge from './Merge.jsx'
 import FlowNode, { colors, icons, widgetIcons, outputsOf } from './FlowNode.jsx'
@@ -110,8 +110,8 @@ function boundsOf(list) {
 }
 
 // Settings of the selected node: title, description, then a form built from the node type's fields.
-// A widget node shows its widget instance's settings and preview, with the main action's inputs; a Widget Action node
-// the action to run on the widget node it links to, and that action's inputs. context.widget is the widget the node
+// A widget node shows its widget instance's settings and preview, with the inputs of the action it runs, and its
+// actions in a tooltip; a Widget Action node the action to run on the widget node it links to, and that action's inputs. context.widget is the widget the node
 // points to. A Queue node also shows who waits in its line. A Merge Widgets node shows its canvas, with
 // the widgets linked into it (context.inputs).
 function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy }) {
@@ -128,6 +128,12 @@ function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy
         <Group gap="xs" mb={4}>
           <Icon size={20} color={colors[def.category]} />
           <Text fw={600}>{isWidget ? widget?.name ?? 'Missing widget' : def.label}</Text>
+          {/* The widget's actions, as its settings allow them now (e.g. Voting's "win" only for a prediction). */}
+          {isWidget && type && (
+            <Tooltip label={<ActionsInfo type={type} config={{ ...type.config, ...widget.config }} />} multiline withinPortal position="bottom-start">
+              <IconInfoCircle size={16} color="var(--mantine-color-dimmed)" style={{ cursor: 'help' }} />
+            </Tooltip>
+          )}
         </Group>
         <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
         {def.streamer && <Text size="xs" c="orange" mb="sm">Needs Twitch in Streamer mode, signed in (Integration → Twitch).</Text>}

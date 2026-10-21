@@ -17,9 +17,11 @@ export const LAYOUTS = {
 }
 const arrive = (config) => LAYOUTS[config.layout]?.arrive ?? 'replace'
 
-// ms an alert lasts on screen, coming in and going out included; queued alerts wait GAP ms between them.
+// ms an alert lasts on screen, coming in and going out included; queued alerts wait GAP ms between them. On "stop",
+// the alerts showing fade out in FADE ms.
 export const life = (config) => config.duration * 1000
 const GAP = 300
+export const FADE = 400
 
 export default {
   type: 'alerts',
@@ -44,19 +46,23 @@ export default {
   },
   // items: the alerts on screen or waiting their turn, { id, text, at: when it starts (ms) }; n: the last id given.
   state: { items: [], n: 0 },
-  main: 'show', // what a widget node runs; other actions go through Widget Action nodes
-  // What each action asks for on the node (fields like a node's), filled from the data when it runs.
-  inputs: { show: { text: { vars: true, hint: 'Text to show, e.g. {{user}} just ran !hype' } } },
   // A queued or stacked alert doesn't cut the one showing (server/widgets.js).
   queues: (config) => arrive(config) !== 'replace',
   // The workflow waits until its own alert has gone, queued ones too.
   playTime: (action, config, state) => state.items.at(-1).at + life(config) - Date.now(),
+  stopTime: () => FADE,
   actions: {
-    show(state, { text }, config) {
-      const now = Date.now()
-      const kept = arrive(config) === 'replace' || state.cancelled ? [] : state.items.filter((i) => i.at + life(config) > now)
-      const at = arrive(config) === 'queue' ? Math.max(now, ...kept.map((i) => i.at + life(config) + GAP)) : now
-      return { items: [...kept, { id: state.n + 1, text, at }], n: state.n + 1 }
+    start: {
+      description: 'Shows the text; the workflow goes on once the alert has gone (after the ones queued before it).',
+      inputs: { text: { vars: true, hint: 'Text to show, e.g. {{user}} just ran !hype' } },
+      run(state, { text }, config) {
+        const now = Date.now()
+        const kept = arrive(config) === 'replace' || state.ended ? [] : state.items.filter((i) => i.at + life(config) > now)
+        const at = arrive(config) === 'queue' ? Math.max(now, ...kept.map((i) => i.at + life(config) + GAP)) : now
+        return { items: [...kept, { id: state.n + 1, text, at }], n: state.n + 1 }
+      },
     },
+    stop: { description: 'The alerts showing fade out now and the queued ones are dropped; the workflow goes on.' },
+    cancel: { description: 'The alerts showing and queued disappear at once; the workflow stops there.' },
   },
 }
