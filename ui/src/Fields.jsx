@@ -37,7 +37,8 @@ function VarMenu({ vars, onPick }) {
           <ActionIcon variant="subtle" size="sm"><IconBraces size={16} /></ActionIcon>
         </Tooltip>
       </Menu.Target>
-      <Menu.Dropdown>
+      {/* Scrollable and capped: a long list must scroll itself, not the canvas behind it (nowheel/nopan) */}
+      <Menu.Dropdown mah="50vh" className="nowheel nopan" style={{ overflowY: 'auto' }}>
         {vars.length ? vars.map((k) => <Menu.Item key={k} onClick={() => onPick(k)}>{`{{${k}}}`}</Menu.Item>)
           : <Menu.Label>Connect an input first</Menu.Label>}
       </Menu.Dropdown>
