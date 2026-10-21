@@ -9,7 +9,7 @@ export default {
   label: 'Shoutout',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Gives another channel a Twitch shoutout (while live; one every 2 minutes).',
   fields: { channel: { vars: true, hint: 'A login or display name, e.g. {{user}} from a Raid trigger' } },
   config: { channel: '{{user}}' },

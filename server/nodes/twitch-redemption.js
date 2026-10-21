@@ -9,7 +9,7 @@ export default {
   label: 'Complete Redemption',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Marks a channel points redemption as fulfilled, or refunds it. Only for rewards made by a Channel Points Reward node.',
   fields: {
     status: { label: 'Mark as', options: [{ value: 'FULFILLED', label: 'Fulfilled' }, { value: 'CANCELED', label: 'Refunded' }] },

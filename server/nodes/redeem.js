@@ -5,7 +5,7 @@ export default {
   label: 'Channel Points',
   category: 'trigger',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Fires when a viewer redeems a channel points reward.',
   adds: ['user', 'reward', 'cost', 'input', 'redemptionId', 'rewardId'],
   fields: { reward: { hint: 'Reward title; empty for any reward' } },

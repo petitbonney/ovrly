@@ -26,6 +26,7 @@ import FlowNode, { colors, icons, widgetIcons, outputsOf } from './FlowNode.jsx'
 import layout from './layout.js'
 import { exportWorkflow, download } from './share.js'
 import { get, json } from './api.js'
+import { integrations } from './Settings.jsx'
 
 const findWidget = (widgets, ref) => widgets.find((w) => w.id === ref || w.name === ref)
 // The widget instance a node points to (id or name): a widget node's own, or a Widget Action node's linked widget node's.
@@ -115,6 +116,13 @@ function boundsOf(list) {
 // points to. A Queue node also shows who waits in its line. A Merge Widgets node shows its canvas, with
 // the widgets linked into it (context.inputs).
 function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy }) {
+  // The integrations the node needs that aren't ready; the "Needs…" notes show them.
+  const [missing, setMissing] = useState([])
+  useEffect(() => {
+    const needed = integrations.filter((i) => def?.needs?.includes(i.key))
+    Promise.all(needed.map((i) => get(i.path).then((s) => !i.ready(s), () => false)))
+      .then((off) => setMissing(needed.filter((_, n) => off[n])))
+  }, [node?.id, def])
   if (!node || !def) return null
   const isWidget = def.type === 'widget'
   const isMerge = def.type === 'merge'
@@ -136,7 +144,7 @@ function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy
           )}
         </Group>
         <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
-        {def.streamer && <Text size="xs" c="orange" mb="sm">Needs Twitch in Streamer mode, signed in (Integration → Twitch).</Text>}
+        {missing.map((i) => <Text key={i.key} size="xs" c="orange" mb="sm">Needs {i.needs} (Integration → {i.label}).</Text>)}
         {def.type === 'widget-action' && !widget && <Text size="sm" c="yellow">Link this node to a widget node to pick its action.</Text>}
         {isWidget ? (
           type ? <WidgetSettings key={widget.id} widget={widget} type={type} inputs={fields} testInput={node.data.config.input} onChange={onWidgetChange} onCopy={onCopy} />

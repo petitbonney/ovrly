@@ -8,7 +8,7 @@ export default {
   label: 'Ban / Timeout',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Times out, bans or unbans a viewer.',
   fields: {
     action: { options: ['timeout', 'ban', 'unban'] },

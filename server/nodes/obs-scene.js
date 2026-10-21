@@ -7,6 +7,7 @@ export default {
   label: 'Switch Scene',
   category: 'action',
   group: 'OBS',
+  needs: ['obs'],
   description: 'Switches the OBS program scene.',
   fields: { scene: { vars: true, obs: 'scenes' } },
   config: { scene: '' },

@@ -16,7 +16,7 @@ export default {
   label: 'Announcement',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Posts a chat announcement: a message highlighted in a color.',
   fields: { message: { vars: true, multiline: true, hint: 'Up to 500 characters' }, color: { options: colors } },
   config: { message: '', color: 'primary' },

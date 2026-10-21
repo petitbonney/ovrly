@@ -8,7 +8,7 @@ export default {
   label: 'Send Chat Message',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Sends a chat message as the streamer, or a reply to one.',
   fields: {
     message: { vars: true, multiline: true, hint: 'Up to 500 characters' },

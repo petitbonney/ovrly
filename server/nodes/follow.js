@@ -4,7 +4,7 @@ export default {
   label: 'Follow',
   category: 'trigger',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Fires when someone follows the channel.',
   adds: ['user'],
   event: 'channel.follow',

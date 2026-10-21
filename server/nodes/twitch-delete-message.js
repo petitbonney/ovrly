@@ -8,7 +8,7 @@ export default {
   label: 'Delete Message',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Deletes a chat message, e.g. the one that fired the trigger.',
   fields: { messageId: { label: 'Message ID', vars: true, hint: 'e.g. {{messageId}} from a chat trigger' } },
   config: { messageId: '{{messageId}}' },

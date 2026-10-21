@@ -7,6 +7,7 @@ export default {
   label: 'Toggle Source',
   category: 'action',
   group: 'OBS',
+  needs: ['obs'],
   description: 'Shows, hides or toggles a source in an OBS scene.',
   fields: {
     scene: { vars: true, obs: 'scenes' },

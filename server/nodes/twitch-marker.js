@@ -8,7 +8,7 @@ export default {
   label: 'Stream Marker',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Adds a stream marker (while live), to find the moment again in the VOD.',
   fields: { description: { vars: true, hint: 'Up to 140 characters, e.g. {{user}} cheered {{bits}} bits' } },
   config: { description: '' },

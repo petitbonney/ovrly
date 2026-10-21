@@ -12,7 +12,7 @@ export default {
   label: 'Raid',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Raids another channel and waits until the raid goes out (cancelling the workflow cancels it), or cancels the pending raid.',
   adds: ['viewers'],
   fields: {

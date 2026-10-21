@@ -12,7 +12,7 @@ export default {
   label: 'User Info',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Looks up a viewer or channel: avatar, account age, follow age, sub tier and last category.',
   adds: ['login', 'userId', 'avatar', 'accountDays', 'followDays', 'tier', 'game'],
   fields: { user: { vars: true, hint: 'A login or display name, e.g. {{user}}' } },

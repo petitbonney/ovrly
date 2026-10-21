@@ -9,6 +9,7 @@ export default {
   label: 'GIPHY',
   category: 'action',
   group: 'Media',
+  needs: ['giphy'],
   description: 'Finds a GIF, sticker or clip (with sound) on Giphy and adds its URL as {{gif}}, {{sticker}} or {{clip}}.',
   adds: ['gif', 'sticker', 'clip', 'title'],
   fields: {

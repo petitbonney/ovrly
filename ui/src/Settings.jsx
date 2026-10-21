@@ -184,11 +184,12 @@ function Network({ status, setStatus }) {
   )
 }
 
-// Item key -> its label, status and pane, per section.
-const integrations = [
-  { key: 'twitch', label: 'Twitch', path: '/api/twitch', info: twitchInfo, Pane: Twitch },
-  { key: 'obs', label: 'OBS', path: '/api/obs', info: obsInfo, Pane: Obs },
-  { key: 'giphy', label: 'Giphy', path: '/api/giphy', info: giphyInfo, Pane: Giphy },
+// Integration key -> its label, status and pane. A node lists the keys it `needs`; `ready` says from the status
+// whether it can run, `needs` is the note shown when it can't.
+export const integrations = [
+  { key: 'twitch', label: 'Twitch', path: '/api/twitch', info: twitchInfo, Pane: Twitch, ready: (s) => s.streamer, needs: 'Twitch in Streamer mode, signed in' },
+  { key: 'obs', label: 'OBS', path: '/api/obs', info: obsInfo, Pane: Obs, ready: (s) => s.connected, needs: 'OBS connected' },
+  { key: 'giphy', label: 'Giphy', path: '/api/giphy', info: giphyInfo, Pane: Giphy, ready: (s) => s.connected, needs: 'Giphy connected (API key)' },
 ]
 
 export default function Settings({ opened, onClose }) {

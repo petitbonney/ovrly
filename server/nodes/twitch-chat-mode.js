@@ -17,7 +17,7 @@ export default {
   label: 'Chat Mode',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Toggles a chat mode, or turns it on or off: emote-only, followers-only, subscribers-only, slow or unique chat.',
   fields: {
     mode: { options: modes, hint: 'Unique chat: no message repeated' },
