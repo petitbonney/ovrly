@@ -8,7 +8,7 @@ export default {
   label: 'Ad Break',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Starts an ad break (while live), or snoozes the next scheduled one by 5 minutes.',
   adds: ['length', 'snoozes'],
   fields: {

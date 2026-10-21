@@ -10,7 +10,7 @@ export default {
   label: 'Stream On/Off',
   category: 'trigger',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Fires when the stream goes live or ends; "status" says which.',
   adds: ['status', 'type', 'channel'],
   fields: { statuses: { label: 'Fires on', options: statuses } },

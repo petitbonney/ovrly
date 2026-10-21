@@ -16,9 +16,12 @@ const builtIn = {
   stop: { description: 'Ends what is playing, as finished: the workflow that started it goes on.', run: keep },
   cancel: { description: 'Cuts what is playing: the workflow that started it stops there.', run: keep },
 }
+// Types are kept in the library's order: most used first (unlisted ones last).
+const order = ['alerts', 'voting', 'sound', 'image', 'video', 'lottery', 'twitch-plays']
+const rank = (name) => (order.includes(name) ? order.indexOf(name) : order.length)
 export const types = {}
-for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
-  if (!entry.isDirectory()) continue
+const folders = (await fs.readdir(dir, { withFileTypes: true })).filter((e) => e.isDirectory()).sort((a, b) => rank(a.name) - rank(b.name))
+for (const entry of folders) {
   const def = (await import(new URL(`${entry.name}/widget.js`, dir))).default
   const { stop, cancel } = def.actions
   types[def.type] = { ...def, linked: def.linked ?? 'start', actions: { ...def.actions, stop: { ...builtIn.stop, ...stop }, cancel: { ...builtIn.cancel, ...cancel } } }

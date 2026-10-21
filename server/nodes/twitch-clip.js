@@ -8,7 +8,7 @@ export default {
   label: 'Create Clip',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Clips the last moments of the stream (while live) and adds its URL as {{clipUrl}}.',
   adds: ['clipId', 'clipUrl'],
   config: {},

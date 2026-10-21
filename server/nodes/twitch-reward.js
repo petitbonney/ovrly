@@ -12,7 +12,7 @@ export default {
   label: 'Channel Points Reward',
   category: 'action',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Enables, disables, pauses or resumes a channel points reward made by Ovrly (made here the first time).',
   adds: ['rewardId'],
   fields: {

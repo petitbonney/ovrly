@@ -5,7 +5,7 @@ export default {
   label: 'Hype Train',
   category: 'trigger',
   group: 'Twitch',
-  streamer: true,
+  needs: ['twitch'],
   description: 'Fires when a Hype Train starts, moves on or ends.',
   adds: ['phase', 'level', 'total', 'progress', 'goal', 'top'],
   fields: { phase: { options: ['any', 'begin', 'progress', 'end'] } },
