@@ -1,8 +1,9 @@
-// Image/GIF: shows an image for a few seconds, fading in and out. The image is the action's value, set on the node:
+// Image/GIF: shows an image for a few seconds, fading in and out. The image is the action's input, set on the node:
 // a file path on disk or a URL, typed or from data (e.g. {{gif}} from a GIPHY node).
 const ABS = /^([a-z]:[\\/]|[\\/])/i // C:\..., \\server\..., or /...
 const imageUrl = (v) =>
   /^(https?:\/\/|\/media\/)/.test(v) ? v : v && ABS.test(v) ? `/file?path=${encodeURIComponent(v)}` : ''
+export const FADE = 300 // ms: the image fading in, and out
 
 export default {
   type: 'image',
@@ -13,11 +14,16 @@ export default {
     duration: { unit: 's', presets: [3, 5, 8, 10], hint: 'How long the image stays on screen' },
   },
   state: { url: '', at: 0 },
-  main: 'show', // what a widget node runs; other actions go through Widget Callback nodes
-  inputs: { show: { type: 'image', hint: 'Browse files, or a URL or path, e.g. {{gif}} from a GIPHY node' } },
-  playTime: (action, config) => config.duration * 1000 + 600, // in, shown, out; the workflow waits for it
+  playTime: (action, config) => config.duration * 1000 + 2 * FADE, // in, shown, out; the workflow waits for it
+  stopTime: () => FADE,
   actions: {
-    // A file path is served by /file; a value that isn't an image (e.g. text left in a widget node) shows nothing.
-    show: (state, { value }) => ({ url: imageUrl(value), at: Date.now() }),
+    start: {
+      description: 'Shows the image for the set duration, fading in and out; the workflow goes on once it has gone.',
+      inputs: { image: { type: 'image', hint: 'Browse files, or a URL or path, e.g. {{gif}} from a GIPHY node' } },
+      // A file path is served by /file; an input that isn't an image (e.g. text left in a widget node) shows nothing.
+      run: (state, { image }) => ({ url: imageUrl(image), at: Date.now() }),
+    },
+    stop: { description: 'The image fades out now; the workflow goes on.' },
+    cancel: { description: 'The image disappears at once; the workflow stops there.' },
   },
 }

@@ -34,7 +34,8 @@ let lastRun = 0
 
 // Runs one node, then the nodes connected to its outputs. A null result stops the branch.
 // `run` is the state of one trigger firing: its abort signal and the data waiting at "wait for all" (join) nodes.
-async function walk(workflow, node, data, run) {
+// `from` is the node the data came from, { type, config }: a widget node runs the action of a Widget Action node.
+async function walk(workflow, node, data, run, from) {
   if (run.signal.aborted) return
   const def = nodes[node.data.type]
   const status = (state, extra) => activity.emit('activity', { workflow: workflow.id, node: node.id, state, ...extra })
@@ -59,14 +60,14 @@ async function walk(workflow, node, data, run) {
     q.busy = true
     try {
       if (run.signal.aborted) return status('stopped')
-      return await step(workflow, node, data, run, { def, config, id, status })
+      return await step(workflow, node, data, run, { def, config, id, status, from })
     } finally {
       const next = q.line.shift()
       if (next) next.go(true) // its turn: the node stays busy
       else q.busy = false
     }
   }
-  return step(workflow, node, data, run, { def, config, id, status })
+  return step(workflow, node, data, run, { def, config, id, status, from })
 }
 
 // The firings waiting at a queue node, first in line first: [{ id, at, data }] (GET /api/queues/:workflow/:node).
@@ -83,7 +84,7 @@ export function drop(workflow, node, entry) {
 // Runs the node itself, then walks on from its outputs. Besides the data, the node can read {{ $node.<type>.<key> }},
 // the output of an earlier node in this firing: data is copied with it attached out of sight (not enumerable), so
 // it doesn't travel on with the data.
-async function step(workflow, node, data, run, { def, config, id, status }) {
+async function step(workflow, node, data, run, { def, config, id, status, from }) {
   data = Object.defineProperty({ ...data }, '$node', { value: run.outputs })
   // A trigger is only shown when it fires: most chat messages don't match most triggers.
   const trigger = def.category === 'trigger'
@@ -104,7 +105,7 @@ async function step(workflow, node, data, run, { def, config, id, status }) {
   // A failure stops the firing there.
   let out
   try {
-    out = await def.run({ config, data, id, signal: run.signal, depth: run.depth, event: run.event })
+    out = await def.run({ config, data, id, from, signal: run.signal, depth: run.depth, event: run.event })
   } catch (err) {
     if (run.signal.aborted) return end('stopped') // e.g. an HTTP request cut short by cancel()
     log({ error: err.message })
@@ -129,7 +130,7 @@ async function step(workflow, node, data, run, { def, config, id, status }) {
   await Promise.all(next.flatMap((e) => {
     const target = workflow.nodes.find((n) => n.id === e.target)
     if (target) activity.emit('activity', { workflow: workflow.id, edge: e.id, target: e.target })
-    return target ? items.map((item) => walk(workflow, target, multi ? out[e.sourceHandle] : item, run)) : []
+    return target ? items.map((item) => walk(workflow, target, multi ? out[e.sourceHandle] : item, run, { type: def.type, config })) : []
   }))
 }
 

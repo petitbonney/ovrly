@@ -103,10 +103,10 @@
 </style>
 <div id="board"></div>
 <script type="module">
-  import { engine } from 'animejs'
+  import { animate, engine } from 'animejs'
   import { subscribe, wait, el } from '/widgets/lib.js'
   import { setVolume } from '/widgets/alerts/kit.js'
-  import { life } from '/widgets/alerts/widget.js'
+  import { life, FADE } from '/widgets/alerts/widget.js'
   import banner from '/widgets/alerts/banner.js'
   import neon from '/widgets/alerts/neon.js'
   import ticket from '/widgets/alerts/ticket.js'
@@ -139,13 +139,24 @@
     shown.delete(id)
   }
   const stopAll = () => [...shown.keys()].forEach(stop)
+  // Stop: the alerts showing fade out now, the ones waiting for their turn are dropped.
+  function fadeAll() {
+    for (const [id, alert] of shown) {
+      if (!alert.tl) {
+        stop(id)
+        continue
+      }
+      alert.tl.pause()
+      animate(alert.box, { opacity: 0, duration: FADE, ease: 'inQuad', onComplete: () => stop(id) })
+    }
+  }
 
   let layout
   subscribe(({ config, state }) => {
-    if (state.cancelled || config.layout !== layout) stopAll()
+    if (state.ended || config.layout !== layout) stopAll()
     layout = config.layout
     setVolume(Math.min(Math.max(config.volume, 0) / 100, 1))
-    if (state.cancelled) return
+    if (state.ended) return
     for (const id of [...shown.keys()]) if (!state.items.some((i) => i.id === id)) stop(id) // replaced by a newer one
     const ms = life(config)
     for (const item of state.items) {
@@ -163,5 +174,5 @@
       }, item.at - Date.now())
     }
     return wait(Math.max(0, ...state.items.map((i) => i.at + ms)) - Date.now()) // finished once the last one is gone
-  }, stopAll)
+  }, { stop: fadeAll, cancel: stopAll })
 </script>

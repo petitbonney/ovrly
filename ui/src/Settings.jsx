@@ -125,12 +125,12 @@ function Twitch({ status, setStatus }) {
       <SegmentedControl size="xs" fullWidth data={modes} value={form.mode} onChange={switchMode} />
       {form.mode === 'guest' ? (
         <>
-          <Text size="xs" c="dimmed">Reads the chat of any channel, without signing in: enough for chat triggers, chat votes and chat bets.</Text>
+          <Text size="xs" c="dimmed">Reads the chat of any channel, without signing in: enough for chat triggers and chat votes.</Text>
           <TextInput size="xs" label="Channel" placeholder="channel" value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })} data-autofocus />
         </>
       ) : (
         <>
-          <Text size="xs" c="dimmed">Sign in as the channel owner: reads your chat and unlocks Twitch features, like Twitch polls and predictions in the Poll and Bets widgets.</Text>
+          <Text size="xs" c="dimmed">Sign in as the channel owner: reads your chat and unlocks Twitch features: EventSub triggers, Twitch actions, and Twitch polls and predictions in the Voting widget.</Text>
           <TwitchAccount account={status.account} setStatus={setStatus} />
         </>
       )}

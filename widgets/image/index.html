@@ -11,21 +11,27 @@
 <script type="module">
   import { animate } from 'animejs'
   import { subscribe, wait } from '/widgets/lib.js'
+  import { FADE } from '/widgets/image/widget.js'
   const img = document.getElementById('img')
-  const IN = 300, OUT = 300
-  let timer
-  const fade = (out) => animate(img, { opacity: out ? [1, 0] : [0, 1], duration: out ? OUT : IN, ease: out ? 'inQuad' : 'outQuad' })
+  let timer, anim
+  const fade = (out) => {
+    anim?.pause()
+    anim = animate(img, { opacity: out ? 0 : [0, 1], duration: FADE, ease: out ? 'inQuad' : 'outQuad' })
+  }
+  // Stop: the image fades out now; cancel: it disappears at once.
+  const end = (out) => {
+    clearTimeout(timer)
+    if (out) return fade(true)
+    anim?.pause()
+    img.style.opacity = 0
+  }
   subscribe(async ({ config, state }) => {
     clearTimeout(timer)
-    const left = state.cancelled || !state.url ? 0 : state.at + config.duration * 1000 - Date.now()
+    const left = state.ended || !state.url ? 0 : state.at + config.duration * 1000 - Date.now()
     if (left <= 0) return void (img.style.opacity = 0)
     if (img.getAttribute('src') !== state.url) img.src = state.url
     fade(false)
-    timer = setTimeout(() => fade(true), Math.max(left - OUT, 0))
-    return wait(left + OUT)
-  }, () => {
-    // Cancel: the image goes out now.
-    clearTimeout(timer)
-    fade(true)
-  })
+    timer = setTimeout(() => fade(true), Math.max(left - FADE, 0))
+    return wait(left + FADE)
+  }, { stop: () => end(true), cancel: () => end(false) })
 </script>

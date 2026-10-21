@@ -11,8 +11,8 @@
 <script type="module">
   import { animate } from 'animejs'
   import { subscribe } from '/widgets/lib.js'
+  import { FADE } from '/widgets/video/widget.js'
   const video = document.getElementById('video')
-  const OUT = 300 // fade-out when the video ends or is cut
   let current // { resolve, timer } of the video playing now
   const volume = (config) => Math.min(Math.max(config.volume, 0) / 100, 1)
 
@@ -24,12 +24,12 @@
     current = null
     video.onended = video.onerror = null
     if (!fade) return void (video.pause(), (video.style.opacity = 0))
-    animate(video, { opacity: [1, 0], duration: OUT, ease: 'inQuad', onComplete: () => video.pause() })
+    animate(video, { opacity: [1, 0], duration: FADE, ease: 'inQuad', onComplete: () => video.pause() })
   }
 
   subscribe(({ config, state, run }) => {
     // Only an action plays, not a config change or a reload; a volume change applies to the video playing.
-    if (!run || state.cancelled || !state.url) {
+    if (!run || state.ended || !state.url) {
       if (current) video.volume = volume(config)
       return
     }
@@ -42,8 +42,8 @@
       // OBS plays without a click; a plain browser tab may refuse, which ends the action at once.
       video.play().then(() => {
         video.style.opacity = 1
-        if (current?.resolve === resolve && config.duration > 0) current.timer = setTimeout(() => stop(true), config.duration * 1000 - OUT)
+        if (current?.resolve === resolve && config.duration > 0) current.timer = setTimeout(() => stop(true), config.duration * 1000 - FADE)
       }, () => stop(false))
     })
-  }, () => stop(true))
+  }, { stop: () => stop(true), cancel: () => stop(false) })
 </script>
