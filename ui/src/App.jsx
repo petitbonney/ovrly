@@ -142,10 +142,8 @@ function Library({ defs, types }) {
         )
       })}
       {(types.some(match) || defs.some((d) => d.category === 'widget' && d.type !== 'widget' && match(d))) && <Section title="Widget" forceOpen={!!q}>
-        {/* Widget node types (Merge Widgets) come first; the widget node itself is created by dropping a widget type. */}
+        {/* Widget types first; widget node types (Merge Widgets) last. The widget node itself is created by dropping a widget type. */}
         <Groups items={[
-          ...defs.filter((d) => d.category === 'widget' && d.type !== 'widget' && match(d))
-            .map((d) => ({ group: d.group, el: <Item key={d.type} d={d} color={colors.widget} /> })),
           ...types.filter(match).map((t) => {
             const Icon = widgetIcons[t.type]
             return { el: (
@@ -163,6 +161,8 @@ function Library({ defs, types }) {
               </Tooltip>
             ) }
           }),
+          ...defs.filter((d) => d.category === 'widget' && d.type !== 'widget' && match(d))
+            .map((d) => ({ group: d.group, el: <Item key={d.type} d={d} color={colors.widget} /> })),
         ]} />
       </Section>}
     </>

@@ -4,13 +4,25 @@ import { EventEmitter } from 'node:events'
 import bus from './bus.js'
 import * as store from './store.js'
 
-// Load every node type from ./nodes, keyed by type.
+// Load every node type from ./nodes, keyed by type, in the library's order: most used first, a group's nodes together.
+// Types not listed go last.
+const order = [
+  'manual', 'chat-command', 'chat-message',
+  'redeem', 'follow', 'subscription', 'raid', 'cheer', 'gift-subs', 'hype-train', 'stream-status',
+  'schedule', 'webhook', 'workflow-call', 'error-trigger',
+  'if-else', 'filter', 'switch', 'fan-out', 'wait-all', 'execute-workflow',
+  'delay', 'cooldown', 'queue',
+  'edit-variable', 'code', 'edit-data',
+  'twitch-chat', 'twitch-announce', 'twitch-shoutout', 'twitch-ban', 'twitch-delete-message', 'twitch-clip', 'twitch-user',
+  'twitch-redemption', 'twitch-marker', 'twitch-stream-info', 'twitch-ad', 'twitch-chat-mode', 'twitch-reward', 'twitch-raid',
+  'obs-scene', 'obs-source', 'giphy', 'myinstants',
+  'widget-action', 'log', 'http-request', 'key-press', 'websocket-send',
+]
+const rank = (type) => (order.includes(type) ? order.indexOf(type) : order.length)
 const dir = new URL('./nodes/', import.meta.url)
+const loaded = await Promise.all((await fs.readdir(dir)).map(async (name) => (await import(new URL(name, dir))).default))
 export const nodes = {}
-for (const name of await fs.readdir(dir)) {
-  const def = (await import(new URL(name, dir))).default
-  nodes[def.type] = def
-}
+for (const def of loaded.sort((a, b) => rank(a.type) - rank(b.type))) nodes[def.type] = def
 
 // Live run feedback for the editor (GET /api/activity): { workflow, node, state } where state is running, done,
 // stopped (returned nothing), error or waiting (a join waiting for its other links), { workflow, edge, target }
