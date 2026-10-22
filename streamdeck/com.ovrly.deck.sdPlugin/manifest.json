@@ -1,0 +1,47 @@
+{
+  "UUID": "com.ovrly.deck",
+  "Name": "Ovrly",
+  "Version": "0.1.0.0",
+  "Author": "Ovrly",
+  "Description": "Shows the buttons of Ovrly's Control Pad nodes on keys, live, and fires them.",
+  "Icon": "imgs/plugin",
+  "Category": "Ovrly",
+  "CategoryIcon": "imgs/category",
+  "CodePath": "plugin.js",
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "7.1"
+  },
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "12"
+    },
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Nodejs": {
+    "Version": "24"
+  },
+  "Actions": [
+    {
+      "UUID": "com.ovrly.deck.button",
+      "Name": "Ovrly button",
+      "Tooltip": "A button of an Ovrly Control Pad node: pick it in the settings",
+      "Icon": "imgs/action",
+      "PropertyInspectorPath": "pi.html",
+      "Controllers": [
+        "Keypad"
+      ],
+      "UserTitleEnabled": false,
+      "States": [
+        {
+          "Image": "imgs/key",
+          "ShowTitle": false
+        }
+      ]
+    }
+  ]
+}

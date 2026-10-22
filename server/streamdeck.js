@@ -1,0 +1,93 @@
+// Stream Deck integration: the Ovrly plugin (streamdeck/) gets the buttons of every Control Pad node set to the
+// Stream Deck controller, drawn as key images, says which keys show which button (pairing), and sends presses, which
+// fire that node alone.
+import { record } from './bus.js'
+import { fire } from './engine.js'
+import * as store from './store.js'
+import deck from './nodes/deck.js'
+
+// connected: the plugin is listening; devices: id -> { name, columns, rows }; keys: the paired keys,
+// [{ context, device, column, row, workflow, node, button }] (no column or row for a key in a multi action).
+export const status = { connected: false, devices: {}, keys: [] }
+const clients = new Set()
+
+// A Tabler icon's SVG shapes, e.g. "dice-5" -> IconDice5's; a star if there is no such icon.
+const shapes = {}
+async function iconShapes(name) {
+  const file = `Icon${name.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join('')}.mjs`
+  shapes[name] ??= import(`@tabler/icons-react/dist/esm/icons/${file}`).then((m) => m.__iconNode, () => iconShapes('star'))
+  return shapes[name]
+}
+
+// Images go raw in a data URL, so no "#" (it would end the URL): named entities, and colors as rgb().
+const esc = (s) => String(s).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c])
+const rgb = (hex) => (/^#[0-9a-f]{6}$/i.test(hex) ? `rgb(${hex.slice(1).match(/../g).map((h) => parseInt(h, 16))})` : 'gray')
+
+// A key image (144px SVG): the button's color, its icon and name in white; faded while its workflow is off.
+async function keyImage(button, on) {
+  const icon = (await iconShapes(button.icon || 'star'))
+    .map(([tag, { key, ...attrs }]) => `<${tag} ${Object.entries(attrs).map(([k, v]) => `${k}="${esc(v)}"`).join(' ')}/>`).join('')
+  const name = button.name.length > 12 ? `${button.name.slice(0, 11)}…` : button.name
+  const size = name.length > 8 ? 17 : 22
+  return `data:image/svg+xml;charset=utf8,<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144">`
+    + `<rect width="144" height="144" fill="black"/><g opacity="${on ? 1 : 0.3}"><rect width="144" height="144" fill="${rgb(button.color)}"/>`
+    + `<g transform="translate(44 ${name ? 22 : 44}) scale(2.333)" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</g>`
+    + `<text x="72" y="122" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="bold" font-size="${size}" fill="white">${esc(name)}</text></g></svg>`
+}
+
+// A node's config if it is a Control Pad node on the Stream Deck mode (not Companion).
+function pluginDeck(node) {
+  if (node?.data.type !== 'deck') return null
+  const config = { ...deck.config, ...node.data.config }
+  return config.mode === 'streamdeck' ? config : null
+}
+
+// The plugin's decks: [{ workflow, name (the workflow's), enabled, node, buttons: [{ id, name, image }] }].
+async function decks() {
+  const list = []
+  for (const workflow of await store.list('workflows')) {
+    for (const node of (workflow.nodes ?? []).filter(pluginDeck)) {
+      const on = workflow.enabled !== false
+      const buttons = await Promise.all(pluginDeck(node).buttons.map(async (b) => ({ id: b.id, name: b.name, image: await keyImage(b, on) })))
+      list.push({ workflow: workflow.id, name: workflow.name, enabled: on, node: node.id, buttons })
+    }
+  }
+  return list
+}
+
+// The plugin's stream (SSE): the decks now, then again whenever they change (checked every second, like schedules).
+export function listen(req, res) {
+  res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }).flushHeaders()
+  clients.add(res)
+  status.connected = true
+  record('sse', 'streamdeck-connected', {})
+  let last = ''
+  const push = async () => {
+    const data = JSON.stringify(await decks())
+    if (data !== last) res.write(`data: ${(last = data)}\n\n`)
+  }
+  push()
+  const timer = setInterval(push, 1000)
+  req.on('close', () => {
+    clearInterval(timer)
+    clients.delete(res)
+    if (!clients.size) Object.assign(status, { connected: false, devices: {}, keys: [] })
+  })
+}
+
+// The plugin's devices and paired keys, sent whenever they change.
+export function report({ devices = {}, keys = [] }) {
+  Object.assign(status, { devices, keys })
+}
+
+// A key (or the node's grid) pressed: fires its button on that node alone, unless the button is gone, the node is set
+// to Companion, or its workflow is off.
+export async function press({ workflow: id, node: nodeId, button }) {
+  const workflow = await store.get('workflows', id).catch(() => null)
+  const config = pluginDeck(workflow?.nodes?.find((n) => n.id === nodeId))
+  if (!config?.buttons.some((b) => b.id === button)) return { ok: false, error: 'This button is gone' }
+  if (workflow.enabled === false) return { ok: false, error: 'This workflow is off' }
+  record('http', 'streamdeck', { workflow: id, node: nodeId, button })
+  fire(workflow, 'streamdeck', { button }, {}, nodeId)
+  return { ok: true }
+}

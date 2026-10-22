@@ -11,6 +11,7 @@ import * as twitchAuth from './sources/twitch-auth.js'
 import * as eventsub from './sources/twitch-eventsub.js'
 import * as obs from './obs.js'
 import * as giphy from './giphy.js'
+import * as streamdeck from './streamdeck.js'
 import * as myinstants from './myinstants.js'
 import * as widgets from './widgets.js'
 import * as windows from './windows.js'
@@ -110,8 +111,9 @@ app.post('/api/stop', async (req, res) => {
   res.sendStatus(204)
 })
 // API call trigger: any request to /hooks/<path> fires the matching nodes; the query and JSON body become data.
-app.all('/hooks/:path', (req, res) => {
-  bus.emit('webhook', { ...req.query, ...req.body, path: req.params.path })
+// /hooks/<path>/<button> is a Control Pad node's button (path "<path>/<button>", which no API Call node matches).
+app.all('/hooks/:path{/:button}', (req, res) => {
+  bus.emit('webhook', { ...req.query, ...req.body, path: [req.params.path, req.params.button].filter(Boolean).join('/') })
   res.sendStatus(204)
 })
 
@@ -167,6 +169,19 @@ app.put('/api/giphy', async (req, res) => {
   await giphy.connect(settings)
   res.json(giphy.status)
 })
+// Stream Deck integration: its status (plugin connected, devices, paired keys), and the plugin's link: the decks
+// stream, its paired keys, and key presses.
+app.get('/api/streamdeck', (req, res) => res.json(streamdeck.status))
+app.get('/api/streamdeck/events', streamdeck.listen)
+app.post('/api/streamdeck/keys', (req, res) => {
+  streamdeck.report(req.body)
+  res.sendStatus(204)
+})
+app.post('/api/streamdeck/press', async (req, res) => res.json(await streamdeck.press(req.body)))
+// The packed plugin to install (made by pnpm streamdeck:pack; release zips have it).
+app.get('/streamdeck/com.ovrly.deck.streamDeckPlugin', (req, res) => res.download('streamdeck/com.ovrly.deck.streamDeckPlugin', (err) =>
+  err && !res.headersSent && res.status(404).send('Not packed yet: run pnpm streamdeck:pack')))
+
 // GIPHY node's picker: trending GIFs (or ?kind=sticker, clip) or search results, 24 at a time.
 app.get('/api/giphy/search', (req, res) =>
   giphy.search(String(req.query.q ?? ''), Number(req.query.offset) || 0, req.query.kind, req.query.rating).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))

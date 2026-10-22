@@ -1,0 +1,60 @@
+<!doctype html>
+<!-- Settings of an "Ovrly button" key, in the Stream Deck app: which Control Pad node button it shows. The list comes
+     from the plugin (plugin.js), which gets it from Ovrly. -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { margin: 0; padding: 8px 12px; background: #2d2d2d; color: #d8d8d8; font: 9pt -apple-system, "Segoe UI", sans-serif; }
+    label { display: flex; align-items: center; gap: 12px; }
+    select { flex: 1; min-width: 0; background: #3d3d3d; color: #d8d8d8; border: none; border-radius: 3px; padding: 4px; font: inherit; }
+    p { margin: 8px 0 0; color: #969696; }
+  </style>
+</head>
+<body>
+  <label>Button <select id="pick" disabled><option>Loading…</option></select></label>
+  <p id="note"></p>
+  <script>
+    // Stream Deck calls this when the settings open: port, this key's context, register event, app info, action info.
+    function connectElgatoStreamDeckSocket(port, uuid, event, info, actionInfo) {
+      const { action, payload } = JSON.parse(actionInfo)
+      let settings = payload.settings ?? {}
+      const pick = document.getElementById('pick')
+      const note = document.getElementById('note')
+      const socket = new WebSocket(`ws://127.0.0.1:${port}`)
+      const send = (event, payload) => socket.send(JSON.stringify({ event, action, context: uuid, payload }))
+      socket.onopen = () => {
+        socket.send(JSON.stringify({ event, uuid }))
+        send('sendToPlugin', {}) // asks for the buttons
+      }
+      // The buttons, grouped by Control Pad node (named after its workflow); a key's value is "workflow node button".
+      const option = (value, text) => Object.assign(document.createElement('option'), { value, textContent: text })
+      function show({ online, decks }) {
+        const current = settings.button ? [settings.workflow, settings.node, settings.button].join(' ') : ''
+        pick.replaceChildren(option('', 'None'))
+        for (const d of decks ?? []) {
+          const group = Object.assign(document.createElement('optgroup'), { label: d.name })
+          group.append(...d.buttons.map((b) => option([d.workflow, d.node, b.id].join(' '), b.name || b.id)))
+          pick.append(group)
+        }
+        if (current && ![...pick.options].some((o) => o.value === current)) pick.append(option(current, 'Button gone'))
+        pick.value = current
+        pick.disabled = !online
+        note.textContent = !online ? 'Ovrly is not running (http://localhost:6875).'
+          : !decks.length ? 'No Control Pad node in Ovrly yet: add one to a workflow (mode: Stream Deck).'
+          : 'Ovrly draws the key: change its name, icon and color in the Control Pad node.'
+      }
+      socket.onmessage = ({ data }) => {
+        const message = JSON.parse(data)
+        if (message.event === 'sendToPropertyInspector') show(message.payload)
+        if (message.event === 'didReceiveSettings') settings = message.payload.settings
+      }
+      pick.onchange = () => {
+        const [workflow, node, button] = pick.value.split(' ')
+        settings = button ? { workflow, node, button } : {}
+        send('setSettings', settings)
+      }
+    }
+  </script>
+</body>
+</html>
