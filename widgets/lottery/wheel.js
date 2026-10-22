@@ -38,6 +38,12 @@ export default function wheel(stage, board, { options }, res) {
     const ctx = disc.getContext('2d')
     const c = 440, R = 380
     ctx.clearRect(0, 0, 880, 880)
+    if (!parts.length) { // no options (none loaded yet): a grey disc
+      ctx.beginPath(); ctx.arc(c, c, R, 0, 2 * Math.PI); ctx.fillStyle = '#3a3a44'; ctx.fill()
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fffa'; ctx.font = '800 44px system-ui'
+      ctx.fillText('No options loaded', c, c - 90) // above the hub
+      return
+    }
     const order = parts.map((_, i) => i).sort((i, j) => (i === winner) - (j === winner))
     for (const i of order) {
       const { start, size } = parts[i]

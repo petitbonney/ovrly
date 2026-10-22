@@ -9,7 +9,7 @@ import {
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
   IconMessageCode, IconMovie, IconAd, IconBan, IconBookmark, IconChecks, IconMessageCog, IconMessageShare, IconPencil, IconRocket,
   IconScissors, IconTicket, IconTrash, IconUserSearch, IconMessageStar, IconHeartHandshake,
-  IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVideo, IconVolume, IconVariable, IconWebhook, IconWindmill, IconWorld,
+  IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVideo, IconVolume, IconVariable, IconWebhook, IconAirConditioning, IconWorld,
   IconLayoutGrid, IconBulb,
 } from '@tabler/icons-react'
 import { deckIcons } from './Deck.jsx'
@@ -17,6 +17,8 @@ import { deckIcons } from './Deck.jsx'
 // If/else branches left to right, like the graph.
 const IconIfElse = ({ style, ...props }) => <IconGitBranch {...props} style={{ ...style, transform: 'rotate(90deg)' }} />
 const IconSwitch = ({ style, ...props }) => <IconArrowForkTriple {...props} style={{ ...style, transform: 'rotate(90deg)' }} />
+const IconFanOut = ({ style, ...props }) => <IconAirConditioning {...props} style={{ ...style, transform: 'rotate(-90deg)' }} />
+const IconFanIn = ({ style, ...props }) => <IconAirConditioning {...props} style={{ ...style, transform: 'rotate(90deg)' }} />
 
 export const icons = {
   'chat-command': IconMessageCode,
@@ -43,7 +45,8 @@ export const icons = {
   filter: IconFilter,
   'if-else': IconIfElse,
   switch: IconSwitch,
-  'fan-out': IconWindmill,
+  'fan-out': IconFanOut,
+  'fan-in': IconFanIn,
   'wait-all': IconArrowsJoin2,
   cooldown: IconClockPause,
   queue: IconListNumbers,
