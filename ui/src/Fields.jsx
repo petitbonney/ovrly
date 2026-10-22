@@ -4,6 +4,7 @@
 // On a number, slider: true is a slider from min to max (0 to 100 by default), its value beside the label; a volume's
 // slider has a mute button.
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
+// off: true labels the 0 preset "off" (where 0 turns the setting off).
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
 // (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
 // An option { value, label, streamer: true } is a Twitch feature: it needs Twitch in Streamer mode (context.streamer).
@@ -152,14 +153,14 @@ function WindowInput({ onChange, ...props }) {
 const short = (n, unit) => (unit === 's' && n >= 60 ? `${Math.floor(n / 60)}m${n % 60 ? String(n % 60).padStart(2, '0') : ''}` : `${n}${unit ?? ''}`)
 
 // A number with preset buttons (the current one highlighted) and an input for any other value.
-function PresetInput({ label, description, unit, presets, value, onChange }) {
+function PresetInput({ label, description, unit, presets, off, value, onChange }) {
   return (
     <Stack gap={4}>
       <Text size="xs" fw={500}>{label}</Text>
       {description && <Text size="xs" c="dimmed">{description}</Text>}
       <Group gap={6} wrap="nowrap">
         {presets.map((n) => (
-          <Button key={n} size="compact-xs" h={30} px="sm" variant={n === value ? 'filled' : 'default'} onClick={() => onChange(n)}>{short(n, unit)}</Button>
+          <Button key={n} size="compact-xs" h={30} px="sm" variant={n === value ? 'filled' : 'default'} onClick={() => onChange(n)}>{off && n === 0 ? 'off' : short(n, unit)}</Button>
         ))}
         <NumberInput size="xs" w={90} min={0} aria-label={`Custom ${label.toLowerCase()}`} suffix={unit && ` ${unit}`} value={value} onChange={(v) => onChange(Number(v))} />
       </Group>
@@ -475,7 +476,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
   if (f.type === 'secret') return <PasswordInput {...props} value={value} onChange={(e) => set(e.target.value)} />
   if (isColor(fallback)) return <ColorInput {...props} swatches={swatches} value={value} onChange={set} />
   if (typeof fallback === 'boolean') return <Switch {...props} checked={value} onChange={(e) => set(e.target.checked)} />
-  if (f.presets) return <PresetInput {...props} unit={f.unit} presets={f.presets} value={value} onChange={set} />
+  if (f.presets) return <PresetInput {...props} unit={f.unit} presets={f.presets} off={f.off} value={value} onChange={set} />
   if (typeof fallback === 'number') return <NumberInput {...props} suffix={f.unit && ` ${f.unit}`} value={value} onChange={(v) => set(Number(v))} />
   if (f.hue) return <HueInput {...props} value={value} onChange={set} />
   if (f.obs) return <ObsInput {...props} list={f.obs} scene={values.scene ?? ''} vars={context.vars ?? []} value={value} onChange={set} />
