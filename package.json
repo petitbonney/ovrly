@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "node --watch-path=server server/index.js",
     "build": "vite build",
-    "start": "NODE_ENV=production node server/index.js"
+    "start": "NODE_ENV=production node server/index.js",
+    "streamdeck:pack": "streamdeck pack streamdeck/com.ovrly.deck.sdPlugin -o streamdeck -f --no-update-check",
+    "streamdeck:link": "streamdeck link streamdeck/com.ovrly.deck.sdPlugin"
   },
   "dependencies": {
     "@mantine/core": "^9.7.2",
@@ -24,6 +26,7 @@
     "tmi.js": "1.8.5"
   },
   "devDependencies": {
+    "@elgato/cli": "^1.10.3",
     "@vitejs/plugin-react": "^6.1.2",
     "vite": "^8.3.4"
   }

@@ -2,8 +2,9 @@
 node_modules/
 .pnpm-store/
 
-# Build output (Vite)
+# Build output (Vite, Stream Deck plugin)
 dist/
+streamdeck/*.streamDeckPlugin
 
 # User data: widgets & workflows
 data/

@@ -12,13 +12,14 @@ import {
 } from '@xyflow/react'
 import { animate } from 'animejs'
 import '@xyflow/react/dist/style.css'
-import { ActionIcon, AppShell, Button, Divider, Group, Modal, Notification, Text, TextInput, Tooltip } from '@mantine/core'
+import { ActionIcon, AppShell, Button, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip } from '@mantine/core'
 import {
   IconArrowBackUp, IconArrowForwardUp, IconDownload, IconInfoCircle, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
   IconPlayerPlay, IconPlayerStop, IconPlus, IconSitemap,
   IconTrash,
 } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
+import DeckGrid from './Deck.jsx'
 import WidgetSettings, { ActionsInfo } from './Widget.jsx'
 import QueueLine from './QueueLine.jsx'
 import Merge from './Merge.jsx'
@@ -116,23 +117,30 @@ function boundsOf(list) {
 // points to. A Queue node also shows who waits in its line. A Merge Widgets node shows its canvas, with
 // the widgets linked into it (context.inputs).
 function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy }) {
-  // The integrations the node needs that aren't ready; the "Needs…" notes show them.
-  const [missing, setMissing] = useState([])
+  // The integrations the node or its setting options ({ value, label, needs }, e.g. a Control Pad node's Stream Deck
+  // mode) need that aren't ready: such options are disabled, and the "Needs…" notes show those of its type and
+  // of the options picked.
+  const [off, setOff] = useState([])
   useEffect(() => {
-    const needed = integrations.filter((i) => def?.needs?.includes(i.key))
+    const keys = [...(def?.needs ?? []), ...Object.values(def?.fields ?? {}).flatMap((f) => f.options?.flatMap((o) => o.needs ?? []) ?? [])]
+    const needed = integrations.filter((i) => keys.includes(i.key))
     Promise.all(needed.map((i) => get(i.path).then((s) => !i.ready(s), () => false)))
-      .then((off) => setMissing(needed.filter((_, n) => off[n])))
+      .then((down) => setOff(needed.filter((_, n) => down[n]).map((i) => i.key)))
   }, [node?.id, def])
+  const config = { ...def?.config, ...node?.data.config }
+  const needs = [...(def?.needs ?? []), ...Object.entries(def?.fields ?? {}).flatMap(([k, f]) => f.options?.find((o) => o.value === config[k])?.needs ?? [])]
+  const missing = integrations.filter((i) => off.includes(i.key) && needs.includes(i.key))
   if (!node || !def) return null
   const isWidget = def.type === 'widget'
   const isMerge = def.type === 'merge'
+  const isDeck = def.type === 'deck'
   const { widget } = context
   const type = widget && context.types.find((t) => t.type === widget.type)
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[def.type]) ?? icons.log
-  const fields = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={context} onChange={onChange} />
+  const fields = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={{ ...context, off }} onChange={onChange} />
   return (
     <AppShell.Footer>
-      <div className={(isWidget && type) || isMerge ? 'pane split' : 'pane'}>
+      <div className={(isWidget && type) || isMerge || isDeck ? 'pane split' : 'pane'}>
         <Group gap="xs" mb={4}>
           <Icon size={20} color={colors[def.category]} />
           <Text fw={600}>{isWidget ? widget?.name ?? 'Missing widget' : def.label}</Text>
@@ -151,6 +159,12 @@ function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy
             : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>
         ) : isMerge ? (
           <Merge workflow={workflow} node={node.id} config={{ ...def.config, ...node.data.config }} widgets={context.inputs} types={context.types} onChange={onChange} />
+        ) : isDeck ? (
+          // Buttons edited on the left, pressed on the right.
+          <Group className="widget-split" align="stretch" gap="xl" wrap="nowrap">
+            <Stack className="settings" flex="1 1 280px" maw={440}>{fields}</Stack>
+            <DeckGrid workflow={workflow} node={node.id} config={{ ...def.config, ...node.data.config }} />
+          </Group>
         ) : fields}
         {def.queue && <QueueLine workflow={workflow} node={node.id} />}
       </div>
@@ -403,6 +417,12 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     const spawned = !position // double-clicked, not dropped
     position ??= spawnPosition(def)
     let config = {}
+    // An option needing an integration (a Control Pad node's Stream Deck mode) is picked when that integration is on.
+    for (const [key, f] of Object.entries(def.fields ?? {})) {
+      const option = f.options?.find((o) => o.needs)
+      const integration = option && integrations.find((i) => i.key === option.needs)
+      if (integration && await get(integration.path).then(integration.ready, () => false)) config[key] = option.value
+    }
     if (type) {
       // Signed in to Twitch (Streamer mode): a widget with a Twitch mode (Voting) starts in it.
       const twitch = type.fields?.mode?.options?.find((o) => o.streamer)
@@ -521,6 +541,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     })
   }
   // Links follow switch cases: a moved case keeps its links, a renamed one too, and a removed one takes them along.
+  // Items with an id (Control Pad buttons) are their own output id: only a removed one has links to drop.
   const setConfig = (config) => {
     setNodes((ns) => ns.map((n) => (n.id === selected.id ? { ...n, data: { ...n.data, config } } : n)))
     const def = defOf(selected)
@@ -528,6 +549,10 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     const before = selected.data.config[key] ?? def?.config[key]
     const after = config[key] ?? def?.config[key]
     if (!key || before === after) return
+    if ([...before, ...after].some((item) => item?.id)) {
+      const ids = new Set(after.map((item) => item.id))
+      return setEdges((es) => es.filter((e) => e.source !== selected.id || ids.has(e.sourceHandle)))
+    }
     const taken = new Set()
     const moved = {} // old output id -> new output id
     before.forEach((item, i) => {

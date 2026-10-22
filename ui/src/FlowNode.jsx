@@ -1,19 +1,22 @@
 // n8n-style graph node: icon box with the label underneath; triggers get a rounded left side and a bolt.
-// Nodes with several outputs (if/else, switch) get one labelled handle each, and grow taller with more than three. Widget nodes show their
+// Nodes with several outputs (if/else, switch) get one labelled handle each, and grow taller with more than five. Widget nodes show their
 // widget's icon and name, with the action they run underneath unless it is "start".
 import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
   IconAccessPoint, IconDiamond, IconFlame, IconGift, IconHeart, IconSparkles, IconStar, IconSwords,
-  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowsSplit, IconLayoutCollage, IconBell, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconDeviceGamepad2, IconEdit,
+  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowForkTriple, IconLayoutCollage, IconBell, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconDeviceGamepad2, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
   IconMessageCode, IconMovie, IconAd, IconBan, IconBookmark, IconChecks, IconMessageCog, IconMessageShare, IconPencil, IconRocket,
   IconScissors, IconTicket, IconTrash, IconUserSearch, IconMessageStar, IconHeartHandshake,
   IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVideo, IconVolume, IconVariable, IconWebhook, IconWindmill, IconWorld,
+  IconLayoutGrid,
 } from '@tabler/icons-react'
+import { deckIcons } from './Deck.jsx'
 
 // If/else branches left to right, like the graph.
 const IconIfElse = ({ style, ...props }) => <IconGitBranch {...props} style={{ ...style, transform: 'rotate(90deg)' }} />
+const IconSwitch = ({ style, ...props }) => <IconArrowForkTriple {...props} style={{ ...style, transform: 'rotate(90deg)' }} />
 
 export const icons = {
   'chat-command': IconMessageCode,
@@ -27,6 +30,7 @@ export const icons = {
   'stream-status': IconAccessPoint,
   'hype-train': IconFlame,
   webhook: IconWebhook,
+  deck: IconLayoutGrid,
   schedule: IconClock,
   'error-trigger': IconAlertTriangle,
   'workflow-call': IconArrowBarToRight,
@@ -38,7 +42,7 @@ export const icons = {
   delay: IconHourglass,
   filter: IconFilter,
   'if-else': IconIfElse,
-  switch: IconArrowsSplit,
+  switch: IconSwitch,
   'fan-out': IconWindmill,
   'wait-all': IconArrowsJoin2,
   cooldown: IconClockPause,
@@ -88,15 +92,21 @@ export const colors = {
 }
 
 // A node's outputs as [{ id, label }]: its type's fixed ones (if/else's true and false), after one per item of a list
-// setting if it has one (a switch's cases: labelled by the case, id = position from 1, so links survive renaming).
+// setting if it has one (a switch's cases: labelled by the case, id = position from 1, so links survive renaming; a
+// Stream Deck's buttons: labelled by name, id = the button's, with its icon and color).
 export function outputsOf(def, config) {
   const items = def?.outputsFrom ? config?.[def.outputsFrom] ?? def.config[def.outputsFrom] : []
-  return [...items.map((item, i) => ({ id: String(i + 1), label: item || String(i + 1) })), ...(def?.outputs ?? []).map((id) => ({ id, label: id }))]
+  return [
+    ...items.map((item, i) => (item?.id ? { id: item.id, label: item.name || item.id, icon: deckIcons[item.icon], color: item.color }
+      : { id: String(i + 1), label: item || String(i + 1) })),
+    ...(def?.outputs ?? []).map((id) => ({ id, label: id })),
+  ]
 }
 
-// A node's height: 90px, taller with more than three outputs (24px each) or five inputs (18px each).
+// A node's height: 90px, taller with more than four outputs or inputs (18px apart, the same gap for both), keeping
+// a gap of 18px between the end handles and the corners.
 export function nodeHeight(def, config, inputs = 0) {
-  return Math.max(90, outputsOf(def, config).length * 24, inputs * 18)
+  return Math.max(90, (outputsOf(def, config).length + 1) * 18, (inputs + 1) * 18)
 }
 
 // The editor passes in data: workflowId, the workflow the node is in; def, its node type; widget, the instance a widget or
@@ -136,8 +146,8 @@ export default function FlowNode({ id, data, selected }) {
       ))}
       <Icon size={40} stroke={1.5} color={colors[def?.category]} />
       {outputs.length ? outputs.map((o, i) => (
-        <Handle key={o.id} id={o.id} type="source" position="right" className="out" style={{ top: `${((i + 1) * 100) / (outputs.length + 1)}%` }}>
-          <span className="port">{o.label}</span>
+        <Handle key={o.id} id={o.id} type="source" position="right" className="out" style={{ top: `calc(50% + ${(i - (outputs.length - 1) / 2) * 18}px)` }}>
+          <span className="port">{o.icon && <o.icon size={10} color={o.color} />}{o.label}</span>
         </Handle>
       )) : <Handle type="source" position="right" className="out" />}
       <div className="caption">

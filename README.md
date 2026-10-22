@@ -29,8 +29,9 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   switches modes until stop or cancel (dropping a vote under way). Key Press's "Only when focused" presses only while that app or window is focused, picked from those
   open (macOS: window titles need the Accessibility permission Key Press already needs).
 - **Twitch features**: in Streamer mode, the Voting widget can run a native Twitch poll or prediction. Twitch triggers (follow, subscription, gift subs, cheer, channel points, raids, stream online/offline, hype train) follow EventSub in Streamer mode; subs, gift subs, cheers and raids also work in Guest mode, from what chat announces. Twitch actions (Streamer mode) send chat messages and replies, announcements and shoutouts, time out, ban or delete messages, change the title, category, tags and chat modes, run ads, make clips and stream markers, raid, look up a viewer (follow age, sub tier), and manage channel points rewards and redemptions (Twitch only lets Ovrly change rewards it made: the Channel Points Reward node makes them).
+- **Stream Deck**: the Ovrly plugin (Stream Deck app 7.1+; download it from Settings → Stream Deck, then open it) adds an **Ovrly button** action. Drop it on a key and pick a button of a Control Pad node (mode: Stream Deck) in its settings: the key shows the button's icon, name and color (drawn by Ovrly, faded while its workflow is off), follows its changes live, and fires it (✓ when it ran, ⚠ when the workflow is off or Ovrly isn't running). The node's grid marks the buttons on a key, with where they are.
 - **Multiple instances**: run several widgets and workflows side by side.
-- **Triggers**: a schedule, Twitch chat (any message or a `!command`), an API call to `http://localhost:6875/hooks/<path>` (query and JSON body become data), or the Run button in the editor (Manual Trigger).
+- **Triggers**: a schedule, Twitch chat (any message or a `!command`), an API call to `http://localhost:6875/hooks/<path>` (query and JSON body become data), a Control Pad button (the Control Pad node: a list of buttons, each with a name, icon and color and its own output; its mode picks how they fire: **Companion**, a URL per button, `/hooks/<path>/<name>-<id>`, to copy for Companion or anything that sends HTTP, where only the id counts, so renaming keeps old URLs working, or **Stream Deck**, keys paired with the Ovrly plugin (see below; a new node starts on it while the plugin is connected, and it can't be picked while it isn't); each fires its own way only; its settings show the buttons as a grid to press, which fire nothing while the workflow is off), or the Run button in the editor (Manual Trigger).
 - **Logic**: filter (continues only if a comparison holds, like if/else; 13 operators: equals, contains, regex, numbers, empty…), delay (in seconds), if/else, switch (a list
   of cases, one output each, labelled by the case; links follow their case when cases move or are removed), wait for all (continues once every incoming link has delivered),
   cooldown (lets data through, then sends the next to "blocked" for a while, for everyone and optionally per data key),
@@ -112,7 +113,7 @@ To show a widget in OBS, select its node and copy the browser-source link from t
 └──────────┴──────────────────────────────┴───────────┘
 ```
 
-- **Left**: **Integration** on top: one row each for Twitch, OBS and Giphy; clicking a row opens its settings (Twitch: **Guest** reads any channel's chat with no sign-in, **Streamer** signs in as the channel owner with a code to approve on twitch.tv/activate, for Twitch features; OBS: WebSocket URL and password; Giphy: API key, checked on save) and a status dot (green connected, red not). Below it the workflow list (**+** opens the template picker; the switch next to each name turns a workflow off: what it is running is cancelled and its triggers ignore chat and API calls, while ▶ Run still works; the red **SOS** button below the list turns them all off at once). OBS nodes use that one OBS connection, and their scene and source settings suggest the names from OBS while it is connected.
+- **Left**: **Integration** on top: one row each for Twitch, OBS, Stream Deck and Giphy; clicking a row opens its settings (Twitch: **Guest** reads any channel's chat with no sign-in, **Streamer** signs in as the channel owner with a code to approve on twitch.tv/activate, for Twitch features; OBS: WebSocket URL and password; Stream Deck: the plugin to download, its devices and paired keys; Giphy: API key, checked on save) and a status dot (green connected, red not). Below it the workflow list (**+** opens the template picker; the switch next to each name turns a workflow off: what it is running is cancelled and its triggers ignore chat and API calls, while ▶ Run still works; the red **SOS** button below the list turns them all off at once). OBS nodes use that one OBS connection, and their scene and source settings suggest the names from OBS while it is connected.
 - **Center**: the node graph of the selected workflow. The toolbar has undo/redo, the name, run manual triggers (▶), then export and delete, then show/hide the library.
 - **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance and its widget node, set up from the node's settings: instance ID, name, OBS link, settings and live preview. Deleting the node deletes the instance. Its settings also have the inputs of the action it runs (start, or TwitchPlays' push), when that action takes any.
 - **Copy/paste**: Ctrl/⌘+C and Ctrl/⌘+V copy the selected nodes, also into another workflow. Pasted widget nodes share the same instance (once per workflow); it is deleted once no workflow uses it anymore. Each instance has its own id, shown in its node's settings with a button that copies the node.
@@ -126,7 +127,8 @@ To show a widget in OBS, select its node and copy the browser-source link from t
 ## How it works
 
 ```
-Twitch chat ──► Event bus ──► Workflow engine ──► Actions
+Twitch chat,
+Stream Deck ──► Event bus ──► Workflow engine ──► Actions
                                                     ├─ Widget (SSE → browser source)
                                                     ├─ Key Press (nut.js)
                                                     ├─ HTTP Request
@@ -145,6 +147,7 @@ Twitch chat ──► Event bus ──► Workflow engine ──► Actions
 | UI        | React, ReactFlow, Vite        |
 | Twitch    | tmi.js (chat)                 |
 | OBS       | obs-websocket v5 (built-in WebSocket) |
+| Stream Deck | plugin on the Stream Deck SDK's WebSocket protocol, packed with @elgato/cli |
 | Key Press | @nut-tree/nut-js              |
 | Storage   | JSON files in `./data`        |
 
@@ -159,9 +162,11 @@ server/
   store.js        reads/writes ./data
   nodes/          one file per node type
   sources/        twitch.js, …
+  streamdeck.js   Stream Deck plugin link: decks with key images, pairing, presses
 ui/               React app (Vite)
 widgets/          one folder per widget type (index.html + widget.js)
 templates/        starter workflows
+streamdeck/       the Ovrly Stream Deck plugin (com.ovrly.deck.sdPlugin; pnpm streamdeck:pack, pnpm streamdeck:link to develop)
 data/             your widgets and workflows (gitignored)
 ```
 

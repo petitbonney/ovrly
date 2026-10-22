@@ -25,7 +25,7 @@ jobs:
         with: { version: 10 }
       - uses: actions/setup-node@v4
         with: { node-version: '${{ env.NODE_VERSION }}' }
-      - run: pnpm install --frozen-lockfile && pnpm build
+      - run: pnpm install --frozen-lockfile && pnpm build && pnpm streamdeck:pack
       # Flat (hoisted) production node_modules: real folders, no symlinks to break in a zip.
       - run: rm -rf node_modules && pnpm install --prod --frozen-lockfile --node-linker=hoisted
       - name: Stage
@@ -34,6 +34,7 @@ jobs:
           mkdir -p $out/node
           cp -r server widgets dist node_modules package.json LICENSE $out/
           cp release/* $out/
+          mkdir -p $out/streamdeck && cp streamdeck/*.streamDeckPlugin $out/streamdeck/
           base=https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-${{ matrix.node }}
           if [[ "${{ matrix.node }}" == win-* ]]; then
             curl -fsSL $base.zip -o node.zip && 7z x node.zip -onode-dl >/dev/null

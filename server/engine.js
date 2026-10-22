@@ -9,7 +9,7 @@ import * as store from './store.js'
 const order = [
   'manual', 'chat-command', 'chat-message',
   'redeem', 'follow', 'subscription', 'raid', 'cheer', 'gift-subs', 'hype-train', 'stream-status',
-  'schedule', 'webhook', 'workflow-call', 'error-trigger',
+  'schedule', 'webhook', 'deck', 'workflow-call', 'error-trigger',
   'if-else', 'filter', 'switch', 'fan-out', 'wait-all', 'execute-workflow',
   'delay', 'cooldown', 'queue',
   'edit-variable', 'code', 'edit-data',

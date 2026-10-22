@@ -7,17 +7,21 @@
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
 // (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
 // An option { value, label, streamer: true } is a Twitch feature: it needs Twitch in Streamer mode (context.streamer).
+// An option { value, label, needs: key } needs that integration: disabled while it isn't ready (context.off lists those).
 // A list default with options gets one chip per option, any number picked (e.g. the kinds of subs a trigger fires on).
 // Any other list default (e.g. a poll's options) gets a list editor (columns: { key: field } for its items' fields, e.g. a
-// { type: 'keys' } picker), a color default ("#rrggbb") a color picker, and
+// { type: 'keys' } picker, { type: 'icon' } an icon picker, { type: 'id' } a hidden random id), a color default ("#rrggbb") a color picker,
+// type: 'deck' a Control Pad node's buttons (with Companion, each with a button to copy its URL), and
 // { obs: 'scenes' | 'sources' } suggestions from OBS.
 import { useEffect, useRef, useState } from 'react'
 import {
-  ActionIcon, Autocomplete, Button, Chip, ColorInput, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
+  ActionIcon, Autocomplete, Button, Chip, ColorInput, CopyButton, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
   Select, Slider, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
 } from '@mantine/core'
-import { IconBraces, IconGripVertical, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX } from '@tabler/icons-react'
+import { IconBraces, IconCheck, IconCopy, IconGripVertical, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX } from '@tabler/icons-react'
 import { get } from './api.js'
+import { integrations } from './Settings.jsx'
+import { IconPicker, buttonId, deckUrl } from './Deck.jsx'
 import GiphyPicker from './GiphyPicker.jsx'
 import MyinstantsPicker from './MyinstantsPicker.jsx'
 
@@ -209,8 +213,8 @@ function PickInput({ kind, media = 'gif', rating, label, description, value, onC
 
 const isColor = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)
 const swatches = ['#9147ff', '#ff4f8b', '#00c2a8', '#ffb400', '#3d8bff', '#ff7a00', '#e03131', '#2f9e44']
-// Column widths of list items with fields: colors and numbers are narrow, text takes the rest.
-const width = (v) => (isColor(v) ? 110 : typeof v === 'number' ? 72 : undefined)
+// Column widths of list items with fields: icons, colors and numbers are narrow, text takes the rest.
+const width = (v, column) => (column?.type === 'icon' ? 28 : isColor(v) ? 110 : typeof v === 'number' ? 72 : undefined)
 
 // One list item: a text, or an object edited field by field. shape (a default item) says which input each field gets,
 // so a color being typed doesn't turn into a text field.
@@ -219,6 +223,8 @@ function ItemInput({ item, shape, columns = {}, onChange }) {
   return Object.entries(shape).map(([key, example]) => {
     const props = { size: 'xs', w: width(example), flex: width(example) ? undefined : 1, 'aria-label': humanize(key) }
     const set = (v) => onChange({ ...item, [key]: v })
+    if (columns[key]?.type === 'id') return null
+    if (columns[key]?.type === 'icon') return <IconPicker key={key} value={item[key]} color={Object.values(item).find(isColor)} onChange={set} />
     if (columns[key]?.type === 'keys') {
       return <TagsInput key={key} {...props} miw={0} styles={{ inputField: { minWidth: 30 } }} data={columns[key].options}
         value={item[key] ? item[key].split('+') : []} onChange={(v) => set(v.join('+'))} />
@@ -231,8 +237,9 @@ function ItemInput({ item, shape, columns = {}, onChange }) {
 
 // A list setting: one row per item, reordered by dragging its grip (dropped above the row it lands on) or removed,
 // and an Add button. A new item is empty
-// text, or shaped like the default items with empty text and, for colors, the first swatch not used yet.
-function ListInput({ label, description, value, defaults, fixed, columns, onChange }) {
+// text, or shaped like the default items with empty text and, for colors, the first swatch not used yet (and a new id,
+// the default icon). extra(item) shows before its remove button.
+function ListInput({ label, description, value, defaults, fixed, columns = {}, extra, onChange }) {
   const shape = defaults[0]
   const set = (i, item) => onChange(value.map((v, j) => (j === i ? item : v)))
   const [drag, setDrag] = useState(null) // { from, over }: the row being dragged and the row it is over
@@ -246,7 +253,8 @@ function ListInput({ label, description, value, defaults, fixed, columns, onChan
     if (typeof shape !== 'object') return ''
     const used = value.flatMap((item) => Object.values(item))
     const fresh = swatches.find((c) => !used.includes(c)) ?? swatches[value.length % swatches.length]
-    return Object.fromEntries(Object.entries(shape).map(([k, v]) => [k, isColor(v) ? fresh : typeof v === 'string' ? '' : v]))
+    return Object.fromEntries(Object.entries(shape).map(([k, v]) => [k, columns[k]?.type === 'id' ? buttonId() : columns[k]?.type === 'icon' ? v
+      : isColor(v) ? fresh : typeof v === 'string' ? '' : v]))
   }
   return (
     <Stack gap={4}>
@@ -254,17 +262,15 @@ function ListInput({ label, description, value, defaults, fixed, columns, onChan
       {description && <Text size="xs" c="dimmed">{description}</Text>}
       {typeof shape === 'object' && (
         // Column titles, as wide as the fields under them.
-        <Group gap={6} wrap="nowrap" pl={28} pr={28}>
-          {Object.entries(shape).map(([key, example]) => (
-            <Text key={key} size="xs" c="dimmed" w={width(example)} flex={width(example) ? undefined : 1}>{humanize(key)}</Text>
+        <Group gap={6} wrap="nowrap" pl={28} pr={extra ? 56 : 28}>
+          {Object.entries(shape).filter(([key]) => columns[key]?.type !== 'id').map(([key, example]) => (
+            <Text key={key} size="xs" c="dimmed" w={width(example, columns[key])} flex={width(example, columns[key]) ? undefined : 1}>{humanize(key)}</Text>
           ))}
         </Group>
       )}
       {value.map((item, i) => (
-        <Group
+        <div
           key={i}
-          gap={6}
-          wrap="nowrap"
           // The drop spot shows as a line above the row (or below the last one).
           style={{ boxShadow: drag && drag.over === i && drag.from !== i ? '0 -2px 0 var(--mantine-color-blue-5)' : undefined }}
           onDragOver={(e) => {
@@ -279,26 +285,29 @@ function ListInput({ label, description, value, defaults, fixed, columns, onChan
             if (drag) drop()
           }}
         >
-          {!fixed && <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="sm"
-            style={{ cursor: 'grab' }}
-            aria-label="Drag to reorder"
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.effectAllowed = 'move'
-              e.dataTransfer.setData('application/ovrly-row', String(i)) // Firefox needs some data to drag
-              e.dataTransfer.setDragImage(e.currentTarget.parentElement, 0, 0)
-              setDrag({ from: i, over: i })
-            }}
-            onDragEnd={() => setDrag(null)}
-          >
-            <IconGripVertical size={14} />
-          </ActionIcon>}
-          <ItemInput item={item} shape={shape} columns={columns} onChange={(v) => set(i, v)} />
-          {!fixed && <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label="Remove"><IconX size={14} /></ActionIcon>}
-        </Group>
+          <Group gap={6} wrap="nowrap">
+            {!fixed && <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="sm"
+              style={{ cursor: 'grab' }}
+              aria-label="Drag to reorder"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move'
+                e.dataTransfer.setData('application/ovrly-row', String(i)) // Firefox needs some data to drag
+                e.dataTransfer.setDragImage(e.currentTarget.parentElement, 0, 0)
+                setDrag({ from: i, over: i })
+              }}
+              onDragEnd={() => setDrag(null)}
+            >
+              <IconGripVertical size={14} />
+            </ActionIcon>}
+            <ItemInput item={item} shape={shape} columns={columns} onChange={(v) => set(i, v)} />
+            {extra?.(item)}
+            {!fixed && <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label="Remove"><IconX size={14} /></ActionIcon>}
+          </Group>
+        </div>
       ))}
       {drag?.over === value.length && <div style={{ height: 2, marginTop: -2, background: 'var(--mantine-color-blue-5)' }} />}
       {!fixed && (
@@ -308,6 +317,21 @@ function ListInput({ label, description, value, defaults, fixed, columns, onChan
         </Button>
       )}
     </Stack>
+  )
+}
+
+// A copy button for a URL, which its tooltip shows.
+function CopyUrl({ url }) {
+  return (
+    <CopyButton value={url}>
+      {({ copied, copy }) => (
+        <Tooltip label={copied ? 'Copied' : `Copy ${url}`}>
+          <ActionIcon size="sm" variant="subtle" color={copied ? 'teal' : 'gray'} onClick={copy} aria-label="Copy URL">
+            {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+          </ActionIcon>
+        </Tooltip>
+      )}
+    </CopyButton>
   )
 }
 
@@ -323,6 +347,11 @@ function Field({ name, f, fallback, value, set, values, context }) {
         </Chip.Group>
       </Stack>
     )
+  }
+  if (f.type === 'deck') {
+    return <ListInput label={props.label} description={props.description} value={value} onChange={set}
+      defaults={[{ id: '', icon: 'star', name: '', color: swatches[0] }]} columns={{ id: { type: 'id' }, icon: { type: 'icon' } }}
+      extra={values.mode === 'companion' ? (b) => <CopyUrl url={location.origin + deckUrl(b)} /> : undefined} />
   }
   if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} columns={f.columns} onChange={set} />
   if (f.type === 'keys') {
@@ -341,17 +370,21 @@ function Field({ name, f, fallback, value, set, values, context }) {
     const defaults = Object.fromEntries(Object.entries(fields).map(([key, f]) => [key, f.default ?? '']))
     return <Fields defaults={defaults} values={value} fields={fields} context={context} onChange={set} />
   }
-  // Twitch features can't be picked unless Streamer mode is on; one picked earlier says why it won't run.
+  // Twitch features can't be picked unless Streamer mode is on, nor options needing an integration that isn't ready;
+  // a Twitch feature picked earlier says why it won't run.
   const config = { ...type?.config, ...context.widget?.config }
   const options = f.type === 'action' ? Object.keys(type?.actions ?? {}).filter((a) => applies(type.actions[a], config)) : f.options?.map((o) => {
-    if (!o.streamer) return o
-    const { streamer, ...option } = o
-    return { ...option, disabled: !context.streamer }
+    if (typeof o === 'string') return o
+    const { streamer, needs, ...option } = o
+    const integration = context.off?.includes(needs) && integrations.find((i) => i.key === needs)
+    const why = streamer && !context.streamer ? 'Needs Twitch in Streamer mode, signed in (Integration → Twitch)'
+      : integration ? `Needs ${integration.needs} (Integration → ${integration.label})` : null
+    return why ? { ...option, disabled: true, why } : option
   })
-  // A disabled Twitch feature says why on hover (segmented buttons only: a Select needs text labels).
-  const explained = options?.map((o) => !o.disabled ? o : {
+  // A disabled option says why on hover (segmented buttons only: a Select needs text labels).
+  const explained = options?.map(({ why, ...o }) => !why ? o : {
     ...o,
-    label: <Tooltip label="Needs Twitch in Streamer mode, signed in (Integration → Twitch)" withinPortal><span>{o.label}</span></Tooltip>,
+    label: <Tooltip label={why} withinPortal><span>{o.label}</span></Tooltip>,
   })
   if (f.type === 'action' && !options.length) return null
   if (f.options?.find((o) => o.value === value)?.streamer && !context.streamer) {
@@ -417,7 +450,7 @@ export default function Fields({ defaults, values, onChange, fields = {}, contex
           fallback={defaults[key]}
           value={values[key] ?? defaults[key]}
           set={(v) => onChange({ ...values, [key]: v })}
-          values={values}
+          values={{ ...defaults, ...values }}
           context={context}
         />
       ))}

@@ -105,6 +105,10 @@ const obsInfo = (status) => ({
   connected: status?.connected,
   text: status?.connected ? `Connected to ${status.url}` : status?.url ? `Not connected: ${status.error || 'connecting…'}` : 'No URL set',
 })
+const streamdeckInfo = (status) => ({
+  connected: status?.connected,
+  text: status?.connected ? `Plugin connected: ${status.keys.length} key${status.keys.length === 1 ? '' : 's'} paired` : 'Plugin not connected: is the Stream Deck app running, with the Ovrly plugin?',
+})
 const giphyInfo = (status) => ({
   connected: status?.connected,
   text: status?.connected ? 'API key accepted' : status?.error || 'Checking…',
@@ -163,6 +167,24 @@ function Giphy({ status, setStatus }) {
   )
 }
 
+// Stream Deck: the Ovrly plugin (in streamdeck/) shows Control Pad node buttons on keys and fires them. It connects by
+// itself, so there is nothing to set here: how to install it, and the devices it sees.
+function StreamDeck({ status }) {
+  return (
+    <Pane status={streamdeckInfo(status)}>
+      <Text size="xs" c="dimmed">
+        Needs the Stream Deck app 7.1 or later. Download the Ovrly plugin and open it to install it (from source, run
+        {' '}<Code>pnpm streamdeck:pack</Code> first). Then, in the Stream Deck app, drag Ovrly → Ovrly button onto a key and pick
+        one of your Control Pad node buttons in its settings: the key shows it, live, and fires it.
+      </Text>
+      <Button size="xs" variant="light" component="a" href="/streamdeck/com.ovrly.deck.streamDeckPlugin" download style={{ alignSelf: 'start' }}>Download the plugin</Button>
+      {Object.entries(status.devices).map(([id, d]) => (
+        <Text key={id} size="xs">{d.name}: {d.columns} × {d.rows} keys, {status.keys.filter((k) => k.device === id).length} paired</Text>
+      ))}
+    </Pane>
+  )
+}
+
 // Network: by default only this computer reaches Ovrly; "Open to LAN" lets other devices on the network (a second PC
 // running OBS, a phone) open the UI and the widget links.
 function Network({ status, setStatus }) {
@@ -189,6 +211,7 @@ function Network({ status, setStatus }) {
 export const integrations = [
   { key: 'twitch', label: 'Twitch', path: '/api/twitch', info: twitchInfo, Pane: Twitch, ready: (s) => s.streamer, needs: 'Twitch in Streamer mode, signed in' },
   { key: 'obs', label: 'OBS', path: '/api/obs', info: obsInfo, Pane: Obs, ready: (s) => s.connected, needs: 'OBS connected' },
+  { key: 'streamdeck', label: 'Stream Deck', path: '/api/streamdeck', info: streamdeckInfo, Pane: StreamDeck, ready: (s) => s.connected, needs: 'the Ovrly Stream Deck plugin connected' },
   { key: 'giphy', label: 'Giphy', path: '/api/giphy', info: giphyInfo, Pane: Giphy, ready: (s) => s.connected, needs: 'Giphy connected (API key)' },
 ]
 
