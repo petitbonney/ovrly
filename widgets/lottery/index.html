@@ -61,7 +61,7 @@
 <script type="module">
   import { engine } from 'animejs'
   import { subscribe, wait } from '/widgets/lib.js'
-  import { playMs } from '/widgets/lottery/widget.js'
+  import { playMs, choices, palette } from '/widgets/lottery/widget.js'
   import wheel from '/widgets/lottery/wheel.js'
   import roulette from '/widgets/lottery/roulette.js'
   import slots from '/widgets/lottery/slots.js'
@@ -76,7 +76,7 @@
 
   // Each layout builds itself: canvases in the stage, HTML pieces on the board, drawn at res (device pixels per design
   // px). It returns { play(winner, ms) → anime timeline that ends on the winner, stop(), destroy() }. It is rebuilt when
-  // the settings change or the page is resized. The page shows no result text: the winner is in the workflow's data
+  // the settings or the options loaded from data change, or the page is resized. The page shows no result text: the winner is in the workflow's data
   // ({{winner}}), for an alert or a chat message to announce it.
   let layout, key, lastSpin = 0, shown
   function build(config) {
@@ -92,7 +92,12 @@
   addEventListener('resize', () => shown && build(shown))
 
   let tl // the draw playing, or played last
-  subscribe(({ config, state }) => {
+  subscribe(({ config: settings, state }) => {
+    // The wheel and the slot show their options: their own, or those loaded from data, with the palette's colors. With
+    // none loaded yet, one blank option per palette color, to show what the palette looks like (none can win).
+    let options = choices(settings, state)
+    if (settings.source === 'data' && !options.length) options = palette(settings).map((color) => ({ label: '', color, weight: 1 }))
+    const config = ['wheel', 'slots'].includes(settings.layout) ? { ...settings, options } : settings
     if (JSON.stringify(config) !== key) {
       key = JSON.stringify(config)
       build(config)

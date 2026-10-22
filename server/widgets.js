@@ -3,11 +3,12 @@
 import fs from 'node:fs/promises'
 import bus, { record } from './bus.js'
 import * as store from './store.js'
-import { fill } from './template.js'
+import { fill, value } from './template.js'
 
 // Load every widget type from ../widgets/<type>/widget.js, keyed by type. Each action is { description, inputs, only,
 // run(state, input, config) → state }: inputs says what it asks for, as node fields ({ option: { vars: true, hint },
 // user: { vars: true, default: '{{user}}' } }), and only when it applies, as a setting's only (e.g. { mode: 'chat' }).
+// An input of type: 'var' names a data key (e.g. items) and gets its raw value (a list, an object…) instead of text.
 // Every type has "start", which its widget node runs unless the type links another action to it (linked), and "stop"
 // and "cancel" (see end()), which it may extend with its own run or description.
 const dir = new URL('../widgets/', import.meta.url)
@@ -64,7 +65,7 @@ export async function update(widget, { action, input = {} }) {
   const def = types[widget.type]
   const act = def.actions[action]
   if (!act) throw new Error(`${def.label}: unknown action "${action}"`)
-  input = Object.fromEntries(Object.keys(act.inputs ?? {}).map((key) => [key, String(input[key] ?? '').trim()]))
+  input = Object.fromEntries(Object.keys(act.inputs ?? {}).map((key) => [key, typeof input[key] === 'object' ? input[key] : String(input[key] ?? '').trim()]))
   if (action === 'stop' || action === 'cancel') return { state: await end(widget, action, input), done: Promise.resolve(true) }
   const { config, state } = snapshot(widget)
   const next = await act.run(state, input, config)
@@ -144,7 +145,11 @@ export async function play(ref, action, input, data, signal) {
   const def = types[widget.type]
   action ||= def.linked
   const fields = Object.entries(def.actions[action]?.inputs ?? {})
-  const filled = Object.fromEntries(fields.map(([key, f]) => [key, fill(input?.[key] ?? f.default ?? '', data)]))
+  const filled = Object.fromEntries(fields.map(([key, f]) => {
+    let t = String(input?.[key] ?? f.default ?? '').trim()
+    if (f.type === 'var') t = t.replace(/^\{\{(.*)\}\}$/s, '$1').trim() // "{{items}}" is items too
+    return [key, f.type !== 'var' ? fill(t, data) : t ? value(`{{${t}}}`, data) : '']
+  }))
   const { done, run } = await update(widget, { action, input: filled })
   const cancel = () => end(widget, 'cancel', {}, run).catch((err) => record('sse', 'widget-error', { widget: widget.name, action: 'cancel', error: err.message }))
   if (run) signal.addEventListener('abort', cancel, { once: true })

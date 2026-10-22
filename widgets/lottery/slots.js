@@ -73,7 +73,7 @@ function lightShow(lights) {
 
 export default function slots(stage, board, { options }) {
   const n = options.length
-  const option = (i) => options[((i % n) + n) % n]
+  const option = (i) => (n ? options[((i % n) + n) % n] : { label: i ? '' : 'No options', color: '#3a3a44' }) // none loaded yet: blank tiles
   // Five tiles, repainted as the reel turns: the strip never grows, however long the draw.
   const tiles = Array.from({ length: 5 }, () => el('div', 'slots-tile'))
   const strip = el('div', 'slots-strip', ...tiles)
