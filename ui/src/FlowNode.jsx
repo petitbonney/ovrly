@@ -10,7 +10,7 @@ import {
   IconMessageCode, IconMovie, IconAd, IconBan, IconBookmark, IconChecks, IconMessageCog, IconMessageShare, IconPencil, IconRocket,
   IconScissors, IconTicket, IconTrash, IconUserSearch, IconMessageStar, IconHeartHandshake,
   IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVideo, IconVolume, IconVariable, IconWebhook, IconWindmill, IconWorld,
-  IconLayoutGrid,
+  IconLayoutGrid, IconBulb,
 } from '@tabler/icons-react'
 import { deckIcons } from './Deck.jsx'
 
@@ -54,6 +54,7 @@ export const icons = {
   log: IconNotes,
   'obs-scene': IconMovie,
   'obs-source': IconEye,
+  hue: IconBulb,
   'websocket-send': IconPlugConnected,
   'twitch-chat': IconMessageShare,
   'twitch-announce': IconMessageStar,

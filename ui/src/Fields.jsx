@@ -10,9 +10,11 @@
 // An option { value, label, needs: key } needs that integration: disabled while it isn't ready (context.off lists those).
 // A list default with options gets one chip per option, any number picked (e.g. the kinds of subs a trigger fires on).
 // Any other list default (e.g. a poll's options) gets a list editor (columns: { key: field } for its items' fields, e.g. a
-// { type: 'keys' } picker, { type: 'icon' } an icon picker, { type: 'id' } a hidden random id), a color default ("#rrggbb") a color picker,
-// type: 'deck' a Control Pad node's buttons (with Companion, each with a button to copy its URL), and
-// { obs: 'scenes' | 'sources' } suggestions from OBS.
+// { type: 'keys' } picker, { type: 'icon' } an icon picker, { type: 'id' } a hidden random id, { options } a select; a column's
+// label, max, and only: { key: value } of the same item, else disabled), a color default ("#rrggbb") a color picker,
+// type: 'deck' a Control Pad node's buttons (with Companion, each with a button to copy its URL), type: 'hue-steps' a
+// Hue routine's steps (warned of what its limits change), { obs: 'scenes' | 'sources' } suggestions from OBS and
+// { hue: 'devices' } a Hue light, room or zone.
 import { useEffect, useRef, useState } from 'react'
 import {
   ActionIcon, Autocomplete, Button, Chip, ColorInput, CopyButton, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
@@ -81,6 +83,45 @@ function ObsInput({ list, scene, ...props }) {
     }, () => setError('OBS is not reachable'))
   }, [path, skip])
   return <VarInput {...props} data={names} description={error || props.description} placeholder={names.length ? 'Pick or type a name' : undefined} />
+}
+
+// A Hue light, room or zone, picked from the bridge's (grouped). A device the bridge no longer has shows its id.
+function HueInput(props) {
+  const [devices, setDevices] = useState([])
+  const [error, setError] = useState('')
+  useEffect(() => {
+    fetch('/api/hue/devices').then(async (r) => {
+      const body = await r.json()
+      setDevices(r.ok ? body : [])
+      setError(r.ok ? '' : body.error)
+    }, () => setError('Ovrly is not reachable'))
+  }, [])
+  const known = devices.some((g) => g.items.some((d) => d.value === props.value))
+  const data = known || !props.value ? devices : [...devices, { group: 'Not found', items: [props.value] }]
+  return <Select {...props} data={data} description={error || props.description} placeholder="Pick a light, room or zone" searchable allowDeselect={false} />
+}
+
+// A Hue routine's steps, with a warning for each the limits change (limits: shortest step on a light and on a room or
+// zone, most steps; from server/hue.js, which applies them) and a note on restoring a room or zone.
+function HueSteps({ value, limits, device, transition, restore, ...props }) {
+  const group = device.startsWith('grouped_light/')
+  const min = group ? limits.group : limits.light
+  const warnings = value.flatMap((s, i) => {
+    if (i >= limits.steps) return []
+    const duration = Math.max(min, Number(s.duration) || 0)
+    return [
+      Number(s.duration) < min && `Step ${i + 1} lasts ${Number(s.duration) || 0}ms, below the ${min}ms minimum on a ${group ? 'room or zone' : 'light'}: it will last ${min}ms.`,
+      transition > duration && `Step ${i + 1}: the ${transition}ms transition is longer than the step: it will fade over ${duration}ms.`,
+    ].filter(Boolean)
+  })
+  if (value.length > limits.steps) warnings.push(`Only the first ${limits.steps} steps will play.`)
+  return (
+    <Stack gap={4}>
+      <ListInput {...props} value={value} />
+      {warnings.map((w) => <Text key={w} size="xs" c="orange">{w}</Text>)}
+      {group && <Text size="xs" c="dimmed">Putting a room or zone back as it was sends one command per light, 0.1s apart{restore ? '' : ' (on Stop or Cancel)'}.</Text>}
+    </Stack>
+  )
 }
 
 // A saved workflow, picked by id.
@@ -214,23 +255,25 @@ function PickInput({ kind, media = 'gif', rating, label, description, value, onC
 const isColor = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)
 const swatches = ['#9147ff', '#ff4f8b', '#00c2a8', '#ffb400', '#3d8bff', '#ff7a00', '#e03131', '#2f9e44']
 // Column widths of list items with fields: icons, colors and numbers are narrow, text takes the rest.
-const width = (v, column) => (column?.type === 'icon' ? 28 : isColor(v) ? 110 : typeof v === 'number' ? 72 : undefined)
+const width = (v, column) => (column?.type === 'icon' ? 28 : column?.options ? 76 : isColor(v) ? 110 : typeof v === 'number' ? 72 : undefined)
 
 // One list item: a text, or an object edited field by field. shape (a default item) says which input each field gets,
 // so a color being typed doesn't turn into a text field.
 function ItemInput({ item, shape, columns = {}, onChange }) {
   if (typeof shape !== 'object') return <TextInput size="xs" flex={1} value={item} onChange={(e) => onChange(e.target.value)} />
   return Object.entries(shape).map(([key, example]) => {
-    const props = { size: 'xs', w: width(example), flex: width(example) ? undefined : 1, 'aria-label': humanize(key) }
+    const w = width(example, columns[key])
+    const props = { size: 'xs', w, flex: w ? undefined : 1, 'aria-label': columns[key]?.label ?? humanize(key), disabled: !applies(columns[key], item) }
     const set = (v) => onChange({ ...item, [key]: v })
     if (columns[key]?.type === 'id') return null
+    if (columns[key]?.options) return <Select key={key} {...props} data={columns[key].options} value={item[key]} onChange={set} allowDeselect={false} />
     if (columns[key]?.type === 'icon') return <IconPicker key={key} value={item[key]} color={Object.values(item).find(isColor)} onChange={set} />
     if (columns[key]?.type === 'keys') {
       return <TagsInput key={key} {...props} miw={0} styles={{ inputField: { minWidth: 30 } }} data={columns[key].options}
         value={item[key] ? item[key].split('+') : []} onChange={(v) => set(v.join('+'))} />
     }
     if (isColor(example)) return <ColorInput key={key} {...props} swatches={swatches} value={item[key] ?? ''} onChange={set} />
-    if (typeof example === 'number') return <NumberInput key={key} {...props} min={0} value={item[key]} onChange={(v) => set(Number(v))} />
+    if (typeof example === 'number') return <NumberInput key={key} {...props} min={0} max={columns[key]?.max} value={item[key]} onChange={(v) => set(Number(v))} />
     return <TextInput key={key} {...props} miw={0} value={item[key] ?? ''} onChange={(e) => set(e.target.value)} />
   })
 }
@@ -253,7 +296,7 @@ function ListInput({ label, description, value, defaults, fixed, columns = {}, e
     if (typeof shape !== 'object') return ''
     const used = value.flatMap((item) => Object.values(item))
     const fresh = swatches.find((c) => !used.includes(c)) ?? swatches[value.length % swatches.length]
-    return Object.fromEntries(Object.entries(shape).map(([k, v]) => [k, columns[k]?.type === 'id' ? buttonId() : columns[k]?.type === 'icon' ? v
+    return Object.fromEntries(Object.entries(shape).map(([k, v]) => [k, columns[k]?.type === 'id' ? buttonId() : columns[k]?.type === 'icon' || columns[k]?.options ? v
       : isColor(v) ? fresh : typeof v === 'string' ? '' : v]))
   }
   return (
@@ -264,7 +307,7 @@ function ListInput({ label, description, value, defaults, fixed, columns = {}, e
         // Column titles, as wide as the fields under them.
         <Group gap={6} wrap="nowrap" pl={28} pr={extra ? 56 : 28}>
           {Object.entries(shape).filter(([key]) => columns[key]?.type !== 'id').map(([key, example]) => (
-            <Text key={key} size="xs" c="dimmed" w={width(example, columns[key])} flex={width(example, columns[key]) ? undefined : 1}>{humanize(key)}</Text>
+            <Text key={key} size="xs" c="dimmed" w={width(example, columns[key])} flex={width(example, columns[key]) ? undefined : 1}>{columns[key]?.label ?? humanize(key)}</Text>
           ))}
         </Group>
       )}
@@ -353,6 +396,10 @@ function Field({ name, f, fallback, value, set, values, context }) {
       defaults={[{ id: '', icon: 'star', name: '', color: swatches[0] }]} columns={{ id: { type: 'id' }, icon: { type: 'icon' } }}
       extra={values.mode === 'companion' ? (b) => <CopyUrl url={location.origin + deckUrl(b)} /> : undefined} />
   }
+  if (f.type === 'hue-steps') {
+    return <HueSteps label={props.label} description={props.description} value={value} defaults={fallback} columns={f.columns} limits={f.limits}
+      device={values.device ?? ''} transition={Number(values.transition) || 0} restore={values.restore} onChange={set} />
+  }
   if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} columns={f.columns} onChange={set} />
   if (f.type === 'keys') {
     const tags = value ? value.split('+') : []
@@ -382,9 +429,11 @@ function Field({ name, f, fallback, value, set, values, context }) {
     return why ? { ...option, disabled: true, why } : option
   })
   // A disabled option says why on hover (segmented buttons only: a Select needs text labels).
-  const explained = options?.map(({ why, ...o }) => !why ? o : {
-    ...o,
-    label: <Tooltip label={why} withinPortal><span>{o.label}</span></Tooltip>,
+  // (A plain text option stays as it is: taking it apart would make an object of its letters.)
+  const explained = options?.map((o) => {
+    if (!o.why) return o
+    const { why, ...option } = o
+    return { ...option, label: <Tooltip label={why} withinPortal><span>{option.label}</span></Tooltip> }
   })
   if (f.type === 'action' && !options.length) return null
   if (f.options?.find((o) => o.value === value)?.streamer && !context.streamer) {
@@ -428,6 +477,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
   if (typeof fallback === 'boolean') return <Switch {...props} checked={value} onChange={(e) => set(e.target.checked)} />
   if (f.presets) return <PresetInput {...props} unit={f.unit} presets={f.presets} value={value} onChange={set} />
   if (typeof fallback === 'number') return <NumberInput {...props} suffix={f.unit && ` ${f.unit}`} value={value} onChange={(v) => set(Number(v))} />
+  if (f.hue) return <HueInput {...props} value={value} onChange={set} />
   if (f.obs) return <ObsInput {...props} list={f.obs} scene={values.scene ?? ''} vars={context.vars ?? []} value={value} onChange={set} />
   if (f.vars) return <VarInput {...props} vars={context.vars ?? []} multiline={f.multiline} value={value} onChange={set} />
   return <TextInput {...props} value={value} onChange={(e) => set(e.target.value)} />

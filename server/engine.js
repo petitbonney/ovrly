@@ -15,7 +15,7 @@ const order = [
   'edit-variable', 'code', 'edit-data',
   'twitch-chat', 'twitch-announce', 'twitch-shoutout', 'twitch-ban', 'twitch-delete-message', 'twitch-clip', 'twitch-user',
   'twitch-redemption', 'twitch-marker', 'twitch-stream-info', 'twitch-ad', 'twitch-chat-mode', 'twitch-reward', 'twitch-raid',
-  'obs-scene', 'obs-source', 'giphy', 'myinstants',
+  'obs-scene', 'obs-source', 'giphy', 'myinstants', 'hue',
   'widget-action', 'log', 'http-request', 'key-press', 'websocket-send',
 ]
 const rank = (type) => (order.includes(type) ? order.indexOf(type) : order.length)

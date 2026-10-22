@@ -11,6 +11,7 @@ import * as twitchAuth from './sources/twitch-auth.js'
 import * as eventsub from './sources/twitch-eventsub.js'
 import * as obs from './obs.js'
 import * as giphy from './giphy.js'
+import * as hue from './hue.js'
 import * as streamdeck from './streamdeck.js'
 import * as myinstants from './myinstants.js'
 import * as widgets from './widgets.js'
@@ -168,6 +169,25 @@ app.put('/api/giphy', async (req, res) => {
   await store.save('settings', { id: 'giphy', ...settings })
   await giphy.connect(settings)
   res.json(giphy.status)
+})
+// Hue integration: its status, pairing with the bridge at an IP (its link button pressed first), the devices for the
+// node's picker, and Stop or Cancel on a Hue node's routine.
+app.get('/api/hue', (req, res) => res.json(hue.status))
+app.post('/api/hue/pair', async (req, res) => {
+  const ip = String(req.body.ip ?? '').trim()
+  try {
+    const settings = await hue.pair(ip)
+    await store.save('settings', { id: 'hue', ...settings })
+    await hue.connect(settings)
+  } catch (err) {
+    Object.assign(hue.status, { ip, error: err.message })
+  }
+  res.json(hue.status)
+})
+app.get('/api/hue/devices', (req, res) => hue.devices().then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+app.post('/api/hue/routines/:workflow/:node/:how', (req, res) => {
+  if (!['stop', 'cancel'].includes(req.params.how)) return res.sendStatus(400)
+  res.sendStatus(hue.end(`${req.params.workflow}/${req.params.node}`, req.params.how) ? 204 : 404)
 })
 // Stream Deck integration: its status (plugin connected, devices, paired keys), and the plugin's link: the decks
 // stream, its paired keys, and key presses.
@@ -353,4 +373,5 @@ await twitchAuth.load()
 twitch.apply((await store.get('settings', 'twitch')) ?? {})
 obs.connect((await store.get('settings', 'obs')) ?? {})
 giphy.connect((await store.get('settings', 'giphy')) ?? {})
+hue.connect((await store.get('settings', 'hue')) ?? {})
 app.listen(PORT, () => console.log(`Ovrly on http://localhost:${PORT}`))
