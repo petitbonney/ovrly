@@ -16,7 +16,7 @@ import { ActionIcon, AppShell, Button, Divider, Group, Modal, Notification, Stac
 import {
   IconArrowBackUp, IconArrowForwardUp, IconDownload, IconInfoCircle, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
   IconPlayerPlay, IconPlayerStop, IconPlus, IconSitemap,
-  IconTrash,
+  IconTrash, IconX,
 } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import DeckGrid from './Deck.jsx'
@@ -115,8 +115,8 @@ function boundsOf(list) {
 // A widget node shows its widget instance's settings and preview, with the inputs of the action it runs, and its
 // actions in a tooltip; a Widget Action node the action to run on the widget node it links to, and that action's inputs. context.widget is the widget the node
 // points to. A Queue node also shows who waits in its line. A Merge Widgets node shows its canvas, with
-// the widgets linked into it (context.inputs).
-function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy }) {
+// the widgets linked into it (context.inputs). A Hue node playing a routine (running) has Stop and Cancel buttons.
+function Config({ workflow, node, def, context, running, onChange, onWidgetChange, onCopy }) {
   // The integrations the node or its setting options ({ value, label, needs }, e.g. a Control Pad node's Stream Deck
   // mode) need that aren't ready: such options are disabled, and the "Needs…" notes show those of its type and
   // of the options picked.
@@ -167,6 +167,18 @@ function Config({ workflow, node, def, context, onChange, onWidgetChange, onCopy
           </Group>
         ) : fields}
         {def.queue && <QueueLine workflow={workflow} node={node.id} />}
+        {def.type === 'hue' && config.mode === 'routine' && (
+          <Group gap="xs" mt="sm">
+            <Tooltip label="Ends the routine with a fade, lights back as they were: the workflow goes on">
+              <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} disabled={!running}
+                onClick={() => fetch(`/api/hue/routines/${workflow}/${node.id}/stop`, { method: 'POST' })}>Stop</Button>
+            </Tooltip>
+            <Tooltip label="Ends the routine at once, lights back as they were: the workflow stops there">
+              <Button size="xs" variant="default" leftSection={<IconX size={14} />} disabled={!running}
+                onClick={() => fetch(`/api/hue/routines/${workflow}/${node.id}/cancel`, { method: 'POST' })}>Cancel</Button>
+            </Tooltip>
+          </Group>
+        )}
       </div>
     </AppShell.Footer>
   )
@@ -658,6 +670,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
         workflow={workflow.id}
         node={selected}
         def={defOf(selected)}
+        running={live.nodes[selected?.id] === 'running'}
         context={{
           vars: selected ? upstreamKeys(selected.id, { nodes, edges, defs, widgets, types }) : [],
           widget: findWidget(widgets, widgetRef(selected, nodes, edges)),

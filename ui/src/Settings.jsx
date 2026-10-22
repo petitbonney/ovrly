@@ -18,8 +18,8 @@ function useStatus(path) {
   return [status, setStatus]
 }
 
-// A pane's fields, the status, and a Connect button that saves (none without onSave).
-function Pane({ onSave, status, children }) {
+// A pane's fields, the status, and a Connect button (or another label) that saves (none without onSave).
+function Pane({ onSave, button = 'Connect', status, children }) {
   const save = (e) => {
     e.preventDefault()
     onSave?.()
@@ -29,7 +29,7 @@ function Pane({ onSave, status, children }) {
       <Stack gap="sm">
         {children}
         <Text size="xs" c={status.connected ? 'green' : 'dimmed'}>{status.text}</Text>
-        {onSave && <Group justify="end"><Button size="xs" type="submit">Connect</Button></Group>}
+        {onSave && <Group justify="end"><Button size="xs" type="submit">{button}</Button></Group>}
       </Stack>
     </form>
   )
@@ -109,6 +109,10 @@ const streamdeckInfo = (status) => ({
   connected: status?.connected,
   text: status?.connected ? `Plugin connected: ${status.keys.length} key${status.keys.length === 1 ? '' : 's'} paired` : 'Plugin not connected: is the Stream Deck app running, with the Ovrly plugin?',
 })
+const hueInfo = (status) => ({
+  connected: status?.connected,
+  text: status?.connected ? `Paired with the bridge at ${status.ip}` : status?.error || 'Checking…',
+})
 const giphyInfo = (status) => ({
   connected: status?.connected,
   text: status?.connected ? 'API key accepted' : status?.error || 'Checking…',
@@ -167,6 +171,20 @@ function Giphy({ status, setStatus }) {
   )
 }
 
+// Philips Hue: pairs with the bridge at an IP, once its link button was pressed (Pair saves the key it gives).
+function Hue({ status, setStatus }) {
+  const [ip, setIp] = useState(status.ip ?? '')
+  const pair = async () => setStatus(await (await fetch('/api/hue/pair', json('POST', { ip }))).json())
+  return (
+    <Pane onSave={pair} button="Pair" status={hueInfo(status)}>
+      <Text size="xs" c="dimmed">
+        Find the bridge's IP in the Hue app: Settings → Bridges → your bridge. Press the round button on the bridge, then Pair within 30 seconds.
+      </Text>
+      <TextInput size="xs" label="Bridge IP" placeholder="192.168.1.20" value={ip} onChange={(e) => setIp(e.target.value)} data-autofocus />
+    </Pane>
+  )
+}
+
 // Stream Deck: the Ovrly plugin (in streamdeck/) shows Control Pad node buttons on keys and fires them. It connects by
 // itself, so there is nothing to set here: how to install it, and the devices it sees.
 function StreamDeck({ status }) {
@@ -212,6 +230,7 @@ export const integrations = [
   { key: 'twitch', label: 'Twitch', path: '/api/twitch', info: twitchInfo, Pane: Twitch, ready: (s) => s.streamer, needs: 'Twitch in Streamer mode, signed in' },
   { key: 'obs', label: 'OBS', path: '/api/obs', info: obsInfo, Pane: Obs, ready: (s) => s.connected, needs: 'OBS connected' },
   { key: 'streamdeck', label: 'Stream Deck', path: '/api/streamdeck', info: streamdeckInfo, Pane: StreamDeck, ready: (s) => s.connected, needs: 'the Ovrly Stream Deck plugin connected' },
+  { key: 'hue', label: 'Philips Hue', path: '/api/hue', info: hueInfo, Pane: Hue, ready: (s) => s.connected, needs: 'the Hue bridge paired' },
   { key: 'giphy', label: 'Giphy', path: '/api/giphy', info: giphyInfo, Pane: Giphy, ready: (s) => s.connected, needs: 'Giphy connected (API key)' },
 ]
 
