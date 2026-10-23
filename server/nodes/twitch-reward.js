@@ -18,7 +18,7 @@ export default {
   fields: {
     action: { options: Object.keys(changes), info: 'Disabled: hidden from viewers. Paused: shown, but can\'t be redeemed.' },
     reward: { vars: true, hint: 'Its title', info: 'A reward of that title made on the Twitch dashboard can\'t be changed here: Twitch only lets Ovrly change rewards it made.' },
-    cost: { unit: 'points', hint: '0: unchanged (100 for a new reward)' },
+    cost: { presets: [0, 100, 500, 1000, 5000], off: 'unchanged', hint: '100 for a new reward' },
   },
   config: { action: 'enable', reward: '', cost: 0 },
   async run({ config, data }) {
