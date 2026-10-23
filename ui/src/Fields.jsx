@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults (shown in their order), plus optional per-field hints from the node
-// or widget type: { label, hint, info, section, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'inputs' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' }.
+// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'inputs' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' }.
 // hint: one short line under the label; info: anything longer, in an ⓘ tooltip beside the label. section: a heading
 // shown before this field, starting a group (for nodes with many settings). A field shown only while a switch is on
 // (only: { someSwitch: true }) is indented under it. Plain-text options show with a capital first letter.
@@ -108,6 +108,21 @@ function HueInput(props) {
   const known = devices.some((g) => g.items.some((d) => d.value === props.value))
   const data = known || !props.value ? devices : [...devices, { group: 'Not found', items: [props.value] }]
   return <Select {...props} data={data} description={error || props.description} placeholder="Pick a light, room or zone" searchable allowDeselect={false} />
+}
+
+// A channel points reward, picked from the channel's (empty: any). A title no longer there still shows.
+function RewardInput(props) {
+  const [titles, setTitles] = useState([])
+  const [error, setError] = useState('')
+  useEffect(() => {
+    fetch('/api/twitch/rewards').then(async (r) => {
+      const body = await r.json()
+      setTitles(r.ok ? body : [])
+      setError(r.ok ? '' : body.error)
+    }, () => setError('Ovrly is not reachable'))
+  }, [])
+  const data = !props.value || titles.includes(props.value) ? titles : [...titles, props.value]
+  return <Select {...props} data={data} description={error || props.description} placeholder="Any reward" searchable clearable onChange={(v) => props.onChange(v ?? '')} />
 }
 
 // A Hue routine's steps, with a warning for each the limits change (limits: shortest step on a light and on a room or
@@ -489,6 +504,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
   if (typeof fallback === 'boolean') return <Switch {...props} checked={value} onChange={(e) => set(e.target.checked)} />
   if (f.presets) return <PresetInput {...props} name={f.label ?? humanize(name)} unit={f.unit} presets={f.presets} off={f.off} value={value} onChange={set} />
   if (typeof fallback === 'number') return <NumberInput {...props} suffix={f.unit && ` ${f.unit}`} value={value} onChange={(v) => set(Number(v))} />
+  if (f.rewards) return <RewardInput {...props} value={value} onChange={set} />
   if (f.hue) return <HueInput {...props} value={value} onChange={set} />
   if (f.obs) return <ObsInput {...props} list={f.obs} scene={values.scene ?? ''} vars={context.vars ?? []} value={value} onChange={set} />
   if (f.vars) return <VarInput {...props} vars={context.vars ?? []} multiline={f.multiline} value={value} onChange={set} />

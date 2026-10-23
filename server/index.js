@@ -141,6 +141,14 @@ app.put('/api/twitch', async (req, res) => {
   await twitch.apply(settings)
   res.json(twitchStatus())
 })
+// The channel's reward titles, for the Channel Points trigger's picker.
+app.get('/api/twitch/rewards', async (req, res) => {
+  try {
+    twitch.needStreamer('Channel points rewards')
+    const rewards = await twitchAuth.helix('GET', 'channel_points/custom_rewards', undefined, { broadcaster_id: twitchAuth.status.userId })
+    res.json(rewards.map((r) => r.title).sort())
+  } catch (err) { res.status(503).json({ error: err.message }) }
+})
 // Starts a sign-in (the dialog then shows the code to approve), cancels a pending one, or signs out.
 app.post('/api/twitch/login', (req, res) =>
   twitchAuth.start(() => twitch.apply()).then(() => res.json(twitchStatus()), (err) => res.status(502).json({ error: err.message })))

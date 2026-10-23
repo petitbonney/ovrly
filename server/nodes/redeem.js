@@ -8,7 +8,7 @@ export default {
   needs: ['twitch'],
   description: 'Fires when a viewer redeems a channel points reward.',
   adds: ['user', 'reward', 'cost', 'input', 'redemptionId', 'rewardId'],
-  fields: { reward: { hint: 'Reward title; empty for any reward' } },
+  fields: { reward: { rewards: true, hint: 'Empty for any reward' } },
   event: 'channel.channel_points_custom_reward_redemption.add',
   config: { reward: '' },
   run({ config, data }) {
