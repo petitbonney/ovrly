@@ -16,44 +16,7 @@ import * as streamdeck from './streamdeck.js'
 import * as myinstants from './myinstants.js'
 import * as widgets from './widgets.js'
 import * as windows from './windows.js'
-import upgrade, { upgradeWidget } from './upgrade.js'
 import { vars, saveVars } from './vars.js'
-
-// The OBS connection used to be set in each OBS node: the first one found becomes the OBS integration's settings
-// (the upgrade below then removes it from the nodes).
-if (!(await store.get('settings', 'obs'))) {
-  const node = (await store.list('workflows')).flatMap((w) => w.nodes ?? []).find((n) => n.data.type.startsWith('obs-') && n.data.config.url)
-  await store.save('settings', { id: 'obs', url: node?.data.config.url ?? 'ws://localhost:4455', password: node?.data.config.password ?? '' })
-}
-
-// The Image/GIF widget's image used to be a widget setting, shown when its "show" action had no value; it is now that
-// value, set on the node: nodes that showed the widget's image get it (the setting is then dropped). Done before the
-// upgrade below, which moves that value to the node's inputs.
-const images = Object.fromEntries((await store.list('widgets')).filter((w) => w.type === 'image' && 'image' in (w.config ?? {})).map((w) => [w.id, w]))
-for (const workflow of Object.keys(images).length ? await store.list('workflows') : []) {
-  const nodes = workflow.nodes?.map((n) => {
-    const image = images[n.data.config?.widget]?.config.image
-    const shows = n.data.type === 'widget' || (n.data.type === 'widget-callback' && ['', 'show'].includes(n.data.config.action ?? ''))
-    return image && shows && !n.data.config.value ? { ...n, data: { ...n.data, config: { ...n.data.config, value: image } } } : n
-  })
-  if (nodes?.some((n, i) => n !== workflow.nodes[i])) await store.save('workflows', { ...workflow, nodes })
-}
-for (const { config: { image, ...config }, ...widget } of Object.values(images)) await store.save('widgets', { ...widget, config })
-
-// Items saved by older versions are upgraded once, before anything reads them. Widgets come first: upgrading a workflow
-// looks up its widgets' types.
-async function upgraded(kind, item) {
-  if (kind === 'widgets') return upgradeWidget(item, widgets.types)
-  if (kind !== 'workflows') return item
-  const list = await store.list('widgets')
-  return upgrade(item, (ref) => widgets.types[list.find((w) => w.id === ref || w.name === ref)?.type])
-}
-for (const kind of ['widgets', 'workflows']) {
-  for (const item of await store.list(kind)) {
-    const next = await upgraded(kind, item)
-    if (next !== item) await store.save(kind, next)
-  }
-}
 
 const PORT = process.env.PORT || 6875 // OVRL on a phone keypad
 const app = express()
@@ -249,10 +212,8 @@ app.get('/api/myinstants/search', (req, res) =>
 
 // Images and sounds for the Image and Sound widgets are files on disk, used where they are: "Browse files" opens the OS
 // file dialog here (a browser page can't see file paths) and /file serves a path set on a node. Only image, sound and video types,
-// so this can't leak other files; no SVG: opened directly, it could run scripts on Ovrly's origin. /media serves images
-// uploaded by older versions.
+// so this can't leak other files; no SVG: opened directly, it could run scripts on Ovrly's origin.
 const MEDIA_EXT = /\.(png|jpe?g|gif|webp|avif|apng|mp3|wav|ogg|m4a|aac|flac|mp4|webm|mov|m4v|ogv)$/i
-app.use('/media', express.static('data/media'))
 // "Browse files" per kind: the dialog's prompt, the macOS file types and the extensions (Windows) it allows.
 const BROWSE = {
   image: ['Pick an image or GIF', ['public.png', 'public.jpeg', 'com.compuserve.gif', 'org.webmproject.webp', 'public.avif'], ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'apng']],
@@ -315,11 +276,11 @@ app.get('/api/:kind/:id', async (req, res) => {
   const item = await store.get(req.params.kind, req.params.id)
   item ? res.json(item) : res.sendStatus(404)
 })
-app.post('/api/:kind', async (req, res) => res.json(await store.save(req.params.kind, await upgraded(req.params.kind, req.body))))
+app.post('/api/:kind', async (req, res) => res.json(await store.save(req.params.kind, req.body)))
 app.put('/api/:kind/:id', async (req, res) => {
   // Workflow updates are merged, so the editor's autosave keeps fields it doesn't send (e.g. enabled).
   const old = req.params.kind === 'workflows' && await store.get('workflows', req.params.id)
-  const item = await store.save(req.params.kind, await upgraded(req.params.kind, { ...old, ...req.body, id: req.params.id }))
+  const item = await store.save(req.params.kind, { ...old, ...req.body, id: req.params.id })
   if (old && req.body.enabled === false) cancel(item.id) // switched off: stop what is running
   if (old) pushMerges(item) // widgets moved on a Merge Widgets canvas
   if (req.params.kind === 'widgets') widgets.push(item) // live config changes on the overlay

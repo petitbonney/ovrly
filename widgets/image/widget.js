@@ -2,7 +2,7 @@
 // a file path on disk or a URL, typed or from data (e.g. {{gif}} from a GIPHY node).
 const ABS = /^([a-z]:[\\/]|[\\/])/i // C:\..., \\server\..., or /...
 const imageUrl = (v) =>
-  /^(https?:\/\/|\/media\/)/.test(v) ? v : v && ABS.test(v) ? `/file?path=${encodeURIComponent(v)}` : ''
+  /^https?:\/\//.test(v) ? v : v && ABS.test(v) ? `/file?path=${encodeURIComponent(v)}` : ''
 export const FADE = 300 // ms: the image fading in, and out
 
 export default {

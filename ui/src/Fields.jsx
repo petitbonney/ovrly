@@ -242,7 +242,7 @@ function FileInput({ kind, label, description, value, onChange, vars }) {
     setError(res.ok ? '' : body.error)
     if (body.path) onChange(body.path)
   }
-  const src = value && (/^([a-z]:[\\/]|[\\/])/i.test(value) && !value.startsWith('/media/') ? `/file?path=${encodeURIComponent(value)}` : value)
+  const src = value && (/^([a-z]:[\\/]|[\\/])/i.test(value) ? `/file?path=${encodeURIComponent(value)}` : value)
   return (
     <Stack gap={4}>
       <Text size="xs" fw={500}>{label}</Text>
