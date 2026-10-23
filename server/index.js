@@ -17,6 +17,7 @@ import * as myinstants from './myinstants.js'
 import * as widgets from './widgets.js'
 import * as windows from './windows.js'
 import upgrade, { upgradeWidget } from './upgrade.js'
+import { vars, saveVars } from './vars.js'
 
 // The OBS connection used to be set in each OBS node: the first one found becomes the OBS integration's settings
 // (the upgrade below then removes it from the nodes).
@@ -174,6 +175,19 @@ app.put('/api/network', async (req, res) => {
   lan = !!req.body.lan
   await store.save('settings', { id: 'network', lan })
   res.json(network())
+})
+// Workflow variables (Settings → Variables): the list, and set or delete one by name.
+app.get('/api/vars', (req, res) => res.json(vars))
+app.put('/api/vars/:name', async (req, res) => {
+  if (!/^[\w-]+$/.test(req.params.name)) return res.status(400).json({ error: 'The name takes letters, digits, "_" and "-"' })
+  vars[req.params.name] = req.body.value
+  await saveVars()
+  res.json(vars)
+})
+app.delete('/api/vars/:name', async (req, res) => {
+  delete vars[req.params.name]
+  await saveVars()
+  res.json(vars)
 })
 app.get('/api/obs', (req, res) => res.json(obs.status))
 app.put('/api/obs', async (req, res) => {

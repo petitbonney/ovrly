@@ -1,14 +1,14 @@
-// Settings dialog: a left column of sections (Integrations, Network, Appearance) like the node library, and the pane of
+// Settings dialog: a left column of sections (Integrations, Variables, Network, Appearance) like the node library, and the pane of
 // the clicked item on the right. Integrations show their status (StatusIcon); saving reconnects. The app polls the
 // statuses (useStatuses) and opens the dialog, also from anywhere with openSettings(item).
 import { useEffect, useState } from 'react'
-import { Anchor, Button, Code, Group, Loader, Modal, NavLink, Paper, PasswordInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput, ThemeIcon, Tooltip, UnstyledButton } from '@mantine/core'
-import { IconAlertCircle, IconBrandTwitch, IconCircleCheck, IconCircleDashed, IconExternalLink, IconLogout } from '@tabler/icons-react'
+import { ActionIcon, Anchor, Button, Code, Group, Loader, Modal, NavLink, Paper, PasswordInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput, ThemeIcon, Tooltip, UnstyledButton } from '@mantine/core'
+import { IconAlertCircle, IconBrandTwitch, IconCircleCheck, IconCircleDashed, IconExternalLink, IconLogout, IconPlus, IconTrash } from '@tabler/icons-react'
 import Heading from './Heading.jsx'
 import themes from './themes.js'
 import { get, json } from './api.js'
 
-// Opens the Settings dialog on a pane: an integration key, 'network' or 'appearance'.
+// Opens the Settings dialog on a pane: an integration key, 'variables', 'network' or 'appearance'.
 export const openSettings = (item) => window.dispatchEvent(new CustomEvent('ovrly-settings', { detail: item }))
 
 // An integration's status as an icon whose shape and color both say it: a check when connected, "!" when set up but
@@ -207,6 +207,76 @@ function StreamDeck({ status, info }) {
   )
 }
 
+// A variable's value as text (strings as they are, anything else as JSON), and back: text that reads as JSON (42, true,
+// [1, 2]) keeps its type, so Edit Variable can still add to a number.
+const toText = (v) => (typeof v === 'string' ? v : JSON.stringify(v))
+const fromText = (t) => {
+  try { return JSON.parse(t) } catch { return t }
+}
+
+// A variable: its name, its value (saved on Enter or leaving the field, if changed) and Delete. While edited, the polled
+// value doesn't overwrite what is typed.
+function Variable({ name, value, onSave, onDelete }) {
+  const [draft, setDraft] = useState(toText(value))
+  const [editing, setEditing] = useState(false)
+  useEffect(() => { if (!editing) setDraft(toText(value)) }, [toText(value), editing])
+  const save = async () => {
+    if (draft !== toText(value)) await onSave(fromText(draft))
+    setEditing(false)
+  }
+  return (
+    <Group gap="xs" wrap="nowrap">
+      <Text size="xs" ff="monospace" w={140} truncate title={name} style={{ flexShrink: 0 }}>{name}</Text>
+      <TextInput size="xs" flex={1} aria-label={name} value={draft} onFocus={() => setEditing(true)} onChange={(e) => setDraft(e.target.value)}
+        onBlur={save} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
+      <Tooltip label="Delete">
+        <ActionIcon variant="subtle" color="red" aria-label={`Delete ${name}`} onClick={onDelete}><IconTrash size={14} /></ActionIcon>
+      </Tooltip>
+    </Group>
+  )
+}
+
+// Variables: the ones workflows share ({{ $vars.name }}), polled so they follow Edit Variable nodes; edit, delete or add one.
+function Variables() {
+  const [vars, setVars] = useState()
+  const [form, setForm] = useState({ name: '', value: '' })
+  const [error, setError] = useState('')
+  useEffect(() => {
+    const load = () => get('/api/vars').then(setVars, () => {})
+    load()
+    const timer = setInterval(load, 2000)
+    return () => clearInterval(timer)
+  }, [])
+  const call = async (name, options) => {
+    const res = await fetch(`/api/vars/${encodeURIComponent(name)}`, options)
+    const body = await res.json()
+    res.ok ? (setVars(body), setError('')) : setError(body.error)
+    return res.ok
+  }
+  const add = async (e) => {
+    e.preventDefault()
+    if (await call(form.name.trim(), json('PUT', { value: fromText(form.value) }))) setForm({ name: '', value: '' })
+  }
+  if (!vars) return <Loader size="sm" />
+  return (
+    <Stack gap="sm">
+      <Text size="xs" c="dimmed">Shared by all workflows and kept across restarts. Read one as <Code>{'{{ $vars.name }}'}</Code>, change it with an Edit Variable node or here.</Text>
+      {Object.keys(vars).length ? Object.entries(vars).map(([name, value]) => (
+        <Variable key={name} name={name} value={value}
+          onSave={(v) => call(name, json('PUT', { value: v }))} onDelete={() => call(name, { method: 'DELETE' })} />
+      )) : <Text size="xs" c="dimmed">No variables yet.</Text>}
+      <form onSubmit={add}>
+        <Group gap="xs" wrap="nowrap" align="end">
+          <TextInput size="xs" w={140} label="Name" placeholder="counter" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={{ flexShrink: 0 }} />
+          <TextInput size="xs" flex={1} label="Value" placeholder="0" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} />
+          <Button size="xs" type="submit" variant="light" leftSection={<IconPlus size={14} />} disabled={!form.name.trim()}>Add</Button>
+        </Group>
+      </form>
+      {error && <Text size="xs" c="red">{error}</Text>}
+    </Stack>
+  )
+}
+
 // Network: by default only this computer reaches Ovrly; "Open to LAN" lets other devices on the network (a second PC
 // running OBS, a phone) open the UI and the widget links.
 function Network({ status, setStatus }) {
@@ -298,6 +368,8 @@ export default function Settings({ opened, item, onItem, onClose, statuses, setS
           {integrations.map((i) => (
             <NavLink key={i.key} component="button" label={i.label} active={item === i.key} onClick={() => onItem(i.key)} rightSection={<StatusIcon info={i.info(statuses[i.path])} />} />
           ))}
+          <Heading title="Workflows" mt="sm" />
+          <NavLink component="button" label="Variables" active={item === 'variables'} onClick={() => onItem('variables')} />
           <Heading title="Network" mt="sm" />
           <NavLink component="button" label="LAN" active={item === 'network'} onClick={() => onItem('network')} />
           <Heading title="Appearance" mt="sm" />
@@ -305,6 +377,7 @@ export default function Settings({ opened, item, onItem, onClose, statuses, setS
         </Stack>
         <div style={{ flex: 1, minWidth: 0 }}>
           {item === 'appearance' ? <Appearance theme={theme} onTheme={onTheme} />
+            : item === 'variables' ? <Variables />
             : !status ? <Loader size="sm" />
             : current ? <current.Pane key={current.key} status={status} info={current.info(status)} setStatus={(s) => setStatus(current.path, s)} />
             : <Network status={status} setStatus={(s) => setStatus('/api/network', s)} />}
