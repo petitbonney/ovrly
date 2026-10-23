@@ -73,7 +73,7 @@ function call(method, path, body, { ip = settings.ip, key = settings.key, agent:
 
 // A CLIP v2 request on a resource, e.g. request('GET', 'light'): its data list.
 export async function request(method, resource, body) {
-  if (!settings.key) throw new Error('Hue is not paired: set it up under Integration, in the sidebar')
+  if (!settings.key) throw new Error('Hue is not paired: pair it in Settings → Philips Hue')
   const { status: code, body: answer } = await call(method, `/clip/v2/resource/${resource}`, body)
   const error = answer.errors?.[0]?.description ?? (code >= 400 && `Hue bridge answered ${code}`)
   if (method !== 'GET') record('http', 'hue', { method, resource, ...body, ...(error && { error }) })

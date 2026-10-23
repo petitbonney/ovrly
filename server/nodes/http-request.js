@@ -14,7 +14,7 @@ export default {
   fields: {
     method: { options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] },
     url: { label: 'URL', vars: true },
-    headers: { type: 'json', label: 'Headers (JSON)', hint: 'e.g. {"Authorization": "Bearer {{token}}"}; Content-Type is JSON unless set here' },
+    headers: { type: 'json', label: 'Headers (JSON)', hint: 'e.g. {"Authorization": "Bearer {{token}}"}', info: 'Content-Type is JSON unless set here.' },
     body: { vars: true, multiline: true },
   },
   config: { method: 'POST', url: 'http://localhost:8080', headers: '{}', body: '{"user":"{{user}}"}' },

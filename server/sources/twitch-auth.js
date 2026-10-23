@@ -73,7 +73,7 @@ export async function start(onDone) {
 // one is saved each time; one refresh at a time.
 let refreshing = null
 export async function token() {
-  if (!auth?.access) throw new Error('Twitch: not signed in (Integration → Twitch → Streamer)')
+  if (!auth?.access) throw new Error('Twitch: not signed in (Settings → Twitch → Streamer)')
   if (auth.expiresAt - Date.now() > 60_000) return auth.access
   refreshing ??= post('token', { grant_type: 'refresh_token', refresh_token: auth.refresh })
     .then(save, async (err) => {

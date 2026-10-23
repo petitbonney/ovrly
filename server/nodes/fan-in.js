@@ -12,10 +12,13 @@ export default {
   group: 'Flow',
   description: 'Collects several firings into one list, released after a duration, a quiet period or a limit of entries.',
   fields: {
-    duration: { label: 'Duration', unit: 's', presets: [0, 5, 10, 30, 60], off: true, hint: 'Released this long after the first entry' },
+    duration: { section: 'Released after (the first reached)', label: 'Duration', unit: 's', presets: [0, 5, 10, 30, 60], off: true, hint: 'Released this long after the first entry' },
     quiet: { label: 'Quiet period', unit: 's', presets: [0, 2, 5, 10, 30], off: true, hint: 'Released once no event came for this long' },
     limit: { label: 'Limit', presets: [5, 10, 25, 50, 0], off: true, hint: 'Released as soon as it holds this many entries' },
-    item: { vars: true, label: 'Entry', hint: 'What each entry holds, e.g. {{user}}; empty for the whole data. After this node, {{ $node... }} still reads the first firing.' },
+    item: {
+      section: 'Entries', vars: true, label: 'Entry', hint: 'What each entry holds, e.g. {{user}}; empty: the whole data',
+      info: 'After this node, {{ $node... }} still reads the first firing.',
+    },
     byKey: { label: 'One entry per key', hint: 'Keeps one entry per value of a data key (e.g. one per viewer)' },
     key: { type: 'var', label: 'Key', only: { byKey: true } },
     keep: { label: 'Keep', options: ['first', 'last'], only: { byKey: true } },

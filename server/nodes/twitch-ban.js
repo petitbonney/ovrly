@@ -13,7 +13,7 @@ export default {
   fields: {
     action: { options: ['timeout', 'ban', 'unban'] },
     user: { vars: true, hint: 'A login or display name, e.g. {{user}} from a chat trigger' },
-    duration: { unit: 's', presets: [10, 60, 300, 600], only: { action: 'timeout' }, hint: 'Up to 2 weeks' },
+    duration: { unit: 's', presets: [1, 60, 600, 3600, 86400], only: { action: 'timeout' }, hint: 'Up to 2 weeks; 1 s clears their messages' },
     reason: { vars: true, only: { action: ['timeout', 'ban'] }, hint: 'Shown to the viewer and the mods; optional' },
   },
   config: { action: 'timeout', user: '{{user}}', duration: 60, reason: '' },

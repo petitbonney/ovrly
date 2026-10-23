@@ -13,6 +13,10 @@ import * as eventsub from './twitch-eventsub.js'
 let client = null
 // Gifter -> subs of their community gifts still to be announced one by one, which aren't gifts of their own.
 const pending = {}
+// Chat messages sent by Send Chat Message: message id -> the triggers of the firing that sent it (`workflow/node` keys,
+// see engine.js). Those triggers skip it when it comes back through chat, so a reply can't fire its own workflow
+// again and loop; other triggers still fire on it. Kept a minute.
+export const sentBy = new Map()
 // mode and guestChannel are the settings; channel is the chat being read.
 export const status = { mode: 'guest', guestChannel: '', channel: '', connected: false }
 
@@ -20,13 +24,14 @@ export const status = { mode: 'guest', guestChannel: '', channel: '', connected:
 export const streamer = () => status.mode === 'streamer' && !!auth.status.login && auth.status.scopesOk
 // For nodes and widgets: throws unless Streamer features can run. what: the feature, e.g. 'Twitch polls'.
 export function needStreamer(what) {
-  if (!streamer()) throw new Error(`${what} need Twitch in Streamer mode, signed in (Integration → Twitch)`)
+  if (!streamer()) throw new Error(`${what} need Twitch in Streamer mode, signed in (Settings → Twitch)`)
 }
 
-// Applies the settings ({ mode, channel }), or the current ones again after signing in or out.
+// Applies the settings ({ mode, channel }), or the current ones again after signing in or out. Streamer mode reads the
+// signed-in channel's chat; until signed in, it keeps reading the Guest channel's, so chat triggers keep working.
 export async function apply(settings = { mode: status.mode, channel: status.guestChannel }) {
   Object.assign(status, { mode: settings.mode === 'streamer' ? 'streamer' : 'guest', guestChannel: settings.channel ?? '' })
-  await connect(status.mode === 'streamer' ? auth.status.login : status.guestChannel)
+  await connect(status.mode === 'streamer' && auth.status.login ? auth.status.login : status.guestChannel)
   status.mode === 'streamer' && auth.status.login ? eventsub.connect() : eventsub.disconnect()
 }
 

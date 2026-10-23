@@ -1,6 +1,8 @@
-// n8n-style graph node: icon box with the label underneath; triggers get a rounded left side and a bolt.
-// Nodes with several outputs (if/else, switch) get one labelled handle each, and grow taller with more than five. Widget nodes show their
-// widget's icon and name, with the action they run underneath unless it is "start".
+// n8n-style graph node: icon box with the label underneath; triggers get a rounded left side. Triggers that can be
+// tried from here (Manual Trigger, chat triggers) get a bolt that fires them. A node whose needs aren't met (an
+// integration not ready) gets a warning badge. Nodes with several outputs (if/else, switch) get one labelled handle
+// each, and grow taller with more than five. Widget nodes show their widget's icon and name, with the action they run
+// underneath unless it is "start".
 import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
@@ -10,7 +12,7 @@ import {
   IconMessageCode, IconMovie, IconAd, IconBan, IconBookmark, IconChecks, IconMessageCog, IconMessageShare, IconPencil, IconRocket,
   IconScissors, IconTicket, IconTrash, IconUserSearch, IconMessageStar, IconHeartHandshake,
   IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVideo, IconVolume, IconVariable, IconWebhook, IconAirConditioning, IconWorld,
-  IconLayoutGrid, IconBulb,
+  IconLayoutGrid, IconBulb, IconPlugOff,
 } from '@tabler/icons-react'
 import { deckIcons } from './Deck.jsx'
 
@@ -88,11 +90,12 @@ export const widgetIcons = {
   'twitch-plays': IconDeviceGamepad2,
 }
 
+// Category colors, from the editor theme (themes.js).
 export const colors = {
-  trigger: 'var(--mantine-color-orange-5)',
-  logic: 'var(--mantine-color-blue-4)',
-  action: 'var(--mantine-color-grape-4)',
-  widget: 'var(--mantine-color-teal-4)',
+  trigger: 'var(--ovrly-trigger)',
+  logic: 'var(--ovrly-logic)',
+  action: 'var(--ovrly-action)',
+  widget: 'var(--ovrly-widget)',
 }
 
 // A node's outputs as [{ id, label }]: its type's fixed ones (if/else's true and false), after one per item of a list
@@ -113,10 +116,14 @@ export function nodeHeight(def, config, inputs = 0) {
   return Math.max(90, (outputsOf(def, config).length + 1) * 18, (inputs + 1) * 18)
 }
 
+// Field types too long or too secret for the subtitle.
+const unshown = ['json', 'code', 'secret']
+
 // The editor passes in data: workflowId, the workflow the node is in; def, its node type; widget, the instance a widget or
-// Widget Action node points to (undefined for a deleted one, or none linked); widgetType, that widget's type.
+// Widget Action node points to (undefined for a deleted one, or none linked); widgetType, that widget's type; missing,
+// what it needs that isn't ready (requirement notes).
 export default function FlowNode({ id, data, selected }) {
-  const { workflowId, def, widget, widgetType: type } = data
+  const { workflowId, def, widget, widgetType: type, missing = [] } = data
   const outputs = outputsOf(def, data.config)
   // Handles added or removed (a switch case) must be measured again, or links to them are misplaced.
   const updateNodeInternals = useUpdateNodeInternals()
@@ -126,9 +133,12 @@ export default function FlowNode({ id, data, selected }) {
   const isWidget = data.type === 'widget'
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[data.type]) ?? IconBox
   const trigger = def?.category === 'trigger'
-  // Subtitle like n8n's "mode: Rules": the node's first setting. A widget node shows the action it runs unless it is
-  // "start" (TwitchPlays: "push"), a Widget Action node its widget and action.
-  const [key, value] = Object.entries({ ...def?.config, ...data.config })[0] ?? []
+  // The bolt runs a Manual Trigger, or sends a chat trigger a test message (server: /api/workflows/:id/run).
+  const testable = data.type === 'manual' || [def?.event].flat().includes('chat')
+  // Subtitle like n8n's "mode: Rules": the node's first setting (not JSON, code or a secret). A widget node shows the
+  // action it runs unless it is "start" (TwitchPlays: "push"), a Widget Action node its widget and action.
+  const [key, value] = Object.entries({ ...def?.config, ...data.config })
+    .find(([k]) => !def?.fields?.[k]?.hidden && !unshown.includes(def?.fields?.[k]?.type)) ?? []
   const shown = Array.isArray(value) ? value.map((v) => v?.name ?? v).join(', ') : value
   const sub = isWidget ? type?.linked !== 'start' && type?.linked
     : data.type === 'merge' ? null // its only setting is the placement
@@ -136,14 +146,16 @@ export default function FlowNode({ id, data, selected }) {
     : key && shown !== '' && `${key}: ${shown}`
   return (
     <div className={`flow-node${trigger ? ' trigger' : ''}${selected ? ' selected' : ''}`} style={{ height: nodeHeight(def, data.config, inputs) }}>
-      {data.type === 'manual' ? (
-        <button className="bolt nodrag" title="Run this trigger" onClick={(e) => {
-          e.stopPropagation() // don't select the node (which opens its editor)
-          fetch(`/api/workflows/${workflowId}/run?node=${id}`, { method: 'POST' })
-        }}>
+      {testable && (
+        <button className="bolt nodrag" title={data.type === 'manual' ? 'Run this trigger' : 'Test: send it a chat message from TestViewer'}
+          aria-label={data.type === 'manual' ? 'Run this trigger' : 'Test this trigger'} onClick={(e) => {
+            e.stopPropagation() // don't select the node (which opens its editor)
+            fetch(`/api/workflows/${workflowId}/run?node=${id}`, { method: 'POST' })
+          }}>
           <IconBolt size={18} fill="currentColor" />
         </button>
-      ) : trigger && <IconBolt className="bolt nodrag" size={18} fill="currentColor" onClick={(e) => e.stopPropagation()} />}
+      )}
+      {missing.length > 0 && <span className="needs" title={missing.map((m) => `Needs ${m}.`).join(' ')}><IconPlugOff size={12} /></span>}
       {!trigger && <div className="in-bar" style={{ height: (inputs - 1) * 18 + 22 }} />}
       {!trigger && Array.from({ length: inputs }, (_, i) => (
         <Handle key={i} id={`in${i}`} type="target" position="left" className="in" style={{ top: `calc(50% + ${(i - (inputs - 1) / 2) * 18}px)` }} />

@@ -18,6 +18,9 @@ export const tests = {
   'not empty': (a) => a !== '',
 }
 
+// The operators as setting options, labelled in sentence case ("not equals" -> "Not equals"). Also used by the filter node.
+export const operators = Object.keys(tests).map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) }))
+
 // Whether the node's comparison holds on the data; `who` names the node in errors.
 export function compare(who, config, data) {
   const test = tests[config.operator]
@@ -34,7 +37,7 @@ export default {
   description: 'Sends data to "true" or "false" by comparing two values.',
   fields: {
     value: { vars: true },
-    operator: { options: Object.keys(tests) },
+    operator: { options: operators },
     compare: { label: 'Compare with', vars: true },
     matchCase: { label: 'Match case' },
   },

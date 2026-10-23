@@ -23,7 +23,7 @@ const clipVideo = (g) => {
 // A page of GIFs, stickers (transparent GIFs) or clips (kind): the search results, or the trending ones without a query.
 export async function search(q, offset, kind = 'gif', rating = 'pg') {
   const clips = kind === 'clip'
-  if (!status.key) throw new Error('Set the Giphy API key first (Integration → Giphy)')
+  if (!status.key) throw new Error('Set the Giphy API key first (Settings → Giphy)')
   const url = new URL(`https://api.giphy.com/v1/${kind}s/${q ? 'search' : 'trending'}`)
   url.search = new URLSearchParams({ api_key: status.key, q, offset, limit: 24, rating })
   const res = await fetch(url)

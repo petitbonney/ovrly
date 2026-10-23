@@ -27,7 +27,7 @@ export default {
   type: 'alerts',
   label: 'Alerts',
   description: 'Shows a text for a few seconds, e.g. who just ran a command: a banner, a neon sign, a flap board…',
-  config: { layout: 'banner', duration: 5, color: '#ffb400', metal: 'gold', volume: 100 },
+  config: { layout: 'banner', color: '#ffb400', metal: 'gold', duration: 5, volume: 100 },
   fields: {
     layout: { options: Object.entries(LAYOUTS).map(([value, { label }]) => ({ value, label })) },
     duration: { unit: 's', presets: [3, 5, 8, 10], hint: 'How long an alert stays on screen (the marquee: one pass)' },
@@ -41,7 +41,8 @@ export default {
     },
     volume: {
       unit: '%', slider: true, only: { layout: Object.keys(LAYOUTS).filter((name) => LAYOUTS[name].sound) },
-      hint: '0 mutes the sounds. Tick "Control audio via OBS" on the browser source to mix them',
+      hint: '0 mutes the sounds',
+      info: 'Tick "Control audio via OBS" on the browser source to mix them in OBS.',
     },
   },
   // items: the alerts on screen or waiting their turn, { id, text, at: when it starts (ms) }; n: the last id given.
@@ -54,7 +55,7 @@ export default {
   actions: {
     start: {
       description: 'Shows the text; the workflow goes on once the alert has gone (after the ones queued before it).',
-      inputs: { text: { vars: true, hint: 'Text to show, e.g. {{user}} just ran !hype' } },
+      inputs: { text: { vars: true, default: 'New alert!', hint: 'Text to show, e.g. {{user}} just ran !hype' } },
       run(state, { text }, config) {
         const now = Date.now()
         const kept = arrive(config) === 'replace' || state.ended ? [] : state.items.filter((i) => i.at + life(config) > now)

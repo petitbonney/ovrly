@@ -17,6 +17,7 @@ import * as myinstants from './myinstants.js'
 import * as widgets from './widgets.js'
 import * as windows from './windows.js'
 import upgrade, { upgradeWidget } from './upgrade.js'
+import { vars, saveVars } from './vars.js'
 
 // The OBS connection used to be set in each OBS node: the first one found becomes the OBS integration's settings
 // (the upgrade below then removes it from the nodes).
@@ -89,12 +90,23 @@ app.get('/api/events', (req, res) => {
 })
 // Run history: the recent firings with what each node got and returned, newest first; ?workflow=<id> for one workflow.
 app.get('/api/runs', (req, res) => res.json(history.filter((r) => !req.query.workflow || r.workflow === req.query.workflow)))
-// Runs a workflow's manual triggers now (the Run button in the editor), or just ?node=<id> (the bolt on a manual trigger).
+// A test chat message, for the bolt on a chat trigger: from TestViewer, with the trigger's command if it has one, and the
+// role and first message it asks for, so the test gets through.
+const testChat = (config) => ({
+  user: 'TestViewer', login: 'testviewer', message: config.command || 'Hello from Ovrly!', channel: twitch.status.channel, messageId: '',
+  userId: '', color: '', timestamp: Date.now(), broadcaster: config.from === 'broadcaster', mod: config.from === 'mod',
+  vip: config.from === 'vip', sub: config.from === 'sub', subMonths: config.from === 'sub' ? 1 : 0, firstMessage: !!config.firstOnly,
+  returning: false, emotes: [], action: false, highlighted: false, rewardId: '', replyToId: '', replyToUser: '', replyToMessage: '',
+})
+// Runs a workflow's manual triggers now (the Run button in the editor), or just ?node=<id> (the bolt on a trigger): a
+// manual trigger, or a chat trigger, sent a test message.
 app.post('/api/workflows/:id/run', async (req, res) => {
   const workflow = await store.get('workflows', req.params.id).catch(() => null)
   if (!workflow) return res.sendStatus(404)
-  record('http', 'manual', { workflow: workflow.id }) // not on the bus: it targets this workflow only
-  fire(workflow, 'manual', {}, {}, req.query.node)
+  const node = workflow.nodes.find((n) => n.id === req.query.node)
+  const chat = node && [nodes[node.data.type]?.event].flat().includes('chat')
+  record('http', 'manual', { workflow: workflow.id, ...(chat && { test: 'chat' }) }) // not on the bus: it targets this workflow only
+  fire(workflow, chat ? 'chat' : 'manual', chat ? testChat({ ...nodes[node.data.type].config, ...node.data.config }) : {}, {}, req.query.node)
   res.sendStatus(204)
 })
 // Cancels a workflow's firings in progress (the Cancel button in the editor); the workflow stays on.
@@ -102,14 +114,19 @@ app.post('/api/workflows/:id/cancel', (req, res) => {
   cancel(req.params.id)
   res.sendStatus(204)
 })
-// Emergency stop: switches every workflow off and cancels what is running.
+// Emergency stop: switches every workflow off and cancels what is running. Answers with the ids it switched off
+// ({ off }), for the editor to offer turning them back on.
 app.post('/api/stop', async (req, res) => {
+  const off = []
   for (const workflow of await store.list('workflows')) {
-    if (workflow.enabled !== false) await store.save('workflows', { ...workflow, enabled: false })
+    if (workflow.enabled !== false) {
+      await store.save('workflows', { ...workflow, enabled: false })
+      off.push(workflow.id)
+    }
     cancel(workflow.id)
   }
   record('http', 'stop-all', {})
-  res.sendStatus(204)
+  res.json({ off })
 })
 // API call trigger: any request to /hooks/<path> fires the matching nodes; the query and JSON body become data.
 // /hooks/<path>/<button> is a Control Pad node's button (path "<path>/<button>", which no API Call node matches).
@@ -126,6 +143,14 @@ app.put('/api/twitch', async (req, res) => {
   await store.save('settings', { id: 'twitch', ...settings })
   await twitch.apply(settings)
   res.json(twitchStatus())
+})
+// The channel's reward titles, for the Channel Points trigger's picker.
+app.get('/api/twitch/rewards', async (req, res) => {
+  try {
+    twitch.needStreamer('Channel points rewards')
+    const rewards = await twitchAuth.helix('GET', 'channel_points/custom_rewards', undefined, { broadcaster_id: twitchAuth.status.userId })
+    res.json(rewards.map((r) => r.title).sort())
+  } catch (err) { res.status(503).json({ error: err.message }) }
 })
 // Starts a sign-in (the dialog then shows the code to approve), cancels a pending one, or signs out.
 app.post('/api/twitch/login', (req, res) =>
@@ -150,6 +175,19 @@ app.put('/api/network', async (req, res) => {
   lan = !!req.body.lan
   await store.save('settings', { id: 'network', lan })
   res.json(network())
+})
+// Workflow variables (Settings → Variables): the list, and set or delete one by name.
+app.get('/api/vars', (req, res) => res.json(vars))
+app.put('/api/vars/:name', async (req, res) => {
+  if (!/^[\w-]+$/.test(req.params.name)) return res.status(400).json({ error: 'The name takes letters, digits, "_" and "-"' })
+  vars[req.params.name] = req.body.value
+  await saveVars()
+  res.json(vars)
+})
+app.delete('/api/vars/:name', async (req, res) => {
+  delete vars[req.params.name]
+  await saveVars()
+  res.json(vars)
 })
 app.get('/api/obs', (req, res) => res.json(obs.status))
 app.put('/api/obs', async (req, res) => {
@@ -297,7 +335,9 @@ app.delete('/api/:kind/:id', async (req, res) => {
 // Store errors are bad kinds/ids; Express 5 forwards rejected promises here.
 app.use('/api', (err, req, res, next) => res.status(400).json({ error: err.message }))
 
-// Widget pages for OBS browser sources: /w/<id> serves its type's page, /w/<id>/events streams its state.
+// Widget pages for OBS browser sources: /w/<id> serves its type's page, /w/<id>/events streams its state. An unknown
+// page (a deleted widget, Merge Widgets node) is an empty one, so a browser source left with it shows nothing on stream.
+const blank = (res) => res.status(404).type('html').send('<!doctype html><title>Not found</title>')
 app.use('/widgets', express.static('widgets'))
 // Animation and physics libraries for widget pages (anime.js, three.js, cannon-es), mapped by the pages' import maps.
 app.use('/vendor/animejs', express.static('node_modules/animejs/dist/modules'))
@@ -310,7 +350,7 @@ app.post('/w/:id/done', (req, res) => {
 })
 app.get('/w/:id{/:events}', async (req, res) => {
   const widget = await store.get('widgets', req.params.id).catch(() => null)
-  if (!widget || !widgets.types[widget.type]) return res.sendStatus(404)
+  if (!widget || !widgets.types[widget.type]) return req.params.events ? res.sendStatus(404) : blank(res)
   if (req.params.events === 'events') return widgets.stream(widget, req, res)
   res.sendFile(`widgets/${widget.type}/index.html`, { root: '.' })
 })
@@ -357,7 +397,7 @@ app.get('/m/:workflow/:node{/:events}', async (req, res) => {
     })
     return pushMerge(workflow, client)
   }
-  if (!mergeView(workflow, req.params.node)) return res.sendStatus(404)
+  if (!mergeView(workflow, req.params.node)) return blank(res)
   res.sendFile('server/merge.html', { root: '.' })
 })
 

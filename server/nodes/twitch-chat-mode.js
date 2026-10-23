@@ -23,7 +23,7 @@ export default {
     mode: { options: modes, hint: 'Unique chat: no message repeated' },
     turn: { options: ['toggle', 'on', 'off'] },
     seconds: { label: 'Wait between messages', unit: 's', presets: [3, 10, 30, 60, 120], only: { mode: 'slow', turn: ['toggle', 'on'] }, hint: '3 to 120 s' },
-    minutes: { label: 'Following for at least', unit: 'min', only: { mode: 'follower', turn: ['toggle', 'on'] }, hint: '0: any follower' },
+    minutes: { label: 'Following for at least', unit: 'min', presets: [0, 10, 60, 1440, 10080], off: 'any', only: { mode: 'follower', turn: ['toggle', 'on'] } },
   },
   config: { mode: 'emote', turn: 'toggle', seconds: 30, minutes: 0 },
   async run({ config, data }) {

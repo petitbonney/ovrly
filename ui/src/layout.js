@@ -4,9 +4,9 @@
 // by their real height (a switch grows with its cases); links skipping columns get nodes out of their way. Returns { id: { x, y } }.
 import { nodeHeight, outputsOf } from './FlowNode.jsx'
 
-const COLUMN = 240 // node box (90px) plus its caption (160px wide), with room for links
 const CAPTION = 50 // the two caption lines under a node
 const GAP = 20 // between a caption and the next node
+const COLUMN = 90 + CAPTION + GAP // node box (90px) plus the same space as between rows
 
 // defs: node types, for node heights and output order (if/else's "true" goes above "false", a switch's cases in order).
 export default function layout(nodes, edges, defs) {

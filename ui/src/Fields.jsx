@@ -1,47 +1,57 @@
-// Settings form generated from a config's defaults, plus optional per-field hints from the node or widget type:
-// { label, hint, unit, options, presets, vars, multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'keys' | 'action' | 'inputs' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' }.
+// Settings form generated from a config's defaults (shown in their order), plus optional per-field hints from the node
+// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'tags' | 'action' | 'inputs' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' }.
+// hint: one short line under the label; info: anything longer, in an ⓘ tooltip beside the label. section: a heading
+// shown before this field, starting a group (for nodes with many settings). A field shown only while a switch is on
+// (only: { someSwitch: true }) is indented under it. Plain-text options show with a capital first letter.
 // slider: true shows the options as marks on a slider, from the first to the last, instead of buttons; tips: { option: text } adds a tooltip to each mark.
 // On a number, slider: true is a slider from min to max (0 to 100 by default), its value beside the label; a volume's
 // slider has a mute button.
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
-// off: true labels the 0 preset "off" (where 0 turns the setting off).
+// off: true labels the 0 preset "off" (where 0 turns the setting off); a word labels it that word instead (e.g. 'any').
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
 // (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
-// An option { value, label, streamer: true } is a Twitch feature: it needs Twitch in Streamer mode (context.streamer).
-// An option { value, label, needs: key } needs that integration: disabled while it isn't ready (context.off lists those).
+// An option { value, label, streamer: true } is a Twitch feature: it needs Twitch in Streamer mode, like { needs: 'twitch' }.
+// An option { value, label, needs: key } needs that integration: disabled while it isn't ready (context.off lists the
+// requirements not met, see Settings.jsx); the settings pane notes it when picked.
 // A list default with options gets one chip per option, any number picked (e.g. the kinds of subs a trigger fires on).
 // Any other list default (e.g. a poll's options) gets a list editor (columns: { key: field } for its items' fields, e.g. a
-// { type: 'keys' } picker, { type: 'icon' } an icon picker, { type: 'id' } a hidden random id, { options } a select; a column's
-// label, max, and only: { key: value } of the same item, else disabled), a color default ("#rrggbb") a color picker,
+// { type: 'tags' } input, { type: 'icon' } an icon picker, { type: 'id' } a hidden random id, { options } a select; a column's
+// label, unit, max, and only: { key: value } of the same item, else disabled), a color default ("#rrggbb") a color picker,
 // type: 'deck' a Control Pad node's buttons (with Companion, each with a button to copy its URL), type: 'hue-steps' a
 // Hue routine's steps (warned of what its limits change), { obs: 'scenes' | 'sources' } suggestions from OBS and
 // { hue: 'devices' } a Hue light, room or zone.
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import {
   ActionIcon, Autocomplete, Button, Chip, ColorInput, CopyButton, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
   Select, Slider, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
 } from '@mantine/core'
-import { IconBraces, IconCheck, IconCopy, IconGripVertical, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX } from '@tabler/icons-react'
+import { IconBraces, IconCheck, IconCopy, IconGripVertical, IconInfoCircle, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX } from '@tabler/icons-react'
 import { get } from './api.js'
-import { integrations } from './Settings.jsx'
+import { openSettings, requirements } from './Settings.jsx'
+import Heading from './Heading.jsx'
+import Notice from './Notice.jsx'
 import { IconPicker, buttonId, deckUrl } from './Deck.jsx'
 import GiphyPicker from './GiphyPicker.jsx'
 import MyinstantsPicker from './MyinstantsPicker.jsx'
 
 // "case1" -> "Case1", "sceneName" -> "Scene name"
 const humanize = (key) => key[0].toUpperCase() + key.slice(1).replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`)
+// Plain-text options as { value, label }, the label with a capital first letter: "toggle" -> "Toggle".
+const labelled = (options) => options?.map((o) => (typeof o === 'string' ? { value: o, label: o[0].toUpperCase() + o.slice(1) } : o))
 
 // Suggestions filter: every option while the value is empty or one of them, else those containing it.
 const suggest = ({ options, search }) => (!search || options.some((o) => o.value === search) ? options
   : options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase())))
 
-// The "{}" button: a menu of the data keys available at this node; onPick(key) gets the one picked.
+// The "{}" button: a menu of the data keys available at this node (vars null: none, on a trigger); onPick(key) gets
+// the one picked.
 function VarMenu({ vars, onPick }) {
+  if (!vars) return null
   return (
     <Menu position="bottom-end" withinPortal>
       <Menu.Target>
         <Tooltip label="Insert data from previous nodes">
-          <ActionIcon variant="subtle" size="sm"><IconBraces size={16} /></ActionIcon>
+          <ActionIcon variant="subtle" size="sm" aria-label="Insert data from previous nodes"><IconBraces size={16} /></ActionIcon>
         </Tooltip>
       </Menu.Target>
       {/* Scrollable and capped: a long list must scroll itself, not the canvas behind it (nowheel/nopan) */}
@@ -65,7 +75,7 @@ function VarInput({ vars, value, onChange, multiline, data, ...props }) {
   const menu = <VarMenu vars={vars} onPick={insert} />
   if (data) return <Autocomplete ref={ref} data={data} filter={suggest} value={value} onChange={onChange} rightSection={menu} {...props} />
   const Input = multiline ? Textarea : TextInput
-  return <Input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rightSection={menu} autosize={multiline || undefined} minRows={multiline ? 2 : undefined} {...props} />
+  return <Input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rightSection={menu} autosize={multiline || undefined} minRows={multiline ? 2 : undefined} maxRows={multiline ? 8 : undefined} {...props} />
 }
 
 // A scene or source name, suggested from the OBS integration (the sources of the node's scene). Typing stays free,
@@ -102,6 +112,21 @@ function HueInput(props) {
   return <Select {...props} data={data} description={error || props.description} placeholder="Pick a light, room or zone" searchable allowDeselect={false} />
 }
 
+// A channel points reward, picked from the channel's (empty: any). A title no longer there still shows.
+function RewardInput(props) {
+  const [titles, setTitles] = useState([])
+  const [error, setError] = useState('')
+  useEffect(() => {
+    fetch('/api/twitch/rewards').then(async (r) => {
+      const body = await r.json()
+      setTitles(r.ok ? body : [])
+      setError(r.ok ? '' : body.error)
+    }, () => setError('Ovrly is not reachable'))
+  }, [])
+  const data = !props.value || titles.includes(props.value) ? titles : [...titles, props.value]
+  return <Select {...props} data={data} description={error || props.description} placeholder="Any reward" searchable clearable onChange={(v) => props.onChange(v ?? '')} />
+}
+
 // A Hue routine's steps, with a warning for each the limits change (limits: shortest step on a light and on a room or
 // zone, most steps; from server/hue.js, which applies them) and a note on restoring a room or zone.
 function HueSteps({ value, limits, device, transition, restore, ...props }) {
@@ -119,7 +144,7 @@ function HueSteps({ value, limits, device, transition, restore, ...props }) {
   return (
     <Stack gap={4}>
       <ListInput {...props} value={value} />
-      {warnings.map((w) => <Text key={w} size="xs" c="orange">{w}</Text>)}
+      {warnings.length > 0 && <Notice>{warnings.map((w) => <div key={w}>{w}</div>)}</Notice>}
       {group && <Text size="xs" c="dimmed">Putting a room or zone back as it was sends one command per light, 0.1s apart{restore ? '' : ' (on Stop or Cancel)'}.</Text>}
     </Stack>
   )
@@ -149,20 +174,29 @@ function WindowInput({ onChange, ...props }) {
     onChange={onChange} placeholder="Pick or type an app or window" />
 }
 
-// "90 s" -> "1m30", "300 s" -> "5m": presets read faster in minutes.
-const short = (n, unit) => (unit === 's' && n >= 60 ? `${Math.floor(n / 60)}m${n % 60 ? String(n % 60).padStart(2, '0') : ''}` : `${n}${unit ?? ''}`)
+// A time preset reads in its biggest unit that fits: 90 s -> "1m30", 1440 min -> "1d", 1000 ms -> "1s".
+const SECONDS = { ms: 0.001, s: 1, min: 60 }
+const STEPS = [['w', 604800], ['d', 86400], ['h', 3600], ['m', 60], ['s', 1]]
+function short(n, unit) {
+  const s = n * (SECONDS[unit] ?? NaN)
+  const i = STEPS.findIndex(([, size]) => s >= size)
+  if (i < 0 || !Number.isInteger(s)) return `${n}${unit ?? ''}`
+  const [name, size] = STEPS[i]
+  const rest = (s % size) / (STEPS[i + 1]?.[1] ?? 1)
+  return `${Math.floor(s / size)}${name}${rest ? String(rest).padStart(2, '0') : ''}`
+}
 
 // A number with preset buttons (the current one highlighted) and an input for any other value.
-function PresetInput({ label, description, unit, presets, off, value, onChange }) {
+function PresetInput({ label, name, description, unit, presets, off, value, onChange }) {
   return (
     <Stack gap={4}>
       <Text size="xs" fw={500}>{label}</Text>
       {description && <Text size="xs" c="dimmed">{description}</Text>}
       <Group gap={6} wrap="nowrap">
         {presets.map((n) => (
-          <Button key={n} size="compact-xs" h={30} px="sm" variant={n === value ? 'filled' : 'default'} onClick={() => onChange(n)}>{off && n === 0 ? 'off' : short(n, unit)}</Button>
+          <Button key={n} size="compact-xs" h={30} px="sm" variant={n === value ? 'filled' : 'default'} onClick={() => onChange(n)}>{off && n === 0 ? (off === true ? 'off' : off) : short(n, unit)}</Button>
         ))}
-        <NumberInput size="xs" w={90} min={0} aria-label={`Custom ${label.toLowerCase()}`} suffix={unit && ` ${unit}`} value={value} onChange={(v) => onChange(Number(v))} />
+        <NumberInput size="xs" w={90} min={0} aria-label={`Custom ${name.toLowerCase()}`} suffix={unit && ` ${unit}`} value={value} onChange={(v) => onChange(Number(v))} />
       </Group>
     </Stack>
   )
@@ -213,7 +247,7 @@ function FileInput({ kind, label, description, value, onChange, vars }) {
     <Stack gap={4}>
       <Text size="xs" fw={500}>{label}</Text>
       {description && <Text size="xs" c="dimmed">{description}</Text>}
-      {value && !value.includes('{{') && kind === 'image' && <Image src={src} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />}
+      {value && !value.includes('{{') && kind === 'image' && <Image src={src} alt="" h={90} fit="contain" radius="sm" bg="var(--mantine-color-default)" />}
       {value && !value.includes('{{') && kind === 'sound' && <audio controls style={{ width: '100%' }} src={src} />}
       {value && !value.includes('{{') && kind === 'video' && <video controls muted style={{ width: '100%', maxHeight: 140 }} src={src} />}
       {value && kind === 'video' && <Button size="xs" variant="subtle" color="red" style={{ alignSelf: 'start' }} onClick={() => onChange('')}>Clear</Button>}
@@ -228,32 +262,34 @@ function FileInput({ kind, label, description, value, onChange, vars }) {
   )
 }
 
-// A GIF picked from Giphy or a sound from Myinstants (kind): a preview and a button opening the picker. The value is its URL.
-function PickInput({ kind, media = 'gif', rating, label, description, value, onChange }) {
-  const [ready, setReady] = useState(kind !== 'giphy') // Giphy needs its API key set up
+// A GIF picked from Giphy or a sound from Myinstants (kind): a preview and a button opening the picker. The value is its
+// URL. ready: false while Giphy isn't set up: the button opens its settings instead.
+function PickInput({ kind, media = 'gif', rating, ready, label, description, value, onChange }) {
   const [picking, setPicking] = useState(false)
-  useEffect(() => {
-    if (kind === 'giphy') get('/api/giphy').then((s) => setReady(s.connected), () => {})
-  }, [kind])
   const Picker = kind === 'giphy' ? GiphyPicker : MyinstantsPicker
   return (
     <Stack gap={4}>
       <Text size="xs" fw={500}>{label}</Text>
       {description && <Text size="xs" c="dimmed">{description}</Text>}
       {value && (media === 'clip' ? <video src={value} controls muted loop style={{ height: 90 }} />
-        : kind === 'giphy' ? <Image src={value} alt="" h={90} fit="contain" radius="sm" bg="dark.6" />
+        : kind === 'giphy' ? <Image src={value} alt="" h={90} fit="contain" radius="sm" bg="var(--mantine-color-default)" />
         : <audio controls style={{ width: '100%' }} src={value} />)}
-      <Tooltip label="Set up Giphy first (Integration → Giphy)" disabled={ready}>
-        <Button size="xs" variant="default" style={{ alignSelf: 'start' }} data-disabled={!ready || undefined} onClick={() => ready && setPicking(true)}>
-          {kind === 'giphy' ? `Pick a ${media === 'gif' ? 'GIF' : media}` : 'Pick a sound'}
+      <Group gap={6}>
+        <Button size="xs" variant="default" onClick={() => (ready ? setPicking(true) : openSettings('giphy'))}>
+          {!ready ? 'Set up Giphy first' : kind === 'giphy' ? `Pick a ${media === 'gif' ? 'GIF' : media}` : 'Pick a sound'}
         </Button>
-      </Tooltip>
+        {value && <Button size="xs" variant="subtle" color="red" onClick={() => onChange('')}>Clear</Button>}
+      </Group>
       <Picker opened={picking} onClose={() => setPicking(false)} onPick={onChange} media={media} rating={rating} />
     </Stack>
   )
 }
 
 const isColor = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)
+// Tags are added on Enter, a comma or a space: none of them (commands, user names, keys, Twitch tags) has a space.
+const TAG_SPLIT = [',', ' ']
+// Tag fields scroll past about three lines of tags instead of growing.
+const TAG_SCROLL = { maxHeight: 92, overflowY: 'auto' }
 const swatches = ['#9147ff', '#ff4f8b', '#00c2a8', '#ffb400', '#3d8bff', '#ff7a00', '#e03131', '#2f9e44']
 // Column widths of list items with fields: icons, colors and numbers are narrow, text takes the rest.
 const width = (v, column) => (column?.type === 'icon' ? 28 : column?.options ? 76 : isColor(v) ? 110 : typeof v === 'number' ? 72 : undefined)
@@ -267,14 +303,16 @@ function ItemInput({ item, shape, columns = {}, onChange }) {
     const props = { size: 'xs', w, flex: w ? undefined : 1, 'aria-label': columns[key]?.label ?? humanize(key), disabled: !applies(columns[key], item) }
     const set = (v) => onChange({ ...item, [key]: v })
     if (columns[key]?.type === 'id') return null
-    if (columns[key]?.options) return <Select key={key} {...props} data={columns[key].options} value={item[key]} onChange={set} allowDeselect={false} />
+    if (columns[key]?.options) return <Select key={key} {...props} data={labelled(columns[key].options)} value={item[key]} onChange={set} allowDeselect={false} />
     if (columns[key]?.type === 'icon') return <IconPicker key={key} value={item[key]} color={Object.values(item).find(isColor)} onChange={set} />
-    if (columns[key]?.type === 'keys') {
-      return <TagsInput key={key} {...props} miw={0} styles={{ inputField: { minWidth: 30 } }} data={columns[key].options}
+    if (columns[key]?.type === 'tags') {
+      return <TagsInput key={key} {...props} miw={0} styles={{ input: TAG_SCROLL, inputField: { minWidth: 30 } }} data={columns[key].options} splitChars={TAG_SPLIT}
         value={item[key] ? item[key].split('+') : []} onChange={(v) => set(v.join('+'))} />
     }
     if (isColor(example)) return <ColorInput key={key} {...props} swatches={swatches} value={item[key] ?? ''} onChange={set} />
-    if (typeof example === 'number') return <NumberInput key={key} {...props} min={0} max={columns[key]?.max} value={item[key]} onChange={(v) => set(Number(v))} />
+    if (typeof example === 'number') {
+      return <NumberInput key={key} {...props} min={0} max={columns[key]?.max} suffix={columns[key]?.unit && ` ${columns[key].unit}`} value={item[key]} onChange={(v) => set(Number(v))} />
+    }
     return <TextInput key={key} {...props} miw={0} value={item[key] ?? ''} onChange={(e) => set(e.target.value)} />
   })
 }
@@ -287,6 +325,7 @@ function ListInput({ label, description, value, defaults, fixed, columns = {}, e
   const shape = defaults[0]
   const set = (i, item) => onChange(value.map((v, j) => (j === i ? item : v)))
   const [drag, setDrag] = useState(null) // { from, over }: the row being dragged and the row it is over
+  const rows = useRef()
   const drop = () => {
     const next = value.filter((_, j) => j !== drag.from)
     next.splice(drag.over > drag.from ? drag.over - 1 : drag.over, 0, value[drag.from])
@@ -312,51 +351,57 @@ function ListInput({ label, description, value, defaults, fixed, columns = {}, e
           ))}
         </Group>
       )}
-      {value.map((item, i) => (
-        <div
-          key={i}
-          // The drop spot shows as a line above the row (or below the last one).
-          style={{ boxShadow: drag && drag.over === i && drag.from !== i ? '0 -2px 0 var(--mantine-color-blue-5)' : undefined }}
-          onDragOver={(e) => {
-            if (!drag) return
-            e.preventDefault()
-            const { top, height } = e.currentTarget.getBoundingClientRect()
-            const over = e.clientY > top + height / 2 && i === value.length - 1 ? value.length : i
-            if (over !== drag.over) setDrag({ ...drag, over })
-          }}
-          onDrop={(e) => {
-            e.preventDefault()
-            if (drag) drop()
-          }}
-        >
-          <Group gap={6} wrap="nowrap">
-            {!fixed && <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="sm"
-              style={{ cursor: 'grab' }}
-              aria-label="Drag to reorder"
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.effectAllowed = 'move'
-                e.dataTransfer.setData('application/ovrly-row', String(i)) // Firefox needs some data to drag
-                e.dataTransfer.setDragImage(e.currentTarget.parentElement, 0, 0)
-                setDrag({ from: i, over: i })
-              }}
-              onDragEnd={() => setDrag(null)}
-            >
-              <IconGripVertical size={14} />
-            </ActionIcon>}
-            <ItemInput item={item} shape={shape} columns={columns} onChange={(v) => set(i, v)} />
-            {extra?.(item)}
-            {!fixed && <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label="Remove"><IconX size={14} /></ActionIcon>}
-          </Group>
-        </div>
-      ))}
-      {drag?.over === value.length && <div style={{ height: 2, marginTop: -2, background: 'var(--mantine-color-blue-5)' }} />}
+      {/* Rows scroll past about 6, headers and Add staying in view; py: room for the drop line. */}
+      <Stack ref={rows} gap={4} mah={240} py={2} style={{ overflowY: 'auto' }}>
+        {value.map((item, i) => (
+          <div
+            key={i}
+            // The drop spot shows as a line above the row (or below the last one).
+            style={{ boxShadow: drag && drag.over === i && drag.from !== i ? '0 -2px 0 var(--mantine-color-blue-5)' : undefined }}
+            onDragOver={(e) => {
+              if (!drag) return
+              e.preventDefault()
+              const { top, height } = e.currentTarget.getBoundingClientRect()
+              const over = e.clientY > top + height / 2 && i === value.length - 1 ? value.length : i
+              if (over !== drag.over) setDrag({ ...drag, over })
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              if (drag) drop()
+            }}
+          >
+            <Group gap={6} wrap="nowrap">
+              {!fixed && <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
+                style={{ cursor: 'grab' }}
+                aria-label="Drag to reorder"
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData('application/ovrly-row', String(i)) // Firefox needs some data to drag
+                  e.dataTransfer.setDragImage(e.currentTarget.parentElement, 0, 0)
+                  setDrag({ from: i, over: i })
+                }}
+                onDragEnd={() => setDrag(null)}
+              >
+                <IconGripVertical size={14} />
+              </ActionIcon>}
+              <ItemInput item={item} shape={shape} columns={columns} onChange={(v) => set(i, v)} />
+              {extra?.(item)}
+              {!fixed && <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label="Remove"><IconX size={14} /></ActionIcon>}
+            </Group>
+          </div>
+        ))}
+        {drag?.over === value.length && <div style={{ height: 2, marginTop: -2, background: 'var(--mantine-color-blue-5)' }} />}
+      </Stack>
       {!fixed && (
         <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} fullWidth
-          onClick={() => onChange([...value, blank()])}>
+          onClick={() => {
+            onChange([...value, blank()])
+            requestAnimationFrame(() => rows.current?.scrollTo({ top: rows.current.scrollHeight }))
+          }}>
           Add
         </Button>
       )}
@@ -379,15 +424,30 @@ function CopyUrl({ url }) {
   )
 }
 
-// One setting; context: { vars: data keys available here, widget: the node's widget, types } for the dynamic types.
+// A label with its info (f.info) in an ⓘ tooltip beside it.
+function Label({ text, info }) {
+  if (!info) return text
+  return (
+    <Group component="span" gap={4} wrap="nowrap" display="inline-flex" style={{ verticalAlign: 'bottom' }}>
+      {text}
+      <Tooltip label={info} multiline w={260} withinPortal>
+        <IconInfoCircle size={14} color="var(--mantine-color-dimmed)" style={{ cursor: 'help' }} aria-label={info} />
+      </Tooltip>
+    </Group>
+  )
+}
+
+// One setting; context: { vars: data keys available here, trigger: whether the node is a trigger (no data comes
+// before it, so no "{}" menu), widget: the node's widget, types, off: the requirements not met } for the dynamic types.
 function Field({ name, f, fallback, value, set, values, context }) {
-  const props = { label: f.label ?? humanize(name), description: f.hint, size: 'xs' }
+  const vars = context.trigger ? null : context.vars ?? []
+  const props = { label: <Label text={f.label ?? humanize(name)} info={f.info} />, description: f.hint, size: 'xs' }
   if (Array.isArray(fallback) && f.options) {
     return (
       <Stack gap={4}>
         <Text size="xs" fw={500}>{props.label}</Text>
         <Chip.Group multiple value={value} onChange={set}>
-          <Group gap={6}>{f.options.map((o) => <Chip key={o.value ?? o} value={o.value ?? o} size="xs">{o.label ?? o}</Chip>)}</Group>
+          <Group gap={6}>{labelled(f.options).map((o) => <Chip key={o.value} value={o.value} size="xs">{o.label}</Chip>)}</Group>
         </Chip.Group>
       </Stack>
     )
@@ -402,10 +462,10 @@ function Field({ name, f, fallback, value, set, values, context }) {
       device={values.device ?? ''} transition={Number(values.transition) || 0} restore={values.restore} onChange={set} />
   }
   if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} columns={f.columns} onChange={set} />
-  if (f.type === 'keys') {
+  if (f.type === 'tags') {
     const tags = value ? value.split('+') : []
-    return <TagsInput {...props} data={f.options} value={tags} onChange={(v) => set(v.join('+'))}
-      rightSection={<VarMenu vars={context.vars ?? []} onPick={(k) => set([...tags, `{{${k}}}`].join('+'))} />} />
+    return <TagsInput {...props} styles={{ input: TAG_SCROLL }} data={f.options} splitChars={TAG_SPLIT} value={tags} onChange={(v) => set(v.join('+'))}
+      rightSection={<VarMenu vars={vars} onPick={(k) => set([...tags, `{{${k}}}`].join('+'))} />} />
   }
   // A widget's actions come from its type: those that apply with the widget's settings. Short option lists are buttons.
   const type = context.types?.find((t) => t.type === context.widget?.type)
@@ -418,69 +478,65 @@ function Field({ name, f, fallback, value, set, values, context }) {
     const defaults = Object.fromEntries(Object.entries(fields).map(([key, f]) => [key, f.default ?? '']))
     return <Fields defaults={defaults} values={value} fields={fields} context={context} onChange={set} />
   }
-  // Twitch features can't be picked unless Streamer mode is on, nor options needing an integration that isn't ready;
-  // a Twitch feature picked earlier says why it won't run.
+  // Options needing a requirement not met (Twitch features without Streamer mode, an integration not ready) can't be
+  // picked, and say why on hover; one picked earlier is noted at the top of the settings pane.
   const config = { ...type?.config, ...context.widget?.config }
-  const options = f.type === 'action' ? Object.keys(type?.actions ?? {}).filter((a) => applies(type.actions[a], config)) : f.options?.map((o) => {
-    if (typeof o === 'string') return o
-    const { streamer, needs, ...option } = o
-    const integration = context.off?.includes(needs) && integrations.find((i) => i.key === needs)
-    const why = streamer && !context.streamer ? 'Needs Twitch in Streamer mode, signed in (Integration → Twitch)'
-      : integration ? `Needs ${integration.needs} (Integration → ${integration.label})` : null
-    return why ? { ...option, disabled: true, why } : option
-  })
-  // A disabled option says why on hover (segmented buttons only: a Select needs text labels).
-  // (A plain text option stays as it is: taking it apart would make an object of its letters.)
-  const explained = options?.map((o) => {
-    if (!o.why) return o
-    const { why, ...option } = o
-    return { ...option, label: <Tooltip label={why} withinPortal><span>{option.label}</span></Tooltip> }
+  const options = f.type === 'action' ? Object.keys(type?.actions ?? {}).filter((a) => applies(type.actions[a], config)) : f.options
+  const choices = labelled(options)?.map(({ streamer, needs, ...option }) => {
+    const unmet = requirements.find((r) => (r.key === needs || (streamer && r.key === 'twitch')) && context.off?.includes(r.key))
+    return unmet ? { ...option, disabled: true, why: `Needs ${unmet.needs} (Settings → ${unmet.label})` } : option
   })
   if (f.type === 'action' && !options.length) return null
-  if (f.options?.find((o) => o.value === value)?.streamer && !context.streamer) {
-    props.description = <Text span size="xs" c="yellow">Needs Twitch in Streamer mode, signed in (Integration → Twitch)</Text>
-  }
   if (f.slider && typeof fallback === 'number') {
     return <SliderInput {...props} unit={f.unit} min={f.min} max={f.max} mute={name === 'volume'} value={value} onChange={set} />
   }
+  // Plain-text marks show in capitals (ratings: PG-13); { value, label } ones as labelled. mx: room for the end labels.
   if (f.slider) {
+    const values = options.map((o) => o.value ?? o)
     return (
       <Stack gap={4} pb="lg">
         <Text size="xs" fw={500}>{props.label}</Text>
         {props.description && <Text size="xs" c="dimmed">{props.description}</Text>}
-        <Slider size="md" w={200} min={0} max={options.length - 1} step={1} label={null} marks={options.map((o, i) => ({ value: i, label: <Tooltip label={f.tips?.[o]} disabled={!f.tips} multiline w={200} withinPortal><span style={{ pointerEvents: 'auto' }}>{o.toUpperCase()}</span></Tooltip> }))}
-          value={options.indexOf(value)} onChange={(i) => set(options[i])} />
+        <Slider size="md" w={options.length > 4 ? 300 : 200} mx="lg" min={0} max={options.length - 1} step={1} label={null}
+          marks={options.map((o, i) => ({ value: i, label: <Tooltip label={f.tips?.[values[i]]} disabled={!f.tips} multiline w={200} withinPortal><span style={{ pointerEvents: 'auto' }}>{o.label ?? o.toUpperCase()}</span></Tooltip> }))}
+          value={values.indexOf(value)} onChange={(i) => set(values[i])} />
       </Stack>
     )
   }
-  if (options?.length <= 4) {
+  // A Widget Action node with no action set runs "stop".
+  const picked = f.type === 'action' ? value || 'stop' : value
+  if (choices?.length <= 4) {
     return (
       <Stack gap={4}>
         <Text size="xs" fw={500}>{props.label}</Text>
         {props.description && <Text size="xs" c="dimmed">{props.description}</Text>}
-        {/* A Widget Action node with no action set runs "stop". */}
-        <SegmentedControl size="xs" data={explained} value={f.type === 'action' ? value || 'stop' : value} onChange={set} style={{ alignSelf: 'start' }} />
+        <SegmentedControl size="xs" fullWidth value={picked} onChange={set}
+          data={choices.map(({ why, ...o }) => (why ? { ...o, label: <Tooltip label={why} withinPortal><span>{o.label}</span></Tooltip> } : o))} />
       </Stack>
     )
   }
-  if (options) return <Select {...props} data={options} value={f.type === 'action' ? value || 'stop' : value} onChange={set} allowDeselect={false} />
-  if (f.type === 'var') return <Autocomplete {...props} data={context.vars ?? []} value={value} onChange={set} />
-  if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} />
+  // A Select needs text labels: a disabled option's reason goes after its name.
+  if (choices) return <Select {...props} data={choices.map(({ why, ...o }) => (why ? { ...o, label: `${o.label} (${why})` } : o))} value={picked} onChange={set} allowDeselect={false} />
+  if (f.type === 'var') return <Autocomplete {...props} data={vars ?? []} value={value} onChange={set} />
+  if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} maxRows={8} />
   if (f.type === 'code') {
-    return <Textarea {...props} value={value} onChange={(e) => set(e.target.value)} autosize minRows={4} spellCheck={false} styles={{ input: { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 } }} />
+    return <Textarea {...props} value={value} onChange={(e) => set(e.target.value)} autosize minRows={4} maxRows={12} spellCheck={false} styles={{ input: { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 } }} />
   }
   if (f.type === 'workflow') return <WorkflowSelect {...props} value={value} onChange={set} />
-  if (FILE_KINDS[f.type]) return <FileInput kind={f.type} {...props} vars={context.vars ?? []} value={value} onChange={set} />
-  if (f.type === 'giphy' || f.type === 'myinstants') return <PickInput {...props} kind={f.type} media={f.media} rating={values.rating} value={value} onChange={set} />
+  if (FILE_KINDS[f.type]) return <FileInput kind={f.type} {...props} vars={vars} value={value} onChange={set} />
+  if (f.type === 'giphy' || f.type === 'myinstants') {
+    return <PickInput {...props} kind={f.type} media={f.media} rating={values.rating} ready={f.type !== 'giphy' || !context.off?.includes('giphy')} value={value} onChange={set} />
+  }
   if (f.type === 'window') return <WindowInput {...props} value={value} onChange={set} />
   if (f.type === 'secret') return <PasswordInput {...props} value={value} onChange={(e) => set(e.target.value)} />
   if (isColor(fallback)) return <ColorInput {...props} swatches={swatches} value={value} onChange={set} />
   if (typeof fallback === 'boolean') return <Switch {...props} checked={value} onChange={(e) => set(e.target.checked)} />
-  if (f.presets) return <PresetInput {...props} unit={f.unit} presets={f.presets} off={f.off} value={value} onChange={set} />
+  if (f.presets) return <PresetInput {...props} name={f.label ?? humanize(name)} unit={f.unit} presets={f.presets} off={f.off} value={value} onChange={set} />
   if (typeof fallback === 'number') return <NumberInput {...props} suffix={f.unit && ` ${f.unit}`} value={value} onChange={(v) => set(Number(v))} />
+  if (f.rewards) return <RewardInput {...props} value={value} onChange={set} />
   if (f.hue) return <HueInput {...props} value={value} onChange={set} />
-  if (f.obs) return <ObsInput {...props} list={f.obs} scene={values.scene ?? ''} vars={context.vars ?? []} value={value} onChange={set} />
-  if (f.vars) return <VarInput {...props} vars={context.vars ?? []} multiline={f.multiline} value={value} onChange={set} />
+  if (f.obs) return <ObsInput {...props} list={f.obs} scene={values.scene ?? ''} vars={vars} value={value} onChange={set} />
+  if (f.vars) return <VarInput {...props} vars={vars} multiline={f.multiline} value={value} onChange={set} />
   return <TextInput {...props} value={value} onChange={(e) => set(e.target.value)} />
 }
 
@@ -493,18 +549,28 @@ export default function Fields({ defaults, values, onChange, fields = {}, contex
   if (keys.length === 0) return <Text size="sm" c="dimmed">No settings</Text>
   return (
     <Stack gap="sm" maw={420}>
-      {keys.map((key) => (
-        <Field
-          key={key}
-          name={key}
-          f={fields[key] ?? {}}
-          fallback={defaults[key]}
-          value={values[key] ?? defaults[key]}
-          set={(v) => onChange({ ...values, [key]: v })}
-          values={{ ...defaults, ...values }}
-          context={context}
-        />
-      ))}
+      {keys.map((key, i) => {
+        const f = fields[key] ?? {}
+        // Shown only while a switch is on: indented under it.
+        const nested = Object.keys(f.only ?? {}).some((k) => typeof defaults[k] === 'boolean')
+        const field = (
+          <Field
+            name={key}
+            f={f}
+            fallback={defaults[key]}
+            value={values[key] ?? defaults[key]}
+            set={(v) => onChange({ ...values, [key]: v })}
+            values={{ ...defaults, ...values }}
+            context={context}
+          />
+        )
+        return (
+          <Fragment key={key}>
+            {f.section && <Heading title={f.section} mt={i ? 'xs' : 0} mb={0} />}
+            {nested ? <div className="nested">{field}</div> : field}
+          </Fragment>
+        )
+      })}
     </Stack>
   )
 }

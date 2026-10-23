@@ -18,10 +18,10 @@ export default {
     color: { only: { mode: 'set' } },
     transition: { unit: 'ms', presets: [0, 400, 1000], hint: 'How long each change fades' },
     steps: {
-      type: 'hue-steps', limits: hue.limits, only: { mode: 'routine' },
-      columns: { action: { options: ['set', 'off'] }, color: { only: { action: 'set' } }, brightness: { label: 'Bright. %', max: 100, only: { action: 'set' } }, duration: { label: 'Duration ms' } },
+      type: 'hue-steps', section: 'Routine', limits: hue.limits, only: { mode: 'routine' },
+      columns: { action: { options: ['set', 'off'] }, color: { only: { action: 'set' } }, brightness: { label: 'Brightness', unit: '%', max: 100, only: { action: 'set' } }, duration: { label: 'Duration', unit: 'ms' } },
     },
-    loop: { options: [{ value: 'once', label: 'Once' }, { value: 'times', label: 'N times' }, { value: 'forever', label: 'Until stopped' }], only: { mode: 'routine' } },
+    loop: { label: 'Repeat', options: [{ value: 'once', label: 'Once' }, { value: 'times', label: 'N times' }, { value: 'forever', label: 'Until stopped' }], only: { mode: 'routine' } },
     times: { only: { mode: 'routine', loop: 'times' } },
     restore: { label: 'Restore the lights at the end', hint: 'Stop and Cancel always restore them', only: { mode: 'routine' } },
   },

@@ -1,6 +1,6 @@
 // Logic: continues only if a comparison holds, like if/else with only its "true" output ({{key}} placeholders filled
 // from data).
-import { tests, compare } from './if-else.js'
+import { operators, compare } from './if-else.js'
 
 export default {
   type: 'filter',
@@ -10,7 +10,7 @@ export default {
   description: 'Continues only if the comparison holds.',
   fields: {
     value: { vars: true },
-    operator: { options: Object.keys(tests) },
+    operator: { options: operators },
     compare: { label: 'Compare with', vars: true },
     matchCase: { label: 'Match case' },
   },
