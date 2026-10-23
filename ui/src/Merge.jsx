@@ -129,38 +129,40 @@ export default function Merge({ workflow, node, config, widgets, types, onChange
           <Stack gap={4}>
             <Text size="xs" fw={500}>Layers</Text>
             <Text size="xs" c="dimmed">The top one is drawn in front: drag a widget to reorder them.</Text>
-            {top.map((id, i) => (
-              <Group
-                key={id}
-                className="merge-layer"
-                gap={6}
-                wrap="nowrap"
-                draggable
-                // The drop spot shows as a line above the row (or below the last one).
-                style={{ boxShadow: drag && drag.over === i && drag.from !== i ? '0 -2px 0 var(--mantine-color-blue-5)' : undefined }}
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = 'move'
-                  e.dataTransfer.setData('application/ovrly-layer', id) // Firefox needs some data to drag
-                  setDrag({ from: i, over: i })
-                }}
-                onDragOver={(e) => {
-                  if (!drag) return
-                  e.preventDefault()
-                  const { top: y, height } = e.currentTarget.getBoundingClientRect()
-                  const over = e.clientY > y + height / 2 && i === top.length - 1 ? top.length : i
-                  if (over !== drag.over) setDrag({ ...drag, over })
-                }}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  if (drag) drop()
-                }}
-                onDragEnd={() => setDrag(null)}
-              >
-                <IconGripVertical size={14} />
-                <Text size="xs" truncate>{widgets.find((w) => w.id === id).name}</Text>
-              </Group>
-            ))}
-            {drag?.over === top.length && <div style={{ height: 2, marginTop: -2, background: 'var(--mantine-color-blue-5)' }} />}
+            <Stack gap={4} mah={240} py={2} style={{ overflowY: 'auto' }}>
+              {top.map((id, i) => (
+                <Group
+                  key={id}
+                  className="merge-layer"
+                  gap={6}
+                  wrap="nowrap"
+                  draggable
+                  // The drop spot shows as a line above the row (or below the last one).
+                  style={{ boxShadow: drag && drag.over === i && drag.from !== i ? '0 -2px 0 var(--mantine-color-blue-5)' : undefined }}
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'move'
+                    e.dataTransfer.setData('application/ovrly-layer', id) // Firefox needs some data to drag
+                    setDrag({ from: i, over: i })
+                  }}
+                  onDragOver={(e) => {
+                    if (!drag) return
+                    e.preventDefault()
+                    const { top: y, height } = e.currentTarget.getBoundingClientRect()
+                    const over = e.clientY > y + height / 2 && i === top.length - 1 ? top.length : i
+                    if (over !== drag.over) setDrag({ ...drag, over })
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    if (drag) drop()
+                  }}
+                  onDragEnd={() => setDrag(null)}
+                >
+                  <IconGripVertical size={14} />
+                  <Text size="xs" truncate>{widgets.find((w) => w.id === id).name}</Text>
+                </Group>
+              ))}
+              {drag?.over === top.length && <div style={{ height: 2, marginTop: -2, background: 'var(--mantine-color-blue-5)' }} />}
+            </Stack>
           </Stack>
         )}
       </Stack>

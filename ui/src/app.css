@@ -8,6 +8,8 @@
 .pane.split { display: flex; flex-direction: column; overflow: hidden; }
 .widget-split { flex: 1; min-height: 0; }
 .widget-split .settings { overflow: auto; padding-right: var(--mantine-spacing-xs); }
+/* The live column (Control Pad grid, Queue line) scrolls too: the split pane clips what overflows. */
+.widget-split .live { overflow: auto; }
 .preview-fit { flex: 1; min-height: 0; }
 .preview-fit .preview { display: block; height: 100%; aspect-ratio: auto; }
 /* Copy/paste feedback over the graph. */

@@ -75,7 +75,7 @@ function VarInput({ vars, value, onChange, multiline, data, ...props }) {
   const menu = <VarMenu vars={vars} onPick={insert} />
   if (data) return <Autocomplete ref={ref} data={data} filter={suggest} value={value} onChange={onChange} rightSection={menu} {...props} />
   const Input = multiline ? Textarea : TextInput
-  return <Input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rightSection={menu} autosize={multiline || undefined} minRows={multiline ? 2 : undefined} {...props} />
+  return <Input ref={ref} value={value} onChange={(e) => onChange(e.target.value)} rightSection={menu} autosize={multiline || undefined} minRows={multiline ? 2 : undefined} maxRows={multiline ? 8 : undefined} {...props} />
 }
 
 // A scene or source name, suggested from the OBS integration (the sources of the node's scene). Typing stays free,
@@ -288,6 +288,8 @@ function PickInput({ kind, media = 'gif', rating, ready, label, description, val
 const isColor = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)
 // Tags are added on Enter, a comma or a space: none of them (commands, user names, keys, Twitch tags) has a space.
 const TAG_SPLIT = [',', ' ']
+// Tag fields scroll past about three lines of tags instead of growing.
+const TAG_SCROLL = { maxHeight: 92, overflowY: 'auto' }
 const swatches = ['#9147ff', '#ff4f8b', '#00c2a8', '#ffb400', '#3d8bff', '#ff7a00', '#e03131', '#2f9e44']
 // Column widths of list items with fields: icons, colors and numbers are narrow, text takes the rest.
 const width = (v, column) => (column?.type === 'icon' ? 28 : column?.options ? 76 : isColor(v) ? 110 : typeof v === 'number' ? 72 : undefined)
@@ -304,7 +306,7 @@ function ItemInput({ item, shape, columns = {}, onChange }) {
     if (columns[key]?.options) return <Select key={key} {...props} data={labelled(columns[key].options)} value={item[key]} onChange={set} allowDeselect={false} />
     if (columns[key]?.type === 'icon') return <IconPicker key={key} value={item[key]} color={Object.values(item).find(isColor)} onChange={set} />
     if (columns[key]?.type === 'tags') {
-      return <TagsInput key={key} {...props} miw={0} styles={{ inputField: { minWidth: 30 } }} data={columns[key].options} splitChars={TAG_SPLIT}
+      return <TagsInput key={key} {...props} miw={0} styles={{ input: TAG_SCROLL, inputField: { minWidth: 30 } }} data={columns[key].options} splitChars={TAG_SPLIT}
         value={item[key] ? item[key].split('+') : []} onChange={(v) => set(v.join('+'))} />
     }
     if (isColor(example)) return <ColorInput key={key} {...props} swatches={swatches} value={item[key] ?? ''} onChange={set} />
@@ -323,6 +325,7 @@ function ListInput({ label, description, value, defaults, fixed, columns = {}, e
   const shape = defaults[0]
   const set = (i, item) => onChange(value.map((v, j) => (j === i ? item : v)))
   const [drag, setDrag] = useState(null) // { from, over }: the row being dragged and the row it is over
+  const rows = useRef()
   const drop = () => {
     const next = value.filter((_, j) => j !== drag.from)
     next.splice(drag.over > drag.from ? drag.over - 1 : drag.over, 0, value[drag.from])
@@ -348,51 +351,57 @@ function ListInput({ label, description, value, defaults, fixed, columns = {}, e
           ))}
         </Group>
       )}
-      {value.map((item, i) => (
-        <div
-          key={i}
-          // The drop spot shows as a line above the row (or below the last one).
-          style={{ boxShadow: drag && drag.over === i && drag.from !== i ? '0 -2px 0 var(--mantine-color-blue-5)' : undefined }}
-          onDragOver={(e) => {
-            if (!drag) return
-            e.preventDefault()
-            const { top, height } = e.currentTarget.getBoundingClientRect()
-            const over = e.clientY > top + height / 2 && i === value.length - 1 ? value.length : i
-            if (over !== drag.over) setDrag({ ...drag, over })
-          }}
-          onDrop={(e) => {
-            e.preventDefault()
-            if (drag) drop()
-          }}
-        >
-          <Group gap={6} wrap="nowrap">
-            {!fixed && <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="sm"
-              style={{ cursor: 'grab' }}
-              aria-label="Drag to reorder"
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.effectAllowed = 'move'
-                e.dataTransfer.setData('application/ovrly-row', String(i)) // Firefox needs some data to drag
-                e.dataTransfer.setDragImage(e.currentTarget.parentElement, 0, 0)
-                setDrag({ from: i, over: i })
-              }}
-              onDragEnd={() => setDrag(null)}
-            >
-              <IconGripVertical size={14} />
-            </ActionIcon>}
-            <ItemInput item={item} shape={shape} columns={columns} onChange={(v) => set(i, v)} />
-            {extra?.(item)}
-            {!fixed && <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label="Remove"><IconX size={14} /></ActionIcon>}
-          </Group>
-        </div>
-      ))}
-      {drag?.over === value.length && <div style={{ height: 2, marginTop: -2, background: 'var(--mantine-color-blue-5)' }} />}
+      {/* Rows scroll past about 6, headers and Add staying in view; py: room for the drop line. */}
+      <Stack ref={rows} gap={4} mah={240} py={2} style={{ overflowY: 'auto' }}>
+        {value.map((item, i) => (
+          <div
+            key={i}
+            // The drop spot shows as a line above the row (or below the last one).
+            style={{ boxShadow: drag && drag.over === i && drag.from !== i ? '0 -2px 0 var(--mantine-color-blue-5)' : undefined }}
+            onDragOver={(e) => {
+              if (!drag) return
+              e.preventDefault()
+              const { top, height } = e.currentTarget.getBoundingClientRect()
+              const over = e.clientY > top + height / 2 && i === value.length - 1 ? value.length : i
+              if (over !== drag.over) setDrag({ ...drag, over })
+            }}
+            onDrop={(e) => {
+              e.preventDefault()
+              if (drag) drop()
+            }}
+          >
+            <Group gap={6} wrap="nowrap">
+              {!fixed && <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
+                style={{ cursor: 'grab' }}
+                aria-label="Drag to reorder"
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData('application/ovrly-row', String(i)) // Firefox needs some data to drag
+                  e.dataTransfer.setDragImage(e.currentTarget.parentElement, 0, 0)
+                  setDrag({ from: i, over: i })
+                }}
+                onDragEnd={() => setDrag(null)}
+              >
+                <IconGripVertical size={14} />
+              </ActionIcon>}
+              <ItemInput item={item} shape={shape} columns={columns} onChange={(v) => set(i, v)} />
+              {extra?.(item)}
+              {!fixed && <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label="Remove"><IconX size={14} /></ActionIcon>}
+            </Group>
+          </div>
+        ))}
+        {drag?.over === value.length && <div style={{ height: 2, marginTop: -2, background: 'var(--mantine-color-blue-5)' }} />}
+      </Stack>
       {!fixed && (
         <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} fullWidth
-          onClick={() => onChange([...value, blank()])}>
+          onClick={() => {
+            onChange([...value, blank()])
+            requestAnimationFrame(() => rows.current?.scrollTo({ top: rows.current.scrollHeight }))
+          }}>
           Add
         </Button>
       )}
@@ -455,7 +464,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
   if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} columns={f.columns} onChange={set} />
   if (f.type === 'tags') {
     const tags = value ? value.split('+') : []
-    return <TagsInput {...props} data={f.options} splitChars={TAG_SPLIT} value={tags} onChange={(v) => set(v.join('+'))}
+    return <TagsInput {...props} styles={{ input: TAG_SCROLL }} data={f.options} splitChars={TAG_SPLIT} value={tags} onChange={(v) => set(v.join('+'))}
       rightSection={<VarMenu vars={vars} onPick={(k) => set([...tags, `{{${k}}}`].join('+'))} />} />
   }
   // A widget's actions come from its type: those that apply with the widget's settings. Short option lists are buttons.
@@ -509,9 +518,9 @@ function Field({ name, f, fallback, value, set, values, context }) {
   // A Select needs text labels: a disabled option's reason goes after its name.
   if (choices) return <Select {...props} data={choices.map(({ why, ...o }) => (why ? { ...o, label: `${o.label} (${why})` } : o))} value={picked} onChange={set} allowDeselect={false} />
   if (f.type === 'var') return <Autocomplete {...props} data={vars ?? []} value={value} onChange={set} />
-  if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} />
+  if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} maxRows={8} />
   if (f.type === 'code') {
-    return <Textarea {...props} value={value} onChange={(e) => set(e.target.value)} autosize minRows={4} spellCheck={false} styles={{ input: { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 } }} />
+    return <Textarea {...props} value={value} onChange={(e) => set(e.target.value)} autosize minRows={4} maxRows={12} spellCheck={false} styles={{ input: { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 } }} />
   }
   if (f.type === 'workflow') return <WorkflowSelect {...props} value={value} onChange={set} />
   if (FILE_KINDS[f.type]) return <FileInput kind={f.type} {...props} vars={vars} value={value} onChange={set} />

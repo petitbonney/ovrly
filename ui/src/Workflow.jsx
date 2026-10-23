@@ -192,7 +192,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
         ) : live ? (
           <Group className="widget-split" align="stretch" gap="xl" wrap="nowrap">
             <Stack className="settings" flex="1 1 280px" maw={420}>{settings}</Stack>
-            <Stack gap={0} flex="1 1 320px" miw={0}>{live}</Stack>
+            <Stack className="live" gap={0} flex="1 1 320px" miw={0}>{live}</Stack>
           </Group>
         ) : settings}
       </div>
