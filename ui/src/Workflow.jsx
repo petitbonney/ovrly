@@ -750,6 +750,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
         error={live.errors[selected?.id]}
         context={{
           vars: selected ? upstreamKeys(selected.id, { nodes, edges, defs, widgets, types }) : [],
+          trigger: defOf(selected)?.category === 'trigger',
           widget: findWidget(widgets, widgetRef(selected, nodes, edges)),
           // The widgets linked into the selected node (for a Merge Widgets node), in link order.
           inputs: [...new Set(edges.filter((e) => e.target === selected?.id).map((e) => nodes.find((n) => n.id === e.source))

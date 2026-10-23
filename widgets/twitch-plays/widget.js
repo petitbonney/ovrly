@@ -40,7 +40,7 @@ export default {
     commands: {
       hint: 'A chat message that is exactly a command presses its keys',
       info: 'In any case. A command\'s keys are pressed together.',
-      columns: { keys: { type: 'keys', options: Object.keys(Key).filter((k) => isNaN(k)) } },
+      columns: { keys: { type: 'tags', options: Object.keys(Key).filter((k) => isNaN(k)) } },
     },
     window: {
       label: 'Vote window', unit: 's', presets: [3, 5, 10, 20], only: { mode: 'democracy' }, hint: 'Votes are counted in loops this long, from start',

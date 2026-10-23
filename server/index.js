@@ -89,10 +89,12 @@ app.get('/api/events', (req, res) => {
 })
 // Run history: the recent firings with what each node got and returned, newest first; ?workflow=<id> for one workflow.
 app.get('/api/runs', (req, res) => res.json(history.filter((r) => !req.query.workflow || r.workflow === req.query.workflow)))
-// A test chat message, for the bolt on a chat trigger: from TestViewer, with the trigger's command if it has one.
+// A test chat message, for the bolt on a chat trigger: from TestViewer, with the trigger's command if it has one, and the
+// role and first message it asks for, so the test gets through.
 const testChat = (config) => ({
   user: 'TestViewer', login: 'testviewer', message: config.command || 'Hello from Ovrly!', channel: twitch.status.channel, messageId: '',
-  userId: '', color: '', timestamp: Date.now(), broadcaster: false, mod: false, vip: false, sub: false, subMonths: 0, firstMessage: false,
+  userId: '', color: '', timestamp: Date.now(), broadcaster: config.from === 'broadcaster', mod: config.from === 'mod',
+  vip: config.from === 'vip', sub: config.from === 'sub', subMonths: config.from === 'sub' ? 1 : 0, firstMessage: !!config.firstOnly,
   returning: false, emotes: [], action: false, highlighted: false, rewardId: '', replyToId: '', replyToUser: '', replyToMessage: '',
 })
 // Runs a workflow's manual triggers now (the Run button in the editor), or just ?node=<id> (the bolt on a trigger): a

@@ -8,7 +8,7 @@ export default {
   group: 'Twitch',
   description: 'Fires when someone cheers bits.',
   adds: ['user', 'bits', 'message'],
-  fields: { minBits: { label: 'Minimum bits' } },
+  fields: { minBits: { label: 'Minimum bits', presets: [1, 100, 500, 1000, 5000] } },
   event: 'channel.cheer',
   config: { minBits: 1 },
   run({ config, data }) {

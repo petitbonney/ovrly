@@ -10,12 +10,12 @@ export default {
   description: 'Runs another workflow with the current data, and waits for its result.',
   fields: { workflow: { type: 'workflow' }, wait: { label: 'Wait for it to finish' } },
   config: { workflow: '', wait: true },
-  async run({ config, data, signal, depth }) {
+  async run({ config, data, signal, depth, origins }) {
     if (depth >= 10) throw new Error('Execute Workflow: workflows call each other too deep')
     const target = (await store.list('workflows')).find((w) => w.id === config.workflow || w.name === config.workflow)
     if (!target) throw new Error(`Workflow not found: ${config.workflow}`)
     const { fire } = await import('../engine.js') // not imported on top: the engine loads this file
-    const runs = fire(target, 'call', data, { signal, depth: depth + 1 })
+    const runs = fire(target, 'call', data, { signal, depth: depth + 1, origins })
     if (!config.wait) return data
     const [run] = await runs
     if (!run) throw new Error(`"${target.name}" has no Called By Workflow trigger`)

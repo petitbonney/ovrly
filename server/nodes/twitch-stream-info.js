@@ -13,7 +13,7 @@ export default {
   fields: {
     title: { vars: true, hint: 'Empty: unchanged' },
     category: { vars: true, hint: 'Named as on Twitch, e.g. Just Chatting; empty: unchanged' },
-    tags: { type: 'keys', hint: 'Enter or a comma adds one; none: unchanged', info: 'Up to 10 tags, letters and digits only.' },
+    tags: { type: 'tags', hint: 'Enter, a space or a comma adds one; none: unchanged', info: 'Up to 10 tags, letters and digits only.' },
   },
   config: { title: '', category: '', tags: '' },
   async run({ config, data }) {

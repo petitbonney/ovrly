@@ -9,8 +9,12 @@ export default {
   group: 'Twitch',
   description: 'Fires once when someone gifts subs, with how many and to whom.',
   adds: ['user', 'tier', 'count', 'total', 'recipients'],
+  fields: { minGifts: { label: 'Minimum gifts', presets: [1, 5, 10, 20, 50] } },
   event: 'twitch.gift',
-  config: {},
-  run: ({ data }) => ({ user: data.is_anonymous ? 'Anonymous' : data.user_name, tier: Number(data.tier) / 1000 || 1,
-    count: data.total, total: data.cumulative_total ?? '', recipients: data.recipients }),
+  config: { minGifts: 1 },
+  run({ config, data }) {
+    if (data.total < Number(config.minGifts)) return null
+    return { user: data.is_anonymous ? 'Anonymous' : data.user_name, tier: Number(data.tier) / 1000 || 1,
+      count: data.total, total: data.cumulative_total ?? '', recipients: data.recipients }
+  },
 }

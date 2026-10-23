@@ -1,6 +1,6 @@
 // Action: sends a chat message as the streamer, or a reply to one (e.g. to {{messageId}} from a chat trigger).
 import { helix, status } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { needStreamer, sentBy } from '../sources/twitch.js'
 import { fill } from '../template.js'
 
 export default {
@@ -15,12 +15,14 @@ export default {
     replyTo: { label: 'Reply to', vars: true, hint: 'A message ID, e.g. {{messageId}}; empty: not a reply' },
   },
   config: { message: 'Thanks {{user}}!', replyTo: '' },
-  async run({ config, data }) {
+  async run({ config, data, origins }) {
     needStreamer('Chat messages')
     const replyTo = fill(config.replyTo, data).trim()
     const [sent] = await helix('POST', 'chat/messages', { sender_id: status.userId, message: fill(config.message, data),
       ...(replyTo && { reply_parent_message_id: replyTo }) })
     if (!sent.is_sent) throw new Error(`Twitch chat: message not sent (${sent.drop_reason?.message ?? 'dropped'})`)
+    sentBy.set(sent.message_id, origins)
+    setTimeout(() => sentBy.delete(sent.message_id), 60_000)
     return data
   },
 }

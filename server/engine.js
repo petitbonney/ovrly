@@ -117,7 +117,7 @@ async function step(workflow, node, data, run, { def, config, id, status, from }
   // A failure stops the firing there.
   let out
   try {
-    out = await def.run({ config, data, id, from, signal: run.signal, depth: run.depth, event: run.event })
+    out = await def.run({ config, data, id, from, signal: run.signal, depth: run.depth, origins: run.origins, event: run.event })
   } catch (err) {
     if (run.signal.aborted) return end('stopped') // e.g. an HTTP request cut short by cancel()
     log({ error: err.message })
@@ -150,7 +150,7 @@ async function step(workflow, node, data, run, { def, config, id, status, from }
 const listens = (def, event) => [def?.event].flat().includes(event)
 
 // Runs every trigger of this workflow that listens to the event, and resolves with their runs once they have all
-// finished: { error, last } where last is the data of the last node that ran. parent ({ signal, depth }) is the
+// finished: { error, last } where last is the data of the last node that ran. parent ({ signal, depth, origins }) is the
 // firing that called this workflow (Execute Workflow): cancelling it cancels this one too. only: a trigger node id to
 // run alone.
 export function fire(workflow, event, data, parent = {}, only) {
@@ -166,8 +166,10 @@ export function fire(workflow, event, data, parent = {}, only) {
       history.unshift(record)
       history.splice(100)
     }
-    // outputs: node type or id -> output of the last node of that type that ran, for {{ $node... }}.
-    const run = { event, signal: controller.signal, joins: {}, outputs: {}, depth: parent.depth ?? 0, record, start }
+    // outputs: node type or id -> output of the last node of that type that ran, for {{ $node... }}. origins: the
+    // triggers this firing comes from, as `workflow/node` keys: its own, after those of the firings that called it.
+    const run = { event, signal: controller.signal, joins: {}, outputs: {}, depth: parent.depth ?? 0, record, start,
+      origins: [...(parent.origins ?? []), `${workflow.id}/${t.id}`] }
     const began = Date.now()
     try {
       await walk(workflow, t, data, run)

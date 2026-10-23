@@ -8,7 +8,7 @@ export default {
   group: 'Twitch',
   description: 'Fires when another channel raids this one.',
   adds: ['user', 'viewers'],
-  fields: { minViewers: { label: 'Minimum viewers' } },
+  fields: { minViewers: { label: 'Minimum viewers', presets: [1, 3, 10, 25, 50] } },
   event: 'channel.raid',
   config: { minViewers: 1 },
   run({ config, data }) {

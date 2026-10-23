@@ -7,7 +7,7 @@ export default {
   category: 'logic',
   group: 'Timing',
   description: 'Runs what follows one firing at a time: the next wait in line, in arrival order.',
-  fields: { max: { label: 'Max waiting', hint: '0 for no limit; over it, new firings are dropped' } },
+  fields: { max: { label: 'Max waiting', presets: [1, 5, 10, 25, 0], off: true, hint: 'Over it, new firings are dropped' } },
   queue: true,
   config: { max: 10 },
   run: ({ data }) => data,

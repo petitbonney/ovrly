@@ -19,7 +19,8 @@ const condition = (type, id) => ({
   'channel.raid': { to_broadcaster_user_id: id },
 })[type] ?? { broadcaster_user_id: id }
 
-export const status = { connected: false, error: '' }
+// live: whether the stream is on (read when connecting, then from stream.online and stream.offline).
+export const status = { connected: false, live: false, error: '' }
 let ws = null
 let generation = 0 // bumped on each connect()/disconnect(), so an old socket's events are ignored
 let retry, idle
@@ -35,7 +36,7 @@ export function disconnect() {
   clearTimeout(idle)
   ws?.close()
   ws = null
-  Object.assign(status, { connected: false, error: '' })
+  Object.assign(status, { connected: false, live: false, error: '' })
 }
 
 // reconnecting: Twitch asked us to move to a new URL; subscriptions carry over, so they aren't made again.
@@ -62,6 +63,7 @@ function open(gen, url, reconnecting) {
       Object.assign(status, { connected: true, error: '' })
       record('websocket', 'twitch-eventsub', { connected: true })
       if (reconnecting) return
+      helix('GET', 'streams', undefined, { user_id: account.userId }).then((streams) => { status.live = streams.length > 0 }, () => {})
       for (const [type, version] of Object.entries(TYPES)) {
         helix('POST', 'eventsub/subscriptions', { type, version, condition: condition(type, account.userId),
           transport: { method: 'websocket', session_id: payload.session.id } })
@@ -75,6 +77,7 @@ function open(gen, url, reconnecting) {
     if (metadata.message_type === 'session_reconnect') open(gen, payload.session.reconnect_url, true)
     if (metadata.message_type === 'notification') {
       const out = metadata.subscription_type === 'channel.raid' && payload.event.from_broadcaster_user_id === account.userId
+      if (metadata.subscription_type.startsWith('stream.')) status.live = metadata.subscription_type === 'stream.online'
       bus.emit(out ? 'twitch.raid.out' : metadata.subscription_type, payload.event)
     }
     if (metadata.message_type === 'revocation') record('websocket', 'twitch-eventsub', { revoked: payload.subscription.type, reason: payload.subscription.status })

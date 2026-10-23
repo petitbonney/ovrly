@@ -13,6 +13,10 @@ import * as eventsub from './twitch-eventsub.js'
 let client = null
 // Gifter -> subs of their community gifts still to be announced one by one, which aren't gifts of their own.
 const pending = {}
+// Chat messages sent by Send Chat Message: message id -> the triggers of the firing that sent it (`workflow/node` keys,
+// see engine.js). Those triggers skip it when it comes back through chat, so a reply can't fire its own workflow
+// again and loop; other triggers still fire on it. Kept a minute.
+export const sentBy = new Map()
 // mode and guestChannel are the settings; channel is the chat being read.
 export const status = { mode: 'guest', guestChannel: '', channel: '', connected: false }
 
