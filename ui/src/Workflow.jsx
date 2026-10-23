@@ -665,7 +665,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
             <ActionIcon size="md" variant="default" aria-label="Export as JSON" onClick={() => exportWorkflow(workflow.id).then((b) => download(b, name))}><IconDownload size={18} /></ActionIcon>
           </Tooltip>
           <Tooltip label="Delete workflow">
-            <ActionIcon size="md" variant="subtle" color="gray" aria-label="Delete workflow" onClick={() => setConfirmDelete(true)}><IconTrash size={18} /></ActionIcon>
+            <ActionIcon size="md" variant="default" aria-label="Delete workflow" onClick={() => setConfirmDelete(true)}><IconTrash size={18} /></ActionIcon>
           </Tooltip>
           <Divider orientation="vertical" />
           <Tooltip label={`${panels.library ? 'Hide' : 'Show'} node library`}>
