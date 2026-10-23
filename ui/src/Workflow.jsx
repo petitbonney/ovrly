@@ -11,8 +11,12 @@ import {
   useNodesState, useEdgesState, useNodesInitialized, addEdge, useReactFlow, useStore,
 } from '@xyflow/react'
 import { animate } from 'animejs'
+import TimerBar from './TimerBar.jsx'
 import '@xyflow/react/dist/style.css'
-import { ActionIcon, AppShell, Button, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import {
+  ActionIcon, AppShell, Button, Center, CloseButton, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip,
+  useComputedColorScheme,
+} from '@mantine/core'
 import {
   IconArrowBackUp, IconArrowForwardUp, IconDownload, IconInfoCircle, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
   IconPlayerPlay, IconPlayerStop, IconPlus, IconSitemap,
@@ -20,14 +24,15 @@ import {
 } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import DeckGrid from './Deck.jsx'
-import WidgetSettings, { ActionsInfo } from './Widget.jsx'
+import WidgetSettings, { ActionsInfo, WidgetPreview } from './Widget.jsx'
 import QueueLine from './QueueLine.jsx'
 import Merge from './Merge.jsx'
+import Notice from './Notice.jsx'
 import FlowNode, { colors, icons, widgetIcons, outputsOf } from './FlowNode.jsx'
 import layout from './layout.js'
 import { exportWorkflow, download } from './share.js'
 import { get, json } from './api.js'
-import { integrations } from './Settings.jsx'
+import { requirements } from './Settings.jsx'
 
 const findWidget = (widgets, ref) => widgets.find((w) => w.id === ref || w.name === ref)
 // The widget instance a node points to (id or name): a widget node's own, or a Widget Action node's linked widget node's.
@@ -45,6 +50,18 @@ const saveView = (id, view) => {
 // Widget id -> last known widget instance. The server deletes an instance with its last node; undo or paste
 // puts it back from here.
 const knownWidgets = {}
+
+// What a node needs (requirement keys, see Settings.jsx): its type's `needs`, its widget type's for a widget node, and
+// those of the options picked in their settings ({ needs: key }, or { streamer: true }: Twitch in Streamer mode).
+// config and widgetConfig: the settings with their defaults.
+function needsOf(def, config, type, widgetConfig) {
+  const picked = (fields = {}, values) => Object.entries(fields).flatMap(([key, f]) => {
+    const option = f.options?.find((o) => o.value === values[key])
+    return [option?.needs, option?.streamer && 'twitch'].filter(Boolean)
+  })
+  const own = [...(def?.needs ?? []), ...picked(def?.fields, config)]
+  return type ? [...own, ...(type.needs ?? []), ...picked(type.fields, widgetConfig)] : own
+}
 
 // Data keys a node can use as {{key}}: what every node upstream of it adds (a manual trigger adds its JSON's keys,
 // a widget node what its widget type outputs).
@@ -91,9 +108,9 @@ function isValidConnection(c, edges, nodes) {
   return true
 }
 // Every node is drawn by FlowNode ("step"), defined once so nodes aren't rebuilt (and measured again) on each render;
-// edges get an arrow like n8n.
+// edges get an arrow like n8n, in the edge color (no color: the theme's, from app.css).
 const nodeTypes = { step: FlowNode }
-const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '#9a9a9a' } }
+const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '' } }
 // Fitting the graph (on open and with the fit view button) never zooms past 100%, so a small graph isn't blown up.
 const MIN_ZOOM = 0.25
 const fitOptions = { maxZoom: 1, padding: 0.3 }
@@ -111,81 +128,81 @@ function boundsOf(list) {
   return { x, y, width: x2 - x, height: y2 - y }
 }
 
-// Settings of the selected node: title, description, then a form built from the node type's fields.
-// A widget node shows its widget instance's settings and preview, with the inputs of the action it runs, and its
-// actions in a tooltip; a Widget Action node the action to run on the widget node it links to, and that action's inputs. context.widget is the widget the node
-// points to. A Queue node also shows who waits in its line. A Merge Widgets node shows its canvas, with
-// the widgets linked into it (context.inputs). A Hue node playing a routine (running) has Stop and Cancel buttons.
-function Config({ workflow, node, def, context, running, onChange, onWidgetChange, onCopy }) {
-  // The integrations the node or its setting options ({ value, label, needs }, e.g. a Control Pad node's Stream Deck
-  // mode) need that aren't ready: such options are disabled, and the "Needs…" notes show those of its type and
-  // of the options picked.
-  const [off, setOff] = useState([])
-  useEffect(() => {
-    const keys = [...(def?.needs ?? []), ...Object.values(def?.fields ?? {}).flatMap((f) => f.options?.flatMap((o) => o.needs ?? []) ?? [])]
-    const needed = integrations.filter((i) => keys.includes(i.key))
-    Promise.all(needed.map((i) => get(i.path).then((s) => !i.ready(s), () => false)))
-      .then((down) => setOff(needed.filter((_, n) => down[n]).map((i) => i.key)))
-  }, [node?.id, def])
-  const config = { ...def?.config, ...node?.data.config }
-  const needs = [...(def?.needs ?? []), ...Object.entries(def?.fields ?? {}).flatMap(([k, f]) => f.options?.find((o) => o.value === config[k])?.needs ?? [])]
-  const missing = integrations.filter((i) => off.includes(i.key) && needs.includes(i.key))
+// Settings of the selected node, laid out the same for every node (see AGENTS.md): a header (icon, name, ⓘ for a
+// widget's actions, close), the description, notices (needs not met, a widget to link or deleted, the last run's
+// error), then the settings column, with a live column on its right when the node has something to watch or press: a
+// widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, a Hue routine's Stop and
+// Cancel (while running). A Merge Widgets node shows its canvas instead (with the widgets linked into it,
+// context.inputs). context.widget is the widget the node points to; off: the requirements not met (Settings.jsx).
+function Config({ workflow, node, def, context, off, running, error, onChange, onWidgetChange, onCopy, onClose, onError }) {
   if (!node || !def) return null
   const isWidget = def.type === 'widget'
   const isMerge = def.type === 'merge'
-  const isDeck = def.type === 'deck'
   const { widget } = context
   const type = widget && context.types.find((t) => t.type === widget.type)
+  const config = { ...def.config, ...node.data.config }
+  const needs = needsOf(def, config, isWidget && type, { ...type?.config, ...widget?.config })
+  const missing = requirements.filter((r) => off.includes(r.key) && needs.includes(r.key))
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[def.type]) ?? icons.log
   const fields = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={{ ...context, off }} onChange={onChange} />
+  const settings = !isWidget ? fields
+    : type && <WidgetSettings key={widget.id} widget={widget} type={type} inputs={fields} off={off} onChange={onWidgetChange} onCopy={onCopy} onError={onError} />
+  const live = isWidget ? type && <WidgetPreview widget={widget} type={type} testInput={node.data.config.input} />
+    : def.type === 'deck' ? <DeckGrid workflow={workflow} node={node.id} config={config} />
+    : def.queue ? <QueueLine workflow={workflow} node={node.id} />
+    : def.type === 'hue' && config.mode === 'routine' && (
+      <Stack gap="xs">
+        <Text size="xs" c="dimmed">{running ? 'The routine is playing.' : 'Stop and Cancel work while the routine plays.'}</Text>
+        <Group gap="xs">
+          <Tooltip label="Ends the routine with a fade, lights back as they were: the workflow goes on">
+            <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} disabled={!running}
+              onClick={() => fetch(`/api/hue/routines/${workflow}/${node.id}/stop`, { method: 'POST' })}>Stop</Button>
+          </Tooltip>
+          <Tooltip label="Ends the routine at once, lights back as they were: the workflow stops there">
+            <Button size="xs" variant="default" leftSection={<IconX size={14} />} disabled={!running}
+              onClick={() => fetch(`/api/hue/routines/${workflow}/${node.id}/cancel`, { method: 'POST' })}>Cancel</Button>
+          </Tooltip>
+        </Group>
+      </Stack>
+    )
+  const notices = [
+    ...missing.map((r) => <Notice key={r.key} settings={r.pane ?? r.key}>Needs {r.needs}.</Notice>),
+    def.type === 'widget-action' && !widget && <Notice key="link">Link this node to a widget node to pick its action.</Notice>,
+    isWidget && !type && <Notice key="deleted" color="red">This widget was deleted. Drop a new one from the library.</Notice>,
+    error && <Notice key="error" color="red">Last run failed: {error}</Notice>,
+  ].filter(Boolean)
   return (
     <AppShell.Footer>
-      <div className={(isWidget && type) || isMerge || isDeck ? 'pane split' : 'pane'}>
-        <Group gap="xs" mb={4}>
-          <Icon size={20} color={colors[def.category]} />
-          <Text fw={600}>{isWidget ? widget?.name ?? 'Missing widget' : def.label}</Text>
+      <div className={live || isMerge ? 'pane split' : 'pane'}>
+        <Group gap="xs" mb={4} wrap="nowrap">
+          <Icon size={20} color={colors[def.category]} style={{ flexShrink: 0 }} />
+          <Text fw={600} truncate>{isWidget ? widget?.name ?? 'Missing widget' : def.label}</Text>
           {/* The widget's actions, as its settings allow them now (e.g. Voting's "win" only for a prediction). */}
           {isWidget && type && (
             <Tooltip label={<ActionsInfo type={type} config={{ ...type.config, ...widget.config }} />} multiline withinPortal position="bottom-start">
-              <IconInfoCircle size={16} color="var(--mantine-color-dimmed)" style={{ cursor: 'help' }} />
+              <IconInfoCircle size={16} color="var(--mantine-color-dimmed)" style={{ cursor: 'help', flexShrink: 0 }} />
             </Tooltip>
           )}
+          <CloseButton size="sm" ml="auto" aria-label="Close settings" onClick={onClose} />
         </Group>
         <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
-        {missing.map((i) => <Text key={i.key} size="xs" c="orange" mb="sm">Needs {i.needs} (Integration → {i.label}).</Text>)}
-        {def.type === 'widget-action' && !widget && <Text size="sm" c="yellow">Link this node to a widget node to pick its action.</Text>}
-        {isWidget ? (
-          type ? <WidgetSettings key={widget.id} widget={widget} type={type} inputs={fields} testInput={node.data.config.input} onChange={onWidgetChange} onCopy={onCopy} />
-            : <Text size="sm" c="red">This widget was deleted. Drop a new one from the library.</Text>
-        ) : isMerge ? (
-          <Merge workflow={workflow} node={node.id} config={{ ...def.config, ...node.data.config }} widgets={context.inputs} types={context.types} onChange={onChange} />
-        ) : isDeck ? (
-          // Buttons edited on the left, pressed on the right.
+        {notices.length > 0 && <Stack gap="xs" mb="sm">{notices}</Stack>}
+        {isMerge ? (
+          <Merge workflow={workflow} node={node.id} config={config} widgets={context.inputs} types={context.types} onChange={onChange} />
+        ) : live ? (
           <Group className="widget-split" align="stretch" gap="xl" wrap="nowrap">
-            <Stack className="settings" flex="1 1 280px" maw={440}>{fields}</Stack>
-            <DeckGrid workflow={workflow} node={node.id} config={{ ...def.config, ...node.data.config }} />
+            <Stack className="settings" flex="1 1 280px" maw={420}>{settings}</Stack>
+            <Stack gap={0} flex="1 1 320px" miw={0}>{live}</Stack>
           </Group>
-        ) : fields}
-        {def.queue && <QueueLine workflow={workflow} node={node.id} />}
-        {def.type === 'hue' && config.mode === 'routine' && (
-          <Group gap="xs" mt="sm">
-            <Tooltip label="Ends the routine with a fade, lights back as they were: the workflow goes on">
-              <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} disabled={!running}
-                onClick={() => fetch(`/api/hue/routines/${workflow}/${node.id}/stop`, { method: 'POST' })}>Stop</Button>
-            </Tooltip>
-            <Tooltip label="Ends the routine at once, lights back as they were: the workflow stops there">
-              <Button size="xs" variant="default" leftSection={<IconX size={14} />} disabled={!running}
-                onClick={() => fetch(`/api/hue/routines/${workflow}/${node.id}/cancel`, { method: 'POST' })}>Cancel</Button>
-            </Tooltip>
-          </Group>
-        )}
+        ) : settings}
       </div>
     </AppShell.Footer>
   )
 }
 
 // openNode: id of the node whose settings were open last time; onNodeSelect(id | null) reports selection changes.
-function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, onWidgetChange, panels, onToggle, onNodeSelect }) {
+// off: the requirements not met (Settings.jsx).
+function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDelete, onWidgetChange, panels, onToggle, onNodeSelect }) {
   const [name, setName] = useState(workflow.name)
   const [nodes, setNodes, onNodesChange] = useNodesState(
     workflow.nodes.map((n) => ({ ...n, type: 'step', selected: n.id === openNode })),
@@ -199,22 +216,30 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   const [toast, setToast] = useState(null)
   const toastTimer = useRef()
   const notify = (message, color = 'teal') => {
-    setToast({ message, color })
+    setToast({ message, color, id: Date.now() })
     clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToast(null), 3000)
   }
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Locked graph: nodes can't be moved, linked or deleted, but can still be clicked to open their settings.
   const [locked, setLocked] = useState(false)
-  // Live run feedback from the engine (/api/activity): node id -> running | done | stopped | error | waiting, and
-  // edge id -> a token while data travels on it: a link animates for a moment, even into a node that runs for minutes
-  // (an open vote). Only for display: not saved, not part of undo.
-  const [live, setLive] = useState({ nodes: {}, edges: {} })
-  // Firings of this workflow in progress, for the Cancel button.
+  // Live run feedback from the engine (/api/activity): node id -> running | done | stopped | error | waiting, edge
+  // id -> a token while data travels on it: a link animates for a moment, even into a node that runs for minutes (an
+  // open vote), and node id -> its last error. Only for display: not saved, not part of undo.
+  const [live, setLive] = useState({ nodes: {}, edges: {}, errors: {} })
+  // Firings of this workflow in progress, for the Stop button.
   const [firings, setFirings] = useState(0)
   useEffect(() => {
+    // A node that failed in a recent run (the engine's history, newest first) shows it until it runs again.
+    get(`/api/runs?workflow=${workflow.id}`).then((runs) => {
+      const last = {}
+      for (const run of runs) for (const n of [...run.nodes].reverse()) last[n.node] ??= n
+      const errors = Object.fromEntries(Object.values(last).filter((n) => n.error).map((n) => [n.node, n.error]))
+      const states = Object.fromEntries(Object.keys(errors).map((id) => [id, 'error']))
+      setLive((l) => ({ ...l, nodes: { ...states, ...l.nodes }, errors: { ...errors, ...l.errors } }))
+    }, () => {})
     const timers = []
-    // Finished states stay visible a moment, unless the node started again meanwhile.
+    // Finished states stay visible a moment, unless the node started again meanwhile; errors stay until then.
     const fade = (node, state, ms) => timers.push(setTimeout(() => setLive((l) => {
       if (l.nodes[node] !== state) return l
       const nodes = { ...l.nodes }
@@ -239,9 +264,14 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       if (a.workflow !== workflow.id) return
       if ('running' in a) return setFirings(a.running)
       if (a.edge) return pass(a.edge)
-      setLive((l) => ({ ...l, nodes: { ...l.nodes, [a.node]: a.state } }))
+      setLive((l) => {
+        const errors = { ...l.errors }
+        if (a.state === 'error') errors[a.node] = a.error
+        if (a.state === 'running') delete errors[a.node]
+        return { ...l, nodes: { ...l.nodes, [a.node]: a.state }, errors }
+      })
       if (a.state === 'error') notify(`${nodeName(nodes.find((n) => n.id === a.node) ?? { data: { label: 'A node' } })} failed: ${a.error}`, 'red')
-      if (a.state !== 'running' && a.state !== 'waiting') fade(a.node, a.state, a.state === 'error' ? 4000 : 1500)
+      if (!['running', 'waiting', 'error'].includes(a.state)) fade(a.node, a.state, 1500)
     }
     return () => {
       source.close()
@@ -287,10 +317,16 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     const y = (e) => nodes.find((n) => n.id === e.source)?.position.y ?? 0
     list.sort((a, b) => y(a) - y(b)).forEach((e, i) => (inputOf[e.id] = `in${i}`))
   }
+  // Each node gets what FlowNode draws (see there), and its name for screen readers.
   const shownNodes = nodes.map((n) => {
+    const def = defOf(n)
     const widget = findWidget(widgets, widgetRef(n, nodes, edges))
-    const context = { workflowId: workflow.id, def: defOf(n), widget, widgetType: types.find((t) => t.type === widget?.type) }
-    const shown = { ...n, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
+    const widgetType = types.find((t) => t.type === widget?.type)
+    const isWidget = n.data.type === 'widget'
+    const needs = needsOf(def, { ...def?.config, ...n.data.config }, isWidget && widgetType, { ...widgetType?.config, ...widget?.config })
+    const missing = requirements.filter((r) => off.includes(r.key) && needs.includes(r.key)).map((r) => r.needs)
+    const context = { workflowId: workflow.id, def, widget, widgetType, missing }
+    const shown = { ...n, ariaLabel: (isWidget ? widget?.name : def?.label) ?? n.data.label, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
     return live.nodes[n.id] ? { ...shown, className: `run-${live.nodes[n.id]}` } : shown
   })
   const shownEdges = allEdges.map((e) => ({ ...e, targetHandle: inputOf[e.id] })).map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow', markerEnd: { ...edgeOptions.markerEnd, color: '#4dabf7' } } : e))
@@ -348,13 +384,24 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   }
   const graphKey = JSON.stringify(graph)
 
-  // Debounced autosave.
+  // Debounced autosave. When Ovrly can't be reached, it says so and tries again every few seconds until it works.
+  const [retry, setRetry] = useState(0)
+  const unsaved = useRef(false)
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetch(`/api/workflows/${workflow.id}`, json('PUT', { name, ...graph })).then(() => onRename())
+      fetch(`/api/workflows/${workflow.id}`, json('PUT', { name, ...graph })).then((res) => {
+        if (!res.ok) throw new Error(res.statusText)
+        if (unsaved.current) notify('Saved.')
+        unsaved.current = false
+        onRename()
+      }).catch(() => {
+        unsaved.current = true
+        notify('Not saved: is Ovrly running? Trying again…', 'red')
+        setTimeout(() => setRetry((n) => n + 1), 3000)
+      })
     }, 500)
     return () => clearTimeout(timer)
-  }, [name, graphKey])
+  }, [name, graphKey, retry])
 
   useEffect(() => {
     for (const w of widgets) knownWidgets[w.id] = w
@@ -400,13 +447,17 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
 
   // A library item is a node type, or a widget type: that creates a new widget instance (with its own id) and a
   // widget node for it.
-  // Where a double-clicked library item goes: the canvas center when empty; a trigger goes above the top-right trigger,
-  // or left of the leftmost node when there is none; anything else goes right of the top-right node.
-  const spawnPosition = (def) => {
+  // Where a double-clicked library item goes: right of the node it is linked from (from), below any node already
+  // there; else the canvas center when empty; a trigger goes above the top-right trigger, or left of the leftmost node
+  // when there is none; anything else goes right of the top-right node.
+  const spawnPosition = (def, from) => {
     const topRight = (list) => list.reduce((a, b) => (b.position.x > a.position.x || (b.position.x === a.position.x && b.position.y < a.position.y) ? b : a))
     const triggers = nodes.filter((n) => defOf(n)?.category === 'trigger')
     let p
-    if (!nodes.length) {
+    if (from) {
+      p = { x: from.position.x + (from.measured?.width ?? NODE) + GRID * 3, y: from.position.y }
+      while (nodes.some((n) => Math.abs(n.position.x - p.x) < NODE && Math.abs(n.position.y - p.y) < NODE)) p.y += NODE + CAPTION
+    } else if (!nodes.length) {
       const r = flowRef.current.getBoundingClientRect()
       const c = screenToFlowPosition({ x: r.x + r.width / 2, y: r.y + r.height / 2 })
       p = { x: c.x - NODE / 2, y: c.y - NODE / 2 }
@@ -422,18 +473,19 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     }
     return snap(p)
   }
+  // The new node is selected, which opens its settings; a double-clicked one is also linked from the selected node.
   const addItem = async (widgetType, nodeType, position) => {
     const type = types.find((t) => t.type === widgetType)
     const def = defs.find((d) => d.type === (type ? 'widget' : nodeType))
     if (!def) return
     const spawned = !position // double-clicked, not dropped
-    position ??= spawnPosition(def)
+    const from = spawned && def.category !== 'trigger' ? nodes.find((n) => n.selected) : null
+    position ??= spawnPosition(def, from)
     let config = {}
-    // An option needing an integration (a Control Pad node's Stream Deck mode) is picked when that integration is on.
+    // An option needing an integration (a Control Pad node's Stream Deck mode) is picked when that integration is ready.
     for (const [key, f] of Object.entries(def.fields ?? {})) {
       const option = f.options?.find((o) => o.needs)
-      const integration = option && integrations.find((i) => i.key === option.needs)
-      if (integration && await get(integration.path).then(integration.ready, () => false)) config[key] = option.value
+      if (option && !off.includes(option.needs)) config[key] = option.value
     }
     if (type) {
       // Signed in to Twitch (Streamer mode): a widget with a Twitch mode (Voting) starts in it.
@@ -443,7 +495,11 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
       config = { widget: (await res.json()).id }
       onWidgetChange()
     }
-    setNodes((ns) => ns.concat({ id: crypto.randomUUID(), type: 'step', position, data: { type: def.type, label: def.label, config } }))
+    const node = { id: crypto.randomUUID(), type: 'step', position, selected: true, data: { type: def.type, label: def.label, config } }
+    setNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)).concat(node))
+    // From the selected node's first output; the same checks as a link drawn by hand.
+    const link = from && { source: from.id, sourceHandle: outputsOf(defOf(from), from.data.config)[0]?.id ?? null, target: node.id }
+    if (link && isValidConnection(link, edges, [...nodes, node])) setEdges((es) => addEdge(link, es))
     if (spawned) showBox({ ...position, width: NODE, height: NODE + CAPTION })
   }
   // Pans, keeping the zoom, until the box is inside the visible canvas.
@@ -505,11 +561,14 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     notify(`Pasted ${what}${skipped ? `; skipped ${skipped} widget${skipped > 1 ? 's' : ''} already in this workflow` : ''}.`)
   }
 
-  // Fit, deselect, copy, paste, undo and redo shortcuts, skipped while typing in a field (which has its own undo).
+  // Deselecting closes the node settings (Escape, or their close button).
+  const deselect = () => setNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)))
+  // Fit, deselect, copy, paste, undo and redo shortcuts, skipped while typing in a field (which has its own undo) or in
+  // a dialog (whose Escape closes the dialog only).
   useEffect(() => {
     const onKey = (e) => {
-      if (e.target.closest('input, textarea, [contenteditable]')) return
-      if (e.key === 'Escape') return setNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)))
+      if (e.target.closest('input, textarea, [contenteditable], [role=dialog]')) return
+      if (e.key === 'Escape') return deselect()
       if (e.shiftKey && e.code === 'Digit1') return fitView({ ...fitOptions, duration: 300 })
       if (!(e.ctrlKey || e.metaKey)) return
       const key = e.key.toLowerCase()
@@ -530,6 +589,7 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
     onNodeSelect(selected?.id ?? null)
   }, [selected?.id])
   const hasManual = nodes.some((n) => n.data.type === 'manual')
+  const scheme = useComputedColorScheme('dark')
   // One-shot auto layout: every node glides to its place, the view stays put (a single undo step: history
   // waits for the edit to settle). Nodes stay movable and land on the grid.
   const arrange = () => {
@@ -582,34 +642,37 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
   return (
     <>
       <AppShell.Main className="editor">
-        <Group gap="xs" p="xs" style={{ borderBottom: '1px solid var(--mantine-color-dark-4)' }}>
+        <Group gap="xs" p="xs" wrap="nowrap" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
           <Tooltip label="Undo (Ctrl+Z)">
-            <ActionIcon size="md" variant="default" disabled={!history.current.past.length} onClick={undo}><IconArrowBackUp size={18} /></ActionIcon>
+            <ActionIcon size="md" variant="default" aria-label="Undo" disabled={!history.current.past.length} onClick={undo}><IconArrowBackUp size={18} /></ActionIcon>
           </Tooltip>
           <Tooltip label="Redo (Ctrl+Shift+Z)">
-            <ActionIcon size="md" variant="default" disabled={!history.current.future.length} onClick={redo}><IconArrowForwardUp size={18} /></ActionIcon>
+            <ActionIcon size="md" variant="default" aria-label="Redo" disabled={!history.current.future.length} onClick={redo}><IconArrowForwardUp size={18} /></ActionIcon>
           </Tooltip>
-          <TextInput flex={1} size="xs" value={name} onChange={(e) => setName(e.target.value)} />
+          <TextInput flex={1} miw={80} size="xs" aria-label="Workflow name" value={name} onChange={(e) => setName(e.target.value)} />
           <Tooltip label={hasManual ? 'Run manual triggers' : 'Add a Manual Trigger to run this workflow by hand'}>
-            <ActionIcon size="md" variant="light" color="green" disabled={!hasManual} onClick={() => fetch(`/api/workflows/${workflow.id}/run`, { method: 'POST' })}>
+            <ActionIcon size="md" variant="light" color="green" aria-label="Run manual triggers" disabled={!hasManual} onClick={() => fetch(`/api/workflows/${workflow.id}/run`, { method: 'POST' })}>
               <IconPlayerPlay size={18} />
             </ActionIcon>
           </Tooltip>
-          <Tooltip label="Cancel the running workflow and its nodes">
-            <ActionIcon size="md" variant="light" color="red" disabled={!firings} onClick={() => fetch(`/api/workflows/${workflow.id}/cancel`, { method: 'POST' })}>
+          <Tooltip label="Stop the workflow (cancels its running nodes)">
+            <ActionIcon size="md" variant="light" color="red" aria-label="Stop the workflow" disabled={!firings} onClick={() => fetch(`/api/workflows/${workflow.id}/cancel`, { method: 'POST' })}>
               <IconPlayerStop size={18} />
             </ActionIcon>
           </Tooltip>
           <Divider orientation="vertical" />
           <Tooltip label="Export as JSON">
-            <ActionIcon size="md" variant="default" onClick={() => exportWorkflow(workflow.id).then((b) => download(b, name))}><IconDownload size={18} /></ActionIcon>
+            <ActionIcon size="md" variant="default" aria-label="Export as JSON" onClick={() => exportWorkflow(workflow.id).then((b) => download(b, name))}><IconDownload size={18} /></ActionIcon>
           </Tooltip>
           <Tooltip label="Delete workflow">
-            <ActionIcon size="md" variant="light" color="red" onClick={() => setConfirmDelete(true)}><IconTrash size={18} /></ActionIcon>
+            <ActionIcon size="md" variant="subtle" color="gray" aria-label="Delete workflow" onClick={() => setConfirmDelete(true)}><IconTrash size={18} /></ActionIcon>
           </Tooltip>
           <Divider orientation="vertical" />
           <Tooltip label={`${panels.library ? 'Hide' : 'Show'} node library`}>
-            <ActionIcon size="md" variant={panels.library ? 'light' : 'default'} onClick={() => onToggle('library')}><IconLayoutSidebarRight size={18} /></ActionIcon>
+            <ActionIcon size="md" variant={panels.library ? 'light' : 'default'} aria-label={`${panels.library ? 'Hide' : 'Show'} node library`} aria-pressed={panels.library}
+              onClick={() => onToggle('library')}>
+              <IconLayoutSidebarRight size={18} />
+            </ActionIcon>
           </Tooltip>
         </Group>
         <Modal opened={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete workflow?" size="sm">
@@ -622,7 +685,19 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           </Group>
         </Modal>
         {toast && (
-          <Notification withCloseButton={false} className="toast" color={toast.color}>{toast.message}</Notification>
+          <Notification withCloseButton={false} className="toast timed" color={toast.color}>
+            {toast.message}
+            <TimerBar key={toast.id} ms={3000} />
+          </Notification>
+        )}
+        {/* An empty graph says how to start. */}
+        {ready && !nodes.length && (
+          <Center className="empty-hint">
+            <Stack align="center" gap="xs">
+              <Text c="dimmed" ta="center">Start with a trigger: drag one from the library onto the graph, or double-click it.</Text>
+              {!panels.library && <Button size="xs" variant="light" onClick={() => onToggle('library')}>Show the library</Button>}
+            </Stack>
+          </Center>
         )}
         <ReactFlow
           ref={flowRef}
@@ -645,13 +720,13 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
           onDragOver={(e) => e.preventDefault()}
           onMouseMove={(e) => (pointer.current = { x: e.clientX, y: e.clientY })}
           onMouseLeave={() => (pointer.current = null)}
-          colorMode="dark"
+          colorMode={scheme}
           style={{ opacity: ready ? 1 : 0 }}
           minZoom={MIN_ZOOM}
           onMoveEnd={(e, viewport) => saveView(workflow.id, viewport)}
           proOptions={{ hideAttribution: true }}
         >
-          <Background color="#555" gap={20} />
+          <Background gap={20} />
           {/* All graph controls use the same outline icons (ReactFlow's own zoom and fit icons are filled). */}
           <Controls position="top-left" showZoom={false} showFitView={false} showInteractive={false}>
             <ControlButton className={locked ? 'locked' : ''} onClick={() => setLocked((l) => !l)} title={locked ? 'Unlock the graph' : 'Lock node positions'}>
@@ -670,7 +745,9 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
         workflow={workflow.id}
         node={selected}
         def={defOf(selected)}
+        off={off}
         running={live.nodes[selected?.id] === 'running'}
+        error={live.errors[selected?.id]}
         context={{
           vars: selected ? upstreamKeys(selected.id, { nodes, edges, defs, widgets, types }) : [],
           widget: findWidget(widgets, widgetRef(selected, nodes, edges)),
@@ -682,6 +759,8 @@ function Editor({ workflow, defs, widgets, types, openNode, onRename, onDelete, 
         onChange={setConfig}
         onWidgetChange={onWidgetChange}
         onCopy={() => copy([selected])}
+        onClose={deselect}
+        onError={() => notify('Widget settings not saved: is Ovrly running? Trying again…', 'red')}
       />
     </>
   )

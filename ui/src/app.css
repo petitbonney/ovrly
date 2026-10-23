@@ -1,4 +1,5 @@
-/* The few styles Mantine doesn't cover: full-height editors, the widget preview, graph nodes. */
+/* The few styles Mantine doesn't cover: full-height editors, the widget preview, graph nodes. Graph colors are the
+   theme's --ovrly-* variables (themes.js). */
 .editor { position: relative; height: 100dvh; display: flex; flex-direction: column; }
 .editor .react-flow { flex: 1; height: auto; min-height: 0; }
 /* Resizable panes scroll inside this wrapper: a scrolling pane would clip and scroll away its resize handle. */
@@ -11,28 +12,36 @@
 .preview-fit .preview { display: block; height: 100%; aspect-ratio: auto; }
 /* Copy/paste feedback over the graph. */
 .toast { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 10; }
+/* How to start, over an empty graph (clicks go through, except on its button). */
+.empty-hint { position: absolute; inset: 0; z-index: 5; pointer-events: none; padding: var(--mantine-spacing-xl); }
+.empty-hint button { pointer-events: auto; }
+/* Field hints at 12px (Mantine makes them 10px on xs inputs). */
+.mantine-InputWrapper-description { font-size: var(--mantine-font-size-xs); }
+/* A setting shown only while a switch is on, indented under it (Fields.jsx). */
+.nested { padding-left: var(--mantine-spacing-sm); border-left: 2px solid var(--mantine-color-default-border); }
 /* Classic "transparent PNG" checkerboard behind the overlay. color-scheme light matches the overlay page's, otherwise the
    browser paints an opaque canvas over it in dark mode. */
-.preview { width: 100%; aspect-ratio: 16 / 9; border: 1px solid #444; border-radius: 4px; color-scheme: light; background: #fff repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+.preview { width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--mantine-color-default-border); border-radius: 4px; color-scheme: light; background: #fff repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
 
 /* n8n-style graph nodes (FlowNode.jsx) */
-.flow-node { position: relative; width: 90px; height: 90px; display: grid; place-items: center; background: #414244; border: 2px solid #9a9a9a; border-radius: 8px; }
+.flow-node { position: relative; width: 90px; height: 90px; display: grid; place-items: center; background: var(--ovrly-node); border: 2px solid var(--ovrly-line); border-radius: 8px; }
 .flow-node.trigger { border-radius: 45px 8px 8px 45px; }
-.flow-node.selected { border-color: #fff; box-shadow: 0 0 0 4px #ffffff22; }
-.flow-node .bolt { position: absolute; left: -26px; color: var(--mantine-color-orange-5); }
-.flow-node button.bolt { background: none; border: 0; padding: 0; cursor: pointer; line-height: 0; }
-.flow-node button.bolt:hover { color: var(--mantine-color-orange-3); transform: scale(1.2); }
+.flow-node.selected { border-color: var(--ovrly-selected); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ovrly-selected) 15%, transparent); }
+.flow-node .bolt { position: absolute; left: -26px; color: var(--ovrly-trigger); background: none; border: 0; padding: 0; cursor: pointer; line-height: 0; }
+.flow-node .bolt:hover { transform: scale(1.2); }
+/* Needs an integration that isn't ready (FlowNode.jsx): a badge on the top right corner. */
+.flow-node .needs { position: absolute; top: -8px; right: -8px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--mantine-color-yellow-5); color: #000; }
 .flow-node .caption { position: absolute; top: 100%; margin-top: 8px; width: 160px; text-align: center; pointer-events: none; }
-.flow-node .label { font-size: 13px; font-weight: 600; color: #eee; }
-.flow-node .sub { font-size: 11px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flow-node .label { font-size: 13px; font-weight: 600; color: var(--ovrly-label); }
+.flow-node .sub { font-size: 11px; color: var(--ovrly-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Connectors sit centred on the node's 2px border (ReactFlow centres them on the inner edge, so 1px further out). */
-.flow-node .react-flow__handle { background: #9a9a9a; border: 0; }
+.flow-node .react-flow__handle { background: var(--ovrly-line); border: 0; }
 /* The input is one bar stretched over its handles: they are invisible, one per link, so the links end spaced apart. */
 .flow-node .react-flow__handle.in { width: 8px; height: 22px; left: -1px; background: transparent; }
-.flow-node .in-bar { position: absolute; top: 50%; left: -1px; transform: translate(-50%, -50%); /* centred on left like a handle */ width: 8px; border-radius: 2px; background: #9a9a9a; pointer-events: none; }
+.flow-node .in-bar { position: absolute; top: 50%; left: -1px; transform: translate(-50%, -50%); /* centred on left like a handle */ width: 8px; border-radius: 2px; background: var(--ovrly-line); pointer-events: none; }
 .react-flow.previewing .react-flow__connectionline { display: none; } /* the previewed link replaces the pulled line */
 .flow-node .react-flow__handle.out { width: 14px; height: 14px; right: -1px; }
-.flow-node .port { position: absolute; left: 18px; top: -2px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; color: #999; pointer-events: none; }
+.flow-node .port { position: absolute; left: 18px; top: -3px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--ovrly-sub); pointer-events: none; }
 .flow-node .port svg { vertical-align: -1px; margin-right: 2px; } /* a Control Pad button's icon */
 /* Control Pad node: square keys in the button's color (Deck.jsx). */
 .deck-button { position: relative; aspect-ratio: 1; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #fff; font-size: 11px; font-weight: 600; text-align: center; padding: 4px; overflow: hidden; text-shadow: 0 1px 2px #0006; }
@@ -44,7 +53,7 @@
 .react-flow__controls { border-radius: 8px; overflow: hidden; }
 /* Locked graph: the lock button turns blue so the state is visible at a glance. */
 .react-flow__controls-button.locked, .react-flow__controls-button.locked:hover { background: var(--mantine-color-blue-6); color: #fff; }
-.react-flow { --xy-edge-stroke: #9a9a9a; --xy-edge-stroke-width: 2; --xy-background-color: #2d2e2e; }
+.react-flow { --xy-edge-stroke: var(--ovrly-line); --xy-edge-stroke-width: 2; --xy-background-color: var(--ovrly-canvas); --xy-background-pattern-color: var(--ovrly-dots); }
 
 /* Live run feedback (Workflow.jsx): running pulses blue, done flashes green, stopped dims, error turns red. */
 .run-running .flow-node { border-color: var(--mantine-color-blue-4); animation: run-pulse 1s ease-in-out infinite; }
@@ -65,7 +74,10 @@
 .merge-guide.x { top: 0; bottom: 0; width: 1px; }
 .merge-guide.y { left: 0; right: 0; height: 1px; }
 .merge-box .corner { position: absolute; right: 0; bottom: 0; width: 12px; height: 12px; background: #9147ff; cursor: nwse-resize; }
-.merge-layer { padding: 6px 8px; border-radius: 4px; background: var(--mantine-color-dark-6); cursor: grab; }
+.merge-layer { padding: 6px 8px; border-radius: 4px; background: var(--mantine-color-default); cursor: grab; }
 
 /* Space between library sections only, none before the first or after the last. */
 .library-section + .library-section { margin-top: var(--mantine-spacing-xs); }
+/* Countdown bar of self-hiding notifications (TimerBar.jsx). */
+.timed { overflow: hidden; }
+.timer-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: currentColor; opacity: .4; transform-origin: left; }

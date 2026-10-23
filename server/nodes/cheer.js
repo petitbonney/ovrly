@@ -4,6 +4,7 @@ export default {
   type: 'cheer',
   label: 'Cheer',
   category: 'trigger',
+  needs: ['chat'],
   group: 'Twitch',
   description: 'Fires when someone cheers bits.',
   adds: ['user', 'bits', 'message'],

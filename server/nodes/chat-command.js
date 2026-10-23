@@ -3,6 +3,7 @@ export default {
   type: 'chat-command',
   label: 'Chat !command',
   category: 'trigger',
+  needs: ['chat'],
   group: 'Chat',
   description: 'Fires when a chat message starts with a command, e.g. "!spin red".',
   adds: ['user', 'message', 'channel', 'messageId', 'login', 'userId', 'color', 'timestamp', 'broadcaster', 'mod', 'vip', 'sub', 'subMonths', 'firstMessage', 'returning', 'emotes', 'action', 'highlighted', 'rewardId', 'replyToId', 'replyToUser', 'replyToMessage', 'command', 'args'],

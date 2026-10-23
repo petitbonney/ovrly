@@ -20,13 +20,14 @@ export const status = { mode: 'guest', guestChannel: '', channel: '', connected:
 export const streamer = () => status.mode === 'streamer' && !!auth.status.login && auth.status.scopesOk
 // For nodes and widgets: throws unless Streamer features can run. what: the feature, e.g. 'Twitch polls'.
 export function needStreamer(what) {
-  if (!streamer()) throw new Error(`${what} need Twitch in Streamer mode, signed in (Integration → Twitch)`)
+  if (!streamer()) throw new Error(`${what} need Twitch in Streamer mode, signed in (Settings → Twitch)`)
 }
 
-// Applies the settings ({ mode, channel }), or the current ones again after signing in or out.
+// Applies the settings ({ mode, channel }), or the current ones again after signing in or out. Streamer mode reads the
+// signed-in channel's chat; until signed in, it keeps reading the Guest channel's, so chat triggers keep working.
 export async function apply(settings = { mode: status.mode, channel: status.guestChannel }) {
   Object.assign(status, { mode: settings.mode === 'streamer' ? 'streamer' : 'guest', guestChannel: settings.channel ?? '' })
-  await connect(status.mode === 'streamer' ? auth.status.login : status.guestChannel)
+  await connect(status.mode === 'streamer' && auth.status.login ? auth.status.login : status.guestChannel)
   status.mode === 'streamer' && auth.status.login ? eventsub.connect() : eventsub.disconnect()
 }
 

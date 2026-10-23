@@ -11,7 +11,7 @@ export default {
   description: 'Plays a short video (a file on disk or a URL), up to a max duration.',
   config: { duration: 0, volume: 100 },
   fields: {
-    duration: { label: 'Max duration', unit: 's', presets: [5, 10, 15, 30], hint: 'The video is cut (with a short fade-out) after this long; 0 plays all of it' },
+    duration: { label: 'Max duration', unit: 's', presets: [5, 10, 15, 30], hint: 'Cut with a short fade-out; 0 plays all of it' },
     volume: { unit: '%', slider: true },
   },
   state: { url: '' },

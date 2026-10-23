@@ -12,8 +12,8 @@ export default {
   description: 'Changes the stream title, category or tags.',
   fields: {
     title: { vars: true, hint: 'Empty: unchanged' },
-    category: { vars: true, hint: 'A game or category, named as on Twitch, e.g. Just Chatting; empty: unchanged' },
-    tags: { type: 'keys', hint: 'Up to 10, letters and digits only; Enter or a comma adds one; none: unchanged' },
+    category: { vars: true, hint: 'Named as on Twitch, e.g. Just Chatting; empty: unchanged' },
+    tags: { type: 'keys', hint: 'Enter or a comma adds one; none: unchanged', info: 'Up to 10 tags, letters and digits only.' },
   },
   config: { title: '', category: '', tags: '' },
   async run({ config, data }) {

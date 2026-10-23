@@ -38,10 +38,14 @@ export default {
   fields: {
     mode: { options: [{ value: 'anarchy', label: 'Anarchy' }, { value: 'democracy', label: 'Democracy' }] },
     commands: {
-      hint: 'A chat message that is exactly a command (any case) gives its keys, pressed together',
+      hint: 'A chat message that is exactly a command presses its keys',
+      info: 'In any case. A command\'s keys are pressed together.',
       columns: { keys: { type: 'keys', options: Object.keys(Key).filter((k) => isNaN(k)) } },
     },
-    window: { label: 'Vote window', unit: 's', presets: [3, 5, 10, 20], only: { mode: 'democracy' }, hint: "Votes are counted in loops this long, from start; each loop's most voted command goes on (a tie: the first in the list)" },
+    window: {
+      label: 'Vote window', unit: 's', presets: [3, 5, 10, 20], only: { mode: 'democracy' }, hint: 'Votes are counted in loops this long, from start',
+      info: "Each loop's most voted command goes on (a tie: the first in the list).",
+    },
     max: { label: 'Inputs shown', only: { mode: 'anarchy' } },
   },
   // listening: between "start" and "stop" or "cancel"; mode: set by the "mode" action; since: when the loops began

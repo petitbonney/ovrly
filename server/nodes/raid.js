@@ -4,6 +4,7 @@ export default {
   type: 'raid',
   label: 'Raid',
   category: 'trigger',
+  needs: ['chat'],
   group: 'Twitch',
   description: 'Fires when another channel raids this one.',
   adds: ['user', 'viewers'],

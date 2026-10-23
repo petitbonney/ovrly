@@ -5,6 +5,7 @@ export default {
   type: 'gift-subs',
   label: 'Gift Subs',
   category: 'trigger',
+  needs: ['chat'],
   group: 'Twitch',
   description: 'Fires once when someone gifts subs, with how many and to whom.',
   adds: ['user', 'tier', 'count', 'total', 'recipients'],

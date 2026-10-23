@@ -12,7 +12,7 @@ export default {
   description: 'Sends a chat message as the streamer, or a reply to one.',
   fields: {
     message: { vars: true, multiline: true, hint: 'Up to 500 characters' },
-    replyTo: { label: 'Reply to', vars: true, hint: 'A message ID, e.g. {{messageId}} from a chat trigger; empty: not a reply' },
+    replyTo: { label: 'Reply to', vars: true, hint: 'A message ID, e.g. {{messageId}}; empty: not a reply' },
   },
   config: { message: 'Thanks {{user}}!', replyTo: '' },
   async run({ config, data }) {

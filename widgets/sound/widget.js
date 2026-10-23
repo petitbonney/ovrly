@@ -12,7 +12,7 @@ export default {
   visual: false, // nothing to see: no preview in its settings, no box on a Merge Widgets canvas
   config: { duration: 0, volume: 100 },
   fields: {
-    duration: { label: 'Max duration', unit: 's', presets: [5, 10, 15, 30], hint: 'The sound is cut (with a short fade-out) after this long; 0 plays all of it' },
+    duration: { label: 'Max duration', unit: 's', presets: [5, 10, 15, 30], hint: 'Cut with a short fade-out; 0 plays all of it' },
     volume: { unit: '%', slider: true, hint: 'Myinstants sounds are often loud' },
   },
   state: { url: '' },

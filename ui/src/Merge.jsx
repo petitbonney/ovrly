@@ -171,7 +171,7 @@ export default function Merge({ workflow, node, config, widgets, types, onChange
           <CopyButton value={url}>
             {({ copied, copy }) => (
               <Tooltip label={copied ? 'Copied' : 'Copy link'}>
-                <ActionIcon size="sm" variant="subtle" color={copied ? 'teal' : 'gray'} onClick={copy}>
+                <ActionIcon size="sm" variant="subtle" color={copied ? 'teal' : 'gray'} aria-label="Copy link" onClick={copy}>
                   {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
                 </ActionIcon>
               </Tooltip>

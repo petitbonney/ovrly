@@ -44,7 +44,7 @@ export default {
   fields: {
     kind: { label: 'Vote', options: [{ value: 'poll', label: 'Poll' }, { value: 'prediction', label: 'Prediction' }] },
     mode: { options: [{ value: 'chat', label: 'Chat' }, { value: 'twitch', label: 'Twitch', streamer: true }] },
-    options: { hint: 'A Twitch poll takes 2 to 5 options, a prediction 2 to 10 (25 characters each)' },
+    options: { hint: 'Twitch takes 2 to 5 (poll) or 2 to 10 (prediction)', info: 'A Twitch poll takes 2 to 5 options, a prediction 2 to 10, each up to 25 characters.' },
     duration: { unit: 's', presets: [30, 60, 120, 300], hint: 'How long voting stays open after "start", 30 to 1800 s' },
   },
   // votes: user -> option index (chat); counts: voters per option; endsAt: when voting closes (ms); winner: the

@@ -11,6 +11,7 @@ export default {
   type: 'subscription',
   label: 'Subscription',
   category: 'trigger',
+  needs: ['chat'],
   group: 'Twitch',
   description: 'Fires when someone receives a sub: new, resub or gifted; "kind" says which.',
   adds: ['kind', 'user', 'tier', 'months', 'streak', 'message'],

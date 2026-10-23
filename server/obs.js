@@ -49,7 +49,7 @@ function open(gen) {
 
 // Sends one request, e.g. request('SetCurrentProgramScene', { sceneName }).
 export async function request(requestType, requestData = {}) {
-  if (!socket) throw new Error('OBS is not connected: set it up under Integration, in the sidebar')
+  if (!socket) throw new Error('OBS is not connected: check Settings → OBS')
   const { ws, pending } = socket
   const requestId = crypto.randomUUID()
   const d = await new Promise((resolve, reject) => {

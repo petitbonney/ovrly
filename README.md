@@ -105,24 +105,24 @@ To show a widget in OBS, select its node and copy the browser-source link from t
 ## UI
 
 ```
-┌──────────┬──────────────────────────────┬───────────┐
-│Workflows+│ ↶↷ name ▶ │ ⤓ 🗑 │ ◫         │ Triggers  │
-│  - !spin │                              │ Logic     │
-│  - spin  │   Node graph (workflow)      │ Actions   │
-│          │                              │ Widgets   │
-│          ├──────────────────────────────┤ (drag &   │
-│ Twitch ● │  Settings of the selected    │   drop)   │
-│ channel  │  node                        │           │
-└──────────┴──────────────────────────────┴───────────┘
+┌──────────┬────────────────────────────────┬───────────┐
+│Workflows+│ ↶↷ name ▶■ │ ⤓ 🗑 │ ◫         │ Triggers  │
+│  - !spin │                                │ Logic     │
+│  - spin  │   Node graph (workflow)        │ Actions   │
+│   SOS    │                                │ Widgets   │
+│          ├────────────────────────────────┤ (drag &   │
+│          │  Settings of the selected node │   drop)   │
+│Settings !│  (settings │ live column)      │           │
+└──────────┴────────────────────────────────┴───────────┘
 ```
 
-- **Left**: **Integration** on top: one row each for Twitch, OBS, Stream Deck, Philips Hue and Giphy; clicking a row opens its settings (Twitch: **Guest** reads any channel's chat with no sign-in, **Streamer** signs in as the channel owner with a code to approve on twitch.tv/activate, for Twitch features; OBS: WebSocket URL and password; Stream Deck: the plugin to download, its devices and paired keys; Giphy: API key, checked on save) and a status dot (green connected, red not). Below it the workflow list (**+** opens the template picker; the switch next to each name turns a workflow off: what it is running is cancelled and its triggers ignore chat and API calls, while ▶ Run still works; the red **SOS** button below the list turns them all off at once). OBS nodes use that one OBS connection, and their scene and source settings suggest the names from OBS while it is connected.
-- **Center**: the node graph of the selected workflow. The toolbar has undo/redo, the name, run manual triggers (▶), then export and delete, then show/hide the library.
-- **Right**: the library (workflow only). Drag a node type or a widget type onto the graph. Each widget dropped is a new overlay instance and its widget node, set up from the node's settings: instance ID, name, OBS link, settings and live preview. Deleting the node deletes the instance. Its settings also have the inputs of the action it runs (start, or TwitchPlays' push), when that action takes any.
+- **Left**: the workflow list (**+** opens the new workflow picker; the switch next to each name turns a workflow off: what it is running is cancelled and its triggers ignore chat and API calls, while ▶ Run still works). The red **SOS** button below it turns them all off at once, then offers to turn them back on. Below, one row per integration set up (connected ✓ or failing !, its tooltip says more), opening its settings; those not set up are only in Settings. The dialog has the integrations, each with its status (✓ connected, ! failing, a dashed circle when not set up) (Twitch: **Guest** reads any channel's chat with no sign-in, **Streamer** signs in as the channel owner with a code to approve on twitch.tv/activate, for Twitch features, and reads the Guest channel's chat until signed in; OBS: WebSocket URL and password; Stream Deck: the plugin to download, its devices and paired keys; Hue: pairing; Giphy: API key, checked on save), **LAN**, and **Theme** (Ovrly's own, or an IDE palette: Dracula, Tokyo Night, Nord, Catppuccin, Gruvbox, One Dark Pro, Monokai, Solarized Dark, GitHub Light, One Light or Catppuccin Latte; kept by this browser; overlays keep their own look). OBS nodes use that one OBS connection, and their scene and source settings suggest the names from OBS while it is connected.
+- **Center**: the node graph of the selected workflow (an empty one says how to start). The toolbar has undo/redo, the name, run manual triggers (▶) and stop the workflow (■, cancels its running nodes), then export and delete, then show/hide the library. The bolt beside a Manual Trigger runs it; beside a chat trigger, it sends a test message from TestViewer (with the trigger's command), to try a workflow without going live.
+- **Right**: the library (workflow only; hidden at first in a narrow window). Drag a node type or a widget type onto the graph, or double-click it (or press Enter on it): it is added after the selected node and linked from it. The new node is selected, which opens its settings. A node type whose integration isn't ready shows a plug icon, as do such nodes on the graph. Each widget dropped is a new overlay instance and its widget node. Deleting the node deletes the instance.
 - **Copy/paste**: Ctrl/⌘+C and Ctrl/⌘+V copy the selected nodes, also into another workflow. Pasted widget nodes share the same instance (once per workflow); it is deleted once no workflow uses it anymore. Each instance has its own id, shown in its node's settings with a button that copies the node.
 - **Undo/redo**: Ctrl/⌘+Z and Ctrl/⌘+Shift+Z (or Ctrl+Y), or the toolbar arrows. Undoing a widget node's deletion brings its instance back too.
-- **Bottom**: settings of the selected node (workflow only; each workflow remembers which node was open, and the graph stays centered as the pane opens), with pickers for options and a **{ }** menu to insert data from previous nodes, e.g. `{{user}}`.
-- **Live feedback**: while a workflow runs, its graph shows it: a running node pulses blue, a finished one flashes green, one that stopped the flow (e.g. a filter that didn't match) dims, a failing one turns red (with the error), and links carrying data animate.
+- **Bottom**: settings of the selected node (workflow only; each workflow remembers which node was open, and the graph stays centered as the pane opens; × or Escape closes them), laid out the same for every node: notices (what it needs that isn't ready, with a link to its settings, or its last error), the settings column, and a live column when the node has something to watch or press (a widget's OBS link, preview and Start/Stop/Cancel; a Control Pad's buttons; a Queue's line; a Hue routine's Stop/Cancel). A widget node's settings have **This node** (the inputs of the action it runs) and **Widget (shared)** (name, settings, shared by every node using it), then its instance ID. Pickers for options and a **{ }** menu insert data from previous nodes, e.g. `{{user}}`. Changes save by themselves; if Ovrly can't be reached, the editor says so and tries again until it can.
+- **Live feedback**: while a workflow runs, its graph shows it: a running node pulses blue, a finished one flashes green, one that stopped the flow (e.g. a filter that didn't match) dims, a failing one turns red and stays so until it runs again (its settings show the error, also after a reload), and links carrying data animate.
 - **Graph controls** (top left): zoom, fit view, lock (nodes can't be moved, linked or deleted, but still open their settings), and arrange: a one-shot left-to-right layout (one undo step; nodes stay movable).
 - Drag the edge of the right and bottom panes to resize them.
 - **Developer mode**: Ctrl+Shift+D (Ctrl on macOS too) shows a tool button at the bottom right that opens `/api/events`: the last 200 events, each tagged with the channel it travelled on: `bus` (chat, API hooks, `/api/emit`), `http` (manual runs, HTTP request nodes), `websocket` (WebSocket send nodes, OBS, the Twitch connection) `sse` (widget actions sent to overlays, and their end with the output) and `log` (Log nodes). A live table in a browser, JSON otherwise (or with `?format=json`).
@@ -194,7 +194,7 @@ export default {
 }
 ```
 
-Optional metadata makes the settings pane friendlier: `description`, `adds` (the data keys the node adds, offered as `{{key}}` in later nodes) and `fields` (per-setting hints such as `{ options: [...] }`, `{ vars: true }` for `{{key}}` placeholders, or `{ type: 'json' }`; see `ui/src/Fields.jsx`).
+Optional metadata makes the settings pane friendlier: `description`, `adds` (the data keys the node adds, offered as `{{key}}` in later nodes) and `fields` (per-setting hints such as `{ options: [...] }`, `{ vars: true }` for `{{key}}` placeholders, `{ type: 'json' }`, a short `hint` or a longer `info`, or a `section` heading; see `ui/src/Fields.jsx`, and AGENTS.md for how to lay them out).
 
 A node with several outputs declares them, e.g. `outputs: ['true', 'false']`, and returns `{ [output]: data }` to pick which ones continue. A trigger sets `event` to the bus event it listens to, or a list of them; `run` gets the one that fired as `event`.
 

@@ -16,8 +16,8 @@ export default {
   description: 'Enables, disables, pauses or resumes a channel points reward made by Ovrly (made here the first time).',
   adds: ['rewardId'],
   fields: {
-    action: { options: Object.keys(changes), hint: 'Disabled: hidden from viewers; paused: shown, but can\'t be redeemed' },
-    reward: { vars: true, hint: 'Its title; a reward of that title made on the Twitch dashboard can\'t be changed here' },
+    action: { options: Object.keys(changes), info: 'Disabled: hidden from viewers. Paused: shown, but can\'t be redeemed.' },
+    reward: { vars: true, hint: 'Its title', info: 'A reward of that title made on the Twitch dashboard can\'t be changed here: Twitch only lets Ovrly change rewards it made.' },
     cost: { unit: 'points', hint: '0: unchanged (100 for a new reward)' },
   },
   config: { action: 'enable', reward: '', cost: 0 },
