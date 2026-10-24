@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Label</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<script type="importmap">{ "imports": { "animejs": "/vendor/animejs/index.js" } }</script>
+<style>
+  /* The text across the page, vertically centered, aligned by the align setting; long text wraps. */
+  #page { position: fixed; inset: 0; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box; }
+  #text { max-width: 100%; overflow-wrap: anywhere; white-space: pre-wrap; opacity: 0; }
+  #text:empty { display: none; }
+</style>
+<div id="page"><div id="text"></div></div>
+<script type="module">
+  import { animate, engine } from 'animejs'
+  import { subscribe } from '/widgets/lib.js'
+  import { FADE } from '/widgets/label/widget.js'
+  engine.pauseOnDocumentHidden = false // OBS may hide the source: a new text still shows
+  const page = document.getElementById('page'), text = document.getElementById('text')
+  let anim
+  // The font, from Google Fonts: bold (the page's weight) when the family has it, else its regular (Google answers 400
+  // for a weight a family lacks). Offline, or for a name that isn't a family, the page's font shows.
+  const font = document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'stylesheet' }))
+  const css = (family, bold) => `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}${bold ? ':wght@700' : ''}&display=block`
+  function load(family) {
+    if (!family || font.dataset.family === family) return
+    font.dataset.family = family
+    font.onerror = () => {
+      font.onerror = null
+      font.href = css(family, false)
+    }
+    font.href = css(family, true)
+  }
+  const fade = (to, then) => {
+    anim?.pause()
+    anim = animate(text, { opacity: to, duration: FADE, ease: to ? 'outQuad' : 'inQuad', onComplete: then })
+  }
+  subscribe(({ state, runtime }) => {
+    page.style.justifyContent = { left: 'flex-start', center: 'center', right: 'flex-end' }[state.align]
+    load(state.font)
+    text.style.fontFamily = `"${state.font}", system-ui, sans-serif`
+    text.style.color = state.color
+    text.style.fontSize = `${state.size}px`
+    const next = runtime.ended ? '' : runtime.text
+    if (next === text.textContent) return
+    // A new text fades out the one showing, then fades in.
+    const show = () => {
+      text.textContent = next
+      if (next) fade(1)
+    }
+    if (text.textContent && Number(text.style.opacity)) fade(0, show)
+    else show()
+  }, {
+    stop: () => fade(0, () => (text.textContent = '')),
+    cancel: () => {
+      anim?.pause()
+      text.style.opacity = 0
+      text.textContent = ''
+    },
+  })
+</script>

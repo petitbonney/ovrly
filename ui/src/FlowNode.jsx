@@ -12,7 +12,7 @@ import {
   IconMessageCode, IconMovie, IconAd, IconBan, IconBookmark, IconChecks, IconMessageCog, IconMessageShare, IconPencil, IconRocket,
   IconScissors, IconTicket, IconTrash, IconUserSearch, IconDeviceTvOld, IconMessageStar, IconHeartHandshake,
   IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVideo, IconVolume, IconVariable, IconWebhook, IconAirConditioning, IconWorld,
-  IconLayoutGrid, IconBulb, IconPlugOff,
+  IconLayoutGrid, IconBulb, IconPlugOff, IconTypography,
 } from '@tabler/icons-react'
 import { deckIcons } from './Deck.jsx'
 
@@ -83,6 +83,7 @@ export const icons = {
 
 export const widgetIcons = {
   alerts: IconBell,
+  label: IconTypography,
   lottery: IconClover,
   roulette: IconTarget,
   dice: IconDice5,
