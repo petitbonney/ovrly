@@ -14,6 +14,7 @@ import * as giphy from './giphy.js'
 import * as hue from './hue.js'
 import * as streamdeck from './streamdeck.js'
 import * as myinstants from './myinstants.js'
+import * as fonts from './fonts.js'
 import * as widgets from './widgets.js'
 import * as windows from './windows.js'
 import { vars, saveVars } from './vars.js'
@@ -233,6 +234,8 @@ app.get('/api/giphy/search', (req, res) =>
 // MyInstants node's picker: search results, one page (36) at a time.
 app.get('/api/myinstants/search', (req, res) =>
   myinstants.search(String(req.query.q ?? '').trim(), Number(req.query.page) || 1).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+// Font fields' suggestions: every Google Fonts family.
+app.get('/api/fonts', (req, res) => fonts.list().then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
 
 // Images and sounds for the Image and Sound widgets are files on disk, used where they are: "Browse files" opens the OS
 // file dialog here (a browser page can't see file paths) and /file serves a path set on a node. Only image, sound and video types,

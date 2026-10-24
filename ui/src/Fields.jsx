@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults (shown in their order), plus optional per-field hints from the node
-// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'list' | 'tags' | 'action' | 'inputs' | 'palette' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' }.
+// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'list' | 'tags' | 'action' | 'inputs' | 'palette' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' | 'font' }.
 // hint: one short line under the label; info: anything longer, in an ⓘ tooltip beside the label. section: a heading
 // shown before this field, starting a group (for nodes with many settings). A field shown only while a switch is on
 // (only: { someSwitch: true }) is indented under it. Plain-text options show with a capital first letter; a '-' among
@@ -26,7 +26,7 @@
 // { hue: 'devices' } a Hue light, room or zone.
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
-  ActionIcon, Autocomplete, Button, Chip, ColorInput, ColorPicker, CopyButton, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, Popover, SegmentedControl,
+  ActionIcon, Anchor, Autocomplete, Button, Chip, ColorInput, ColorPicker, CopyButton, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, Popover, SegmentedControl,
   Select, Slider, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip, UnstyledButton,
 } from '@mantine/core'
 import { IconBraces, IconCheck, IconCopy, IconGripVertical, IconInfoCircle, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX } from '@tabler/icons-react'
@@ -179,6 +179,31 @@ function WindowInput({ onChange, ...props }) {
   const description = titles || !names.length ? props.description : `${props.description}. Window titles need the Accessibility permission`
   return <Autocomplete {...props} description={description} data={names} filter={suggest} limit={100} onDropdownOpen={load}
     onChange={onChange} placeholder="Pick or type an app or window" />
+}
+
+// A Google Fonts family, suggested as you type (typing stays free: the list needs internet), each name written in its
+// font, the picked one too; the description links to Google Fonts, to browse them there. A name only loads its own
+// letters (text=): a few hundred bytes, once per family.
+const previews = new Set()
+function preview(family) {
+  if (!family || previews.has(family)) return
+  previews.add(family)
+  const href = `https://fonts.googleapis.com/css2?${new URLSearchParams({ family, text: family })}`
+  document.head.append(Object.assign(document.createElement('link'), { rel: 'stylesheet', href }))
+}
+function FontName({ family }) {
+  useEffect(() => preview(family), [family])
+  return <span style={{ fontFamily: `"${family}"` }}>{family}</span>
+}
+function FontInput({ value, description, ...props }) {
+  const [families, setFamilies] = useState([])
+  useEffect(() => {
+    get('/api/fonts').then((list) => Array.isArray(list) && setFamilies(list), () => {})
+  }, [])
+  useEffect(() => void (families.includes(value) && preview(value)), [families, value])
+  const link = <Anchor href="https://fonts.google.com/" target="_blank" inherit>Browse Google Fonts</Anchor>
+  return <Autocomplete {...props} description={<>{description && `${description} · `}{link}</>} value={value} data={families} filter={suggest} limit={30} placeholder="Search Google Fonts"
+    renderOption={({ option }) => <FontName family={option.value} />} styles={{ input: { fontFamily: `"${value}"` } }} />
 }
 
 // A time preset reads in its biggest unit that fits: 90 s -> "1m30", 1440 min -> "1d", 1000 ms -> "1s".
@@ -632,6 +657,7 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
     return <PickInput {...props} kind={f.type} media={f.media} rating={values.rating} ready={f.type !== 'giphy' || !context.off?.includes('giphy')} value={value} onChange={set} />
   }
   if (f.type === 'window') return <WindowInput {...props} value={value} onChange={set} />
+  if (f.type === 'font') return <FontInput {...props} value={value} onChange={set} />
   if (f.type === 'secret') return <PasswordInput {...props} value={value} onChange={(e) => set(e.target.value)} />
   if (isColor(fallback)) return <ColorInput {...props} swatches={swatches} value={value} onChange={set} />
   if (typeof fallback === 'boolean') return <Switch {...props} checked={value} onChange={(e) => set(e.target.checked)} />

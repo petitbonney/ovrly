@@ -6,10 +6,10 @@ export default {
   type: 'label',
   label: 'Label',
   description: 'Shows a text that stays on screen until it changes, e.g. the last follower or the current goal.',
-  state: { style: 'plain', color: '#ffffff', size: 48, align: 'center' },
+  state: { font: 'Inter', color: '#ffffff', size: 48, align: 'center' },
   fields: {
-    style: { options: ['plain', 'card', 'neon'] },
-    color: { hint: 'The text, or the tube for the neon' },
+    font: { type: 'font', hint: 'A Google Fonts family' },
+    color: {},
     size: { unit: 'px', presets: [24, 36, 48, 72] },
     align: { options: ['left', 'center', 'right'] },
   },
