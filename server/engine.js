@@ -13,7 +13,7 @@ const order = [
   'if-else', 'filter', 'switch', 'fan-out', 'fan-in', 'wait-all', 'execute-workflow',
   'delay', 'cooldown', 'queue',
   'edit-variable', 'code', 'edit-data',
-  'twitch-chat', 'twitch-announce', 'twitch-shoutout', 'twitch-ban', 'twitch-delete-message', 'twitch-clip', 'twitch-user',
+  'twitch-chat', 'twitch-announce', 'twitch-shoutout', 'twitch-ban', 'twitch-delete-message', 'twitch-clip', 'twitch-user', 'twitch-channel-info',
   'twitch-redemption', 'twitch-marker', 'twitch-stream-info', 'twitch-ad', 'twitch-chat-mode', 'twitch-reward', 'twitch-raid',
   'obs-scene', 'obs-source', 'giphy', 'myinstants', 'hue',
   'widget-action', 'log', 'http-request', 'key-press', 'websocket-send',
