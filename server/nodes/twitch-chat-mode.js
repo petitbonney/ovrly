@@ -1,4 +1,5 @@
-// Action: toggles a chat mode, or turns it on or off: emote-only, followers-only, subscribers-only, slow or unique chat.
+// Action: toggles a chat mode, or turns it on or off: emote-only, followers-only, subscribers-only, slow or unique chat. Adds
+// { on }: whether the mode is on now.
 import { helix, channel } from '../sources/twitch-auth.js'
 import { needStreamer } from '../sources/twitch.js'
 
@@ -17,8 +18,10 @@ export default {
   label: 'Chat Mode',
   category: 'action',
   group: 'Twitch',
+  play: true,
   needs: ['twitch'],
   description: 'Toggles a chat mode, or turns it on or off: emote-only, followers-only, subscribers-only, slow or unique chat.',
+  adds: ['on'],
   fields: {
     mode: { options: modes, hint: 'Unique chat: no message repeated' },
     turn: { options: ['toggle', 'on', 'off'] },
@@ -33,6 +36,6 @@ export default {
     await helix('PATCH', 'chat/settings', { [key]: on,
       ...(on && config.mode === 'slow' && { slow_mode_wait_time: config.seconds }),
       ...(on && config.mode === 'follower' && { follower_mode_duration: config.minutes }) }, channel())
-    return data
+    return { ...data, on }
   },
 }

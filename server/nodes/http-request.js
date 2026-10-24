@@ -9,6 +9,7 @@ export default {
   label: 'HTTP Request',
   category: 'action',
   group: 'System',
+  play: true,
   description: 'Sends an HTTP request.',
   adds: ['status', 'response', 'json'],
   fields: {

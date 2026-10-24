@@ -8,6 +8,7 @@ export default {
   label: 'WebSocket Send',
   category: 'action',
   group: 'System',
+  play: true,
   description: 'Opens a WebSocket, sends one message, then closes.',
   fields: { url: { label: 'URL' }, message: { vars: true, multiline: true } },
   config: { url: 'ws://localhost:8080', message: '{{message}}' },

@@ -4,8 +4,8 @@
 // cancel actions). Also the list of a widget's actions. Autosaved; the instance itself is created when its widget is
 // dropped onto the graph, and an action that changes its state on the server (e.g. TwitchPlays' mode) shows here.
 import { useEffect, useRef, useState } from 'react'
-import { ActionIcon, Alert, Anchor, Badge, Button, Code, CopyButton, Group, Menu, Modal, Stack, Text, TextInput, Tooltip } from '@mantine/core'
-import { IconCheck, IconChevronDown, IconCopy, IconHourglassHigh, IconPlayerPlay, IconPlayerStop, IconX } from '@tabler/icons-react'
+import { ActionIcon, Alert, Anchor, Button, Code, CopyButton, Group, Menu, Modal, Popover, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import { IconBolt, IconCheck, IconChevronDown, IconCopy, IconHourglassHigh, IconInfoCircle, IconPlayerPlay, IconPlayerStop, IconX } from '@tabler/icons-react'
 import Fields, { applies, humanize } from './Fields.jsx'
 import Heading from './Heading.jsx'
 import { json } from './api.js'
@@ -16,31 +16,50 @@ const inputDefaults = (inputs = {}) => Object.fromEntries(Object.entries(inputs)
 const sent = (inputs = {}, values) => Object.fromEntries(Object.entries(values).map(([key, v]) => [key, inputs[key]?.type === 'list' ? v?.items ?? [] : v]))
 
 // A widget type's actions that apply with this state (its start, stop and cancel first), each with what it does and the
-// inputs it asks for; the one a signal runs is marked. Shown in the widget node's header tooltip.
+// inputs it asks for; the one a signal runs is marked with a bolt. An info icon in the widget node's header: hovering shows them,
+// clicking keeps them open until a click outside (or Escape).
 export function ActionsInfo({ type, state }) {
+  const [hover, setHover] = useState(false)
+  const [pinned, setPinned] = useState(false)
   const names = Object.keys(type.actions).filter((a) => applies(type.actions[a], state, type.state))
   const order = [type.onStart, type.onStop, type.onCancel]
   names.sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9))
   return (
-    <Stack gap={8} maw={360}>
-      {names.map((name) => {
-        const { description, inputs = {} } = type.actions[name]
-        return (
-          <Stack key={name} gap={2}>
-            <Group gap={6}>
-              <Text size="xs" fw={700}>{name}</Text>
-              {name === type.onSignal && <Badge size="xs" variant="light">this node</Badge>}
-            </Group>
-            <Text size="xs">{description}</Text>
-            {Object.entries(inputs).map(([key, f]) => (
-              <Text key={key} size="xs" c="dimmed">
-                <Code fz={10}>{key}</Code> {f.hint}{f.default ? ` (default ${f.default})` : ''}
-              </Text>
-            ))}
-          </Stack>
-        )
-      })}
-    </Stack>
+    <Popover opened={hover || pinned} onDismiss={() => { setPinned(false); setHover(false) }} position="bottom-start" shadow="md" withinPortal>
+      <Popover.Target>
+        <ActionIcon size="sm" variant={pinned ? 'light' : 'subtle'} color="gray" aria-label="Actions" style={{ flexShrink: 0 }}
+          onClick={() => setPinned(!pinned)} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+          <IconInfoCircle size={16} />
+        </ActionIcon>
+      </Popover.Target>
+      <Popover.Dropdown p="sm">
+        <Stack gap="sm" maw={360}>
+          {names.map((name) => {
+            const { description, inputs = {} } = type.actions[name]
+            return (
+              <Stack key={name} gap={2}>
+                <Group gap={4}>
+                  <Text size="sm" fw={600}>{name}</Text>
+                  {name === type.onSignal && (
+                    <Tooltip label="Run by a signal reaching this node">
+                      <IconBolt size={14} fill="currentColor" color="var(--ovrly-trigger)" aria-label="Run by a signal" />
+                    </Tooltip>
+                  )}
+                </Group>
+                <Text size="xs" c="dimmed">{description}</Text>
+                {Object.entries(inputs).map(([key, f]) => (
+                  <Text key={key} size="xs">
+                    {/* Tinted from the text color: Code's own background is the dropdown's in dark mode. */}
+                    <Code fz={10} c="var(--mantine-color-text)" bg="color-mix(in srgb, var(--mantine-color-text) 14%, transparent)">{key}</Code>
+                    {' '}{f.hint}{f.default && <Text span size="xs" c="dimmed"> (default {f.default})</Text>}
+                  </Text>
+                ))}
+              </Stack>
+            )
+          })}
+        </Stack>
+      </Popover.Dropdown>
+    </Popover>
   )
 }
 

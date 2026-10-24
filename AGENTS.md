@@ -23,7 +23,7 @@ pnpm dev      # server + UI on http://localhost:6875
 
 ## Conventions
 
-- One node type = one file in `server/nodes/`, exporting `{ type, label, category, group, config, run }` (`group` is its sub-section in the library).
+- One node type = one file in `server/nodes/`, exporting `{ type, label, category, group, config, run }` (`group` is its sub-section in the library). An action worth trying from its settings sets `play: true` (or `play: { only: { … } }` for some settings only): its live column gets Play and the result.
 - One widget type = one folder in `widgets/`.
 - A widget node carries `state` (saved in its widget file: settings, action inputs, kept data) and `runtime` (in memory, lost on restart).
 - Data lives in `./data` as JSON files (gitignored). Never commit it.
@@ -33,7 +33,7 @@ pnpm dev      # server + UI on http://localhost:6875
 
 ## Node settings layout
 
-Every node's settings pane has the same layout (`Config` in `ui/src/Workflow.jsx`, fields in `ui/src/Fields.jsx`): header (icon, name, close), one-line description, notices (`Notice.jsx`: yellow when something won't run yet, red when broken, linking to the Settings pane that fixes it), then a settings column (420px at most, on the left even when nothing is beside it) and, only when the node has something to watch or press, a live column on its right (widget preview and Start/Stop/Cancel, Control Pad buttons, Queue line, Hue routine Stop/Cancel). Widget nodes split their settings in two sections: the inputs of the action a signal runs (titled after it, e.g. **Start**) and **Widget** (its settings); their live column has the preview and the Start, Stop and Cancel buttons (Start named after the action it runs, Stop and Cancel always named so), Start being a split button when the widget has other actions.
+Every node's settings pane has the same layout (`Config` in `ui/src/Workflow.jsx`, fields in `ui/src/Fields.jsx`): header (icon, name, close), one-line description, notices (`Notice.jsx`: yellow when something won't run yet, red when broken, linking to the Settings pane that fixes it), then a settings column (420px at most, on the left even when nothing is beside it) and, only when the node has something to watch or press, a live column on its right (widget preview and Start/Stop/Cancel, Control Pad buttons, Queue line, an action's Play and result, Hue routine Stop/Cancel). Widget nodes split their settings in two sections: the inputs of the action a signal runs (titled after it, e.g. **Start**) and **Widget** (its settings); their live column has the preview and the Start, Stop and Cancel buttons (Start named after the action it runs, Stop and Cancel always named so), Start being a split button when the widget has other actions.
 
 When writing a node or widget type's `config` and `fields`:
 

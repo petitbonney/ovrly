@@ -8,6 +8,7 @@ export default {
   label: 'MyInstants',
   category: 'action',
   group: 'Media',
+  play: { only: { pick: 'random' } },
   description: 'Finds a sound on Myinstants and adds its URL as {{sound}}.',
   adds: ['sound', 'title'],
   fields: {

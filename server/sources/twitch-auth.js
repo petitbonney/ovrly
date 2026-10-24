@@ -3,6 +3,7 @@
 // Also the Helix API helper, which signs requests with that token.
 import * as store from '../store.js'
 import { record } from '../bus.js'
+import { vars, saveVars } from '../vars.js'
 
 export const CLIENT_ID = '6vu8lgkxb5ljuijesmm2rlirke32ns'
 // Polls and predictions (Voting widget), what the EventSub triggers need, then the Twitch action nodes.
@@ -32,6 +33,11 @@ async function save(tokens) {
 
 function show() {
   Object.assign(status, { login: auth?.login ?? '', userId: auth?.userId ?? '', scopesOk: SCOPES.every((s) => auth?.scopes?.includes(s)) })
+  // {{ $vars.channel }}: the signed-in channel's login (its URL slug), e.g. Channel Info's default channel.
+  if (status.login && vars.channel !== status.login) {
+    vars.channel = status.login
+    saveVars()
+  }
 }
 
 export async function load() {
@@ -88,7 +94,10 @@ export async function token() {
 // One Helix API call as the signed-in streamer, e.g. helix('POST', 'polls', { title, … }); broadcaster_id is added to
 // the body (but for EventSub, which takes a condition instead). With query (the endpoints that take their IDs in the
 // URL), that query is sent instead, and the body as is. Returns the response's data array.
-export async function helix(method, path, body, query) {
+export const helix = async (method, path, body, query) => (await helixJson(method, path, body, query)).data
+
+// Like helix, but returns the whole response ({ data, total, pagination… }; {} when it has none).
+export async function helixJson(method, path, body, query) {
   const res = await fetch(`https://api.twitch.tv/helix/${path}${query && Object.keys(query).length ? `?${new URLSearchParams(query)}` : ''}`, {
     method,
     headers: { 'Client-Id': CLIENT_ID, Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
@@ -97,7 +106,7 @@ export async function helix(method, path, body, query) {
   const json = await res.json().catch(() => ({}))
   record('http', 'twitch-api', { method, path, ...(!res.ok && { error: json.message }) })
   if (!res.ok) throw new Error(`Twitch ${path}: ${json.message || res.status}`)
-  return json.data
+  return json
 }
 
 // The query most moderation endpoints take: the streamer's channel, moderated by the streamer.
@@ -122,6 +131,8 @@ export async function logout() {
   if (auth?.access) await post('revoke', { token: auth.access }).catch(() => {})
   auth = null
   await store.remove('settings', 'twitch-auth')
+  delete vars.channel
+  saveVars()
   show()
   Object.assign(status, { device: null, error: '' })
 }

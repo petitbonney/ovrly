@@ -27,6 +27,29 @@ app.use(express.json())
 
 // Node types for the UI library (metadata only, no run function).
 app.get('/api/nodes', (req, res) => res.json(Object.values(nodes).map(({ run, ...meta }) => meta)))
+// Play in an action node's settings (node types with `play`): runs the node once with the editor's config { type, config },
+// outside any workflow run and with no data (only {{ $vars }} fill), and answers { out } (null: stopped) or { error }.
+// Stop aborts it, as cancelling a workflow would (e.g. Switch Scene switches back at once).
+const plays = {} // workflow/node -> AbortController
+app.post('/api/nodes/:workflow/:node/play', async (req, res) => {
+  const def = nodes[req.body.type]
+  if (!def?.play) return res.sendStatus(400)
+  const id = `${req.params.workflow}/${req.params.node}`
+  plays[id]?.abort()
+  const controller = (plays[id] = new AbortController())
+  try {
+    const out = await def.run({ config: { ...def.config, ...req.body.config }, data: {}, id, signal: controller.signal })
+    res.json({ out: controller.signal.aborted ? null : out ?? null })
+  } catch (err) {
+    res.json(controller.signal.aborted ? { out: null } : { error: err.message })
+  } finally {
+    if (plays[id] === controller) delete plays[id]
+  }
+})
+app.post('/api/nodes/:workflow/:node/stop', (req, res) => {
+  plays[`${req.params.workflow}/${req.params.node}`]?.abort()
+  res.sendStatus(204)
+})
 // Fire a fake event on the bus, e.g. POST /api/emit/chat { user, message }.
 app.post('/api/emit/:event', (req, res) => {
   bus.emit(req.params.event, req.body)

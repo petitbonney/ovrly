@@ -10,7 +10,7 @@ import {
   IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowForkTriple, IconLayoutCollage, IconBell, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconDice5, IconTarget, IconDeviceGamepad2, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
   IconMessageCode, IconMovie, IconAd, IconBan, IconBookmark, IconChecks, IconMessageCog, IconMessageShare, IconPencil, IconRocket,
-  IconScissors, IconTicket, IconTrash, IconUserSearch, IconMessageStar, IconHeartHandshake,
+  IconScissors, IconTicket, IconTrash, IconUserSearch, IconDeviceTvOld, IconMessageStar, IconHeartHandshake,
   IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVideo, IconVolume, IconVariable, IconWebhook, IconAirConditioning, IconWorld,
   IconLayoutGrid, IconBulb, IconPlugOff,
 } from '@tabler/icons-react'
@@ -75,6 +75,7 @@ export const icons = {
   'twitch-reward': IconTicket,
   'twitch-raid': IconRocket,
   'twitch-user': IconUserSearch,
+  'twitch-channel-info': IconDeviceTvOld,
   'widget-action': IconBroadcast,
   widget: IconLayoutDashboard,
   merge: IconLayoutCollage,
