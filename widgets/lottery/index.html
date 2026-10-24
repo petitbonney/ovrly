@@ -2,25 +2,15 @@
 <meta charset="utf-8">
 <title>Lottery</title>
 <link rel="stylesheet" href="/widgets/base.css">
-<!-- anime.js, three.js and cannon-es, served from node_modules by the server (/vendor). -->
+<!-- anime.js, served from node_modules by the server (/vendor). -->
 <script type="importmap">
   {
     "imports": {
-      "animejs": "/vendor/animejs/index.js",
-      "animejs/adapters/three": "/vendor/animejs/adapters/three/index.js",
-      "three": "/vendor/three/build/three.module.js",
-      "three/addons/": "/vendor/three/examples/jsm/",
-      "cannon-es": "/vendor/cannon-es/cannon-es.js"
+      "animejs": "/vendor/animejs/index.js"
     }
   }
 </script>
 <style>
-  /* The stage fills the page; its canvases (.fill) too. Pieces made of HTML go on the board: 440px, the size layouts
-     are designed at, centered and scaled to fit the page (--k, set below). Canvases draw at the same scale. */
-  #stage { position: fixed; inset: 0; overflow: hidden; }
-  #stage > *, #board > * { position: absolute; }
-  #board { left: 50%; top: 50%; width: 440px; height: 440px; translate: -50% -50%; scale: var(--k, 1); }
-  .fill { inset: 0; width: 100%; height: 100%; }
   /* Slot cabinet bulbs: chase while drawing, flash on the win (slots.js). */
   .light { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #ffe08a; box-shadow: 0 0 10px #ffb400; opacity: .35; }
   .light.alt { background: #ffd0e4; box-shadow: 0 0 10px #ff4f8b; }
@@ -34,11 +24,6 @@
   .wheel-hub { left: 210px; top: 210px; width: 20px; height: 20px; border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #ffe2b0, #ffa21f 35%, #d0680a 75%, #8a3f00);
     box-shadow: inset 0 -1.5px 2px #0006, inset 0 1.5px 1.5px #fffa; }
-
-  /* Roulette */
-  .roulette-arm { left: 211px; top: 211px; }
-  .roulette-ball { width: 18px; height: 18px; border-radius: 50%; opacity: 0;
-    background: radial-gradient(circle at 35% 30%, #fff, #ddd 50%, #888); box-shadow: 0 2px 4px #000c; }
 
   /* Slot */
   .slots-cabinet { left: 20px; top: 10px; width: 340px; height: 420px; border-radius: 30px; background: linear-gradient(160deg, #b51d4a, #5c0c3a);
@@ -59,58 +44,20 @@
 </style>
 <div id="stage"></div>
 <script type="module">
-  import { engine } from 'animejs'
-  import { subscribe, wait } from '/widgets/lib.js'
+  import { mount } from '/widgets/draw-page.js'
   import { playMs, choices, palette } from '/widgets/lottery/widget.js'
   import wheel from '/widgets/lottery/wheel.js'
-  import roulette from '/widgets/lottery/roulette.js'
   import slots from '/widgets/lottery/slots.js'
-  import dice from '/widgets/lottery/dice.js'
-  const layouts = { wheel, roulette, slots, dice }
-  const stage = document.getElementById('stage')
+  const layouts = { wheel, slots }
 
-  // OBS may hide the source: draws keep time with the server instead of pausing.
-  engine.pauseOnDocumentHidden = false
-
-  const board = Object.assign(document.createElement('div'), { id: 'board' })
-
-  // Each layout builds itself: canvases in the stage, HTML pieces on the board, drawn at res (device pixels per design
-  // px). It returns { play(winner, ms) → anime timeline that ends on the winner, stop(), destroy() }. It is rebuilt when
-  // the settings or the options loaded from data change, or the page is resized. The page shows no result text: the winner is in the workflow's data
-  // ({{winner}}), for an alert or a chat message to announce it.
-  let layout, key, lastSpin = 0, shown
-  function build(config) {
-    const k = Math.min(innerWidth, innerHeight) / 440 // the board's scale: as big as the page allows
-    document.documentElement.style.setProperty('--k', k)
-    layout?.destroy()
-    stage.replaceChildren()
-    board.replaceChildren()
-    layout = layouts[config.layout](stage, board, config, k * devicePixelRatio)
-    stage.append(board) // over the canvases
-    shown = config
-  }
-  addEventListener('resize', () => shown && build(shown))
-
-  let tl // the draw playing, or played last
-  subscribe(({ state: settings, runtime }) => {
-    // The wheel and the slot show their options: their own, or those loaded from data, with the palette's colors. With
-    // none loaded yet, one blank option per palette color, to show what the palette looks like (none can win).
-    let options = choices(settings)
-    if (settings.source === 'data' && !options.length) options = palette(settings).map((color) => ({ label: '', color, weight: 1 }))
-    const config = ['wheel', 'slots'].includes(settings.layout) ? { ...settings, options } : settings
-    if (JSON.stringify(config) !== key) {
-      key = JSON.stringify(config)
-      build(config)
-    }
-    if (runtime.winner < 0 || runtime.at === lastSpin || runtime.ended || runtime.layout !== config.layout) return
-    lastSpin = runtime.at
-    const ms = playMs(config)
-    const played = Math.min(Math.max(Date.now() - runtime.at, 0), ms) // a page opened mid-draw catches up
-    layout.stop()
-    tl = layout.play(runtime.winner, ms).seek(played)
-    return wait(ms - played) // finished once the draw is over
-  }, {
-    stop: () => tl?.seek(tl.duration), // the draw jumps to its end, on the winner
-    cancel: () => layout?.stop(), // the draw freezes where it is
+  // The wheel and the slot show their options: their own, or those loaded from data, with the palette's colors. With
+  // none loaded yet, one blank option per palette color, to show what the palette looks like (none can win).
+  mount((stage, board, config, res) => layouts[config.layout](stage, board, config, res), {
+    playMs,
+    configure(state) {
+      let options = choices(state)
+      if (state.source === 'data' && !options.length) options = palette(state).map((color) => ({ label: '', color, weight: 1 }))
+      return { ...state, options }
+    },
   })
 </script>

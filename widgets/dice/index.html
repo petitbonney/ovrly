@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Dice Roll</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<!-- anime.js, three.js and cannon-es, served from node_modules by the server (/vendor). -->
+<script type="importmap">
+  {
+    "imports": {
+      "animejs": "/vendor/animejs/index.js",
+      "animejs/adapters/three": "/vendor/animejs/adapters/three/index.js",
+      "three": "/vendor/three/build/three.module.js",
+      "three/addons/": "/vendor/three/examples/jsm/",
+      "cannon-es": "/vendor/cannon-es/cannon-es.js"
+    }
+  }
+</script>
+<div id="stage"></div>
+<script type="module">
+  import { mount } from '/widgets/draw-page.js'
+  import { playMs } from '/widgets/dice/widget.js'
+  import dice from '/widgets/dice/dice.js'
+  mount(dice, { playMs })
+</script>

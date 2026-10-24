@@ -30,7 +30,7 @@ export function normalize(def) {
 }
 
 // Types are kept in the library's order: most used first (unlisted ones last).
-const order = ['alerts', 'voting', 'sound', 'image', 'video', 'lottery', 'twitch-plays']
+const order = ['alerts', 'voting', 'sound', 'image', 'video', 'lottery', 'roulette', 'dice', 'twitch-plays']
 const rank = (name) => (order.includes(name) ? order.indexOf(name) : order.length)
 export const types = {}
 const folders = (await fs.readdir(dir, { withFileTypes: true })).filter((e) => e.isDirectory()).sort((a, b) => rank(a.name) - rank(b.name))

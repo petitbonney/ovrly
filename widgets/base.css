@@ -8,3 +8,11 @@ html, body { margin: 0; background: transparent; color: #fff; font: 700 24px sys
 .row { position: relative; z-index: 0; display: flex; justify-content: space-between; gap: 16px; padding: 6px 10px; margin: 6px 0; border-radius: 6px; background: #ffffff14; overflow: hidden; }
 .row .bar { position: absolute; inset: 0 auto 0 0; z-index: -1; background: #9147ff99; }
 
+
+/* Draw widgets (lottery, roulette, dice roll; draw-page.js): the stage fills the page; its canvases (.fill) too. Pieces
+   made of HTML go on the board: 440px, the size layouts are designed at, centered and scaled to fit the page (--k).
+   Canvases draw at the same scale. */
+#stage { position: fixed; inset: 0; overflow: hidden; }
+#stage > *, #board > * { position: absolute; }
+#board { left: 50%; top: 50%; width: 440px; height: 440px; translate: -50% -50%; scale: var(--k, 1); }
+.fill { inset: 0; width: 100%; height: 100%; }

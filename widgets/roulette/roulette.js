@@ -1,8 +1,8 @@
-// Roulette layout (European, 0-36): the rotor turns one way, the ball races the other way on the track, drops,
+// Roulette (European, 0-36): the rotor turns one way, the ball races the other way on the track, drops,
 // bounces across the frets into the winning pocket, then the other pockets dim.
 import { createTimeline } from 'animejs'
 import { el } from '/widgets/lib.js'
-import { REDS } from '/widgets/lottery/widget.js'
+import { REDS } from '/widgets/roulette/widget.js'
 
 // Pocket order around the wheel, clockwise from the top.
 const ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26]

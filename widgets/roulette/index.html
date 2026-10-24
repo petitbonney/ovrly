@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Roulette</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<!-- anime.js, served from node_modules by the server (/vendor). -->
+<script type="importmap">
+  {
+    "imports": {
+      "animejs": "/vendor/animejs/index.js"
+    }
+  }
+</script>
+<style>
+  .roulette-arm { left: 211px; top: 211px; }
+  .roulette-ball { width: 18px; height: 18px; border-radius: 50%; opacity: 0;
+    background: radial-gradient(circle at 35% 30%, #fff, #ddd 50%, #888); box-shadow: 0 2px 4px #000c; }
+</style>
+<div id="stage"></div>
+<script type="module">
+  import { mount } from '/widgets/draw-page.js'
+  import { playMs } from '/widgets/roulette/widget.js'
+  import roulette from '/widgets/roulette/roulette.js'
+  mount(roulette, { playMs })
+</script>
