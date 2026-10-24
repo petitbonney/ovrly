@@ -30,12 +30,12 @@ import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
 import FlowNode, { colors, icons, widgetIcons, outputsOf } from './FlowNode.jsx'
 import layout from './layout.js'
-import { exportWorkflow, download } from './share.js'
+import { exportWorkflow, download, withWidgetIds } from './share.js'
 import { get, json } from './api.js'
 import { requirements } from './Settings.jsx'
 
 const findWidget = (widgets, id) => widgets.find((w) => w.id === id)
-// The widget instance a node points to (id or name): a widget node's own, or a Widget Action node's linked widget node's.
+// The widget instance a node points to: a widget node's own, or a Widget Action node's linked widget node's.
 const widgetRef = (node, nodes, edges) => node?.data.type !== 'widget-action' ? node?.data.config.widget
   : nodes.find((n) => n.data.type === 'widget' && edges.some((e) => e.source === node.id && e.target === n.id))?.data.config.widget
 // Copied nodes and the edges between them; kept in memory so they can be pasted into another workflow.
@@ -545,20 +545,18 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   const paste = async () => {
     const { nodes: copied, edges: links } = clipboard
     const ids = Object.fromEntries(copied.map((n) => [n.id, crypto.randomUUID()]))
-    const instances = {}
+    const instances = {} // copied widget id -> its new instance's id
     for (const n of copied.filter((n) => n.data.type === 'widget' && knownWidgets[n.data.config.widget])) {
       const { type, state } = knownWidgets[n.data.config.widget]
       const res = await fetch('/api/widgets', json('POST', { type, state: structuredClone(state) }))
-      if (res.ok) instances[n.id] = (await res.json()).id
+      if (res.ok) instances[n.data.config.widget] = (await res.json()).id
     }
     const r = flowRef.current.getBoundingClientRect()
     const at = screenToFlowPosition(pointer.current ?? { x: r.x + r.width / 2, y: r.y + r.height / 2 })
     const b = boundsOf(copied)
     const d = snap({ x: at.x - b.x - b.width / 2, y: at.y - b.y - b.height / 2 })
-    const pasted = copied.map((n) => ({
-      ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y },
-      ...(instances[n.id] && { data: { ...n.data, config: { ...n.data.config, widget: instances[n.id] } } }),
-    }))
+    // A Merge Widgets node pasted with its widget nodes keeps their placement, now keyed by the new instances.
+    const pasted = withWidgetIds(copied, instances).map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y } }))
     setNodes((ns) => ns.map((n) => ({ ...n, selected: false })).concat(pasted))
     setEdges((es) => es.concat(links.map((ed) => ({ ...ed, id: crypto.randomUUID(), source: ids[ed.source], target: ids[ed.target] }))))
     if (Object.keys(instances).length) onWidgetChange()
