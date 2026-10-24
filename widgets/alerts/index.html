@@ -152,27 +152,27 @@
   }
 
   let layout
-  subscribe(({ config, state }) => {
-    if (state.ended || config.layout !== layout) stopAll()
-    layout = config.layout
-    setVolume(Math.min(Math.max(config.volume, 0) / 100, 1))
-    if (state.ended) return
-    for (const id of [...shown.keys()]) if (!state.items.some((i) => i.id === id)) stop(id) // replaced by a newer one
-    const ms = life(config)
-    for (const item of state.items) {
+  subscribe(({ state, runtime }) => {
+    if (runtime.ended || state.layout !== layout) stopAll()
+    layout = state.layout
+    setVolume(Math.min(Math.max(state.volume, 0) / 100, 1))
+    if (runtime.ended) return
+    for (const id of [...shown.keys()]) if (!runtime.items.some((i) => i.id === id)) stop(id) // replaced by a newer one
+    const ms = life(state)
+    for (const item of runtime.items) {
       if (shown.has(item.id) || Date.now() - item.at >= ms) continue
       const box = el('div', `alert ${layout}`)
-      box.style.setProperty('--c', config.color)
+      box.style.setProperty('--c', state.color)
       const alert = { box }
       shown.set(item.id, alert)
       // Queued alerts wait for their turn.
       alert.timer = setTimeout(() => {
         const late = Math.max(Date.now() - item.at, 0) // a page opened mid-alert catches up, silently
         board.append(box)
-        alert.tl = layouts[layout](box, item, ms, { ...config, sound: config.volume > 0 && late < 250 })
+        alert.tl = layouts[layout](box, item, ms, { ...state, sound: state.volume > 0 && late < 250 })
         alert.tl.seek(late).then(() => stop(item.id))
       }, item.at - Date.now())
     }
-    return wait(Math.max(0, ...state.items.map((i) => i.at + ms)) - Date.now()) // finished once the last one is gone
+    return wait(Math.max(0, ...runtime.items.map((i) => i.at + ms)) - Date.now()) // finished once the last one is gone
   }, { stop: fadeAll, cancel: stopAll })
 </script>

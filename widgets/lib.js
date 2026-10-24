@@ -1,6 +1,6 @@
 // Widget helpers, shared by the overlay pages (browser) and widget.js files (server).
 
-// Page side: calls render({ config, state }) now and on every update from the server. When "stop" or "cancel" ends what
+// Page side: calls render({ state, runtime }) now and on every update from the server. When "stop" or "cancel" ends what
 // plays, the page's own handler for it runs instead (end: { stop, cancel }, e.g. play the outro, or cut); a page
 // without one renders the new state. render may return a promise (e.g. an animation): once it settles, the
 // page tells the server the action finished, so the workflow moves on. EventSource reconnects by itself, so OBS

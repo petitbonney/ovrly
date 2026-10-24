@@ -27,22 +27,22 @@
     animate(video, { opacity: [1, 0], duration: FADE, ease: 'inQuad', onComplete: () => video.pause() })
   }
 
-  subscribe(({ config, state, run }) => {
-    // Only an action plays, not a config change or a reload; a volume change applies to the video playing.
-    if (!run || state.ended || !state.url) {
-      if (current) video.volume = volume(config)
+  subscribe(({ state, runtime, run }) => {
+    // Only an action plays, not a settings change or a reload; a volume change applies to the video playing.
+    if (!run || runtime.ended || !runtime.url) {
+      if (current) video.volume = volume(state)
       return
     }
     stop(false)
-    video.volume = volume(config)
+    video.volume = volume(state)
     return new Promise((resolve) => {
       current = { resolve }
-      video.src = state.url
+      video.src = runtime.url
       video.onended = video.onerror = () => stop(true)
       // OBS plays without a click; a plain browser tab may refuse, which ends the action at once.
       video.play().then(() => {
         video.style.opacity = 1
-        if (current?.resolve === resolve && config.duration > 0) current.timer = setTimeout(() => stop(true), config.duration * 1000 - FADE)
+        if (current?.resolve === resolve && state.duration > 0) current.timer = setTimeout(() => stop(true), state.duration * 1000 - FADE)
       }, () => stop(false))
     })
   }, { stop: () => stop(true), cancel: () => stop(false) })

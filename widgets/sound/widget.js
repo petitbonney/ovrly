@@ -10,12 +10,12 @@ export default {
   label: 'Sound',
   description: 'Plays a sound (a file on disk or a URL), up to a max duration.',
   visual: false, // nothing to see: no preview in its settings, no box on a Merge Widgets canvas
-  config: { duration: 0, volume: 100 },
+  state: { duration: 0, volume: 100 },
   fields: {
     duration: { label: 'Max duration', unit: 's', presets: [5, 10, 15, 30], hint: 'Cut with a short fade-out; 0 plays all of it' },
     volume: { unit: '%', slider: true, hint: 'Myinstants sounds are often loud' },
   },
-  state: { url: '' },
+  runtime: { url: '' },
   // No playTime: the server can't know a sound's length, so the page tells when it has ended (or been cut).
   stopTime: () => FADE,
   actions: {
@@ -23,7 +23,7 @@ export default {
       description: 'Plays the sound, up to the max duration; the workflow goes on once it has ended.',
       inputs: { sound: { type: 'sound', hint: 'Browse files, or a URL or path, e.g. {{sound}} from a MyInstants node' } },
       // An input that isn't a sound (e.g. text left in a widget node) plays nothing.
-      run: (state, { sound }) => ({ url: soundUrl(sound) }),
+      run: ({ input: { sound } }) => ({ runtime: { url: soundUrl(sound) } }),
     },
     stop: { description: 'The sound fades out now; the workflow goes on.' },
     cancel: { description: 'The sound is cut at once; the workflow stops there.' },

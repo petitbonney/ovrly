@@ -25,11 +25,11 @@
     anim?.pause()
     img.style.opacity = 0
   }
-  subscribe(async ({ config, state }) => {
+  subscribe(async ({ state, runtime }) => {
     clearTimeout(timer)
-    const left = state.ended || !state.url ? 0 : state.at + config.duration * 1000 - Date.now()
+    const left = runtime.ended || !runtime.url ? 0 : runtime.at + state.duration * 1000 - Date.now()
     if (left <= 0) return void (img.style.opacity = 0)
-    if (img.getAttribute('src') !== state.url) img.src = state.url
+    if (img.getAttribute('src') !== runtime.url) img.src = runtime.url
     fade(false)
     timer = setTimeout(() => fade(true), Math.max(left - FADE, 0))
     return wait(left + FADE)
