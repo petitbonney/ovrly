@@ -1,8 +1,8 @@
 // Workflow editor: ReactFlow graph (center) and selected node settings (bottom), autosaved.
 // Nodes are dropped from the library: node types, or widget types (each drop creates a widget instance and its widget
-// node). A widget node starts its widget (or runs the action its type links instead); a Widget Action node linked in
-// front of it makes it run another one, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; pasted
-// widget nodes share the same instance, which has one widget node per workflow. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y) undo and redo graph edits.
+// node). A widget node starts its widget (or runs the action its type binds to signals instead); a Widget Action node linked in
+// front of it makes it run another one, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; a
+// pasted widget node is a new instance with a copy of the widget's state. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y) undo and redo graph edits.
 // Canvas rule: the view never moves on its own, except to keep the selected node in sight. Shift+1 fits the graph,
 // Escape closes the node settings.
 import { useEffect, useRef, useState } from 'react'
@@ -24,18 +24,18 @@ import {
 } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import DeckGrid from './Deck.jsx'
-import WidgetSettings, { ActionsInfo, WidgetPreview } from './Widget.jsx'
+import WidgetPane, { ActionsInfo } from './Widget.jsx'
 import QueueLine from './QueueLine.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
 import FlowNode, { colors, icons, widgetIcons, outputsOf } from './FlowNode.jsx'
 import layout from './layout.js'
-import { exportWorkflow, download } from './share.js'
+import { exportWorkflow, download, withWidgetIds } from './share.js'
 import { get, json } from './api.js'
 import { requirements } from './Settings.jsx'
 
-const findWidget = (widgets, ref) => widgets.find((w) => w.id === ref || w.name === ref)
-// The widget instance a node points to (id or name): a widget node's own, or a Widget Action node's linked widget node's.
+const findWidget = (widgets, id) => widgets.find((w) => w.id === id)
+// The widget instance a node points to: a widget node's own, or a Widget Action node's linked widget node's.
 const widgetRef = (node, nodes, edges) => node?.data.type !== 'widget-action' ? node?.data.config.widget
   : nodes.find((n) => n.data.type === 'widget' && edges.some((e) => e.source === node.id && e.target === n.id))?.data.config.widget
 // Copied nodes and the edges between them; kept in memory so they can be pasted into another workflow.
@@ -53,14 +53,14 @@ const knownWidgets = {}
 
 // What a node needs (requirement keys, see Settings.jsx): its type's `needs`, its widget type's for a widget node, and
 // those of the options picked in their settings ({ needs: key }, or { streamer: true }: Twitch in Streamer mode).
-// config and widgetConfig: the settings with their defaults.
-function needsOf(def, config, type, widgetConfig) {
+// config and widgetState: the settings with their defaults.
+function needsOf(def, config, type, widgetState) {
   const picked = (fields = {}, values) => Object.entries(fields).flatMap(([key, f]) => {
     const option = f.options?.find((o) => o.value === values[key])
     return [option?.needs, option?.streamer && 'twitch'].filter(Boolean)
   })
   const own = [...(def?.needs ?? []), ...picked(def?.fields, config)]
-  return type ? [...own, ...(type.needs ?? []), ...picked(type.fields, widgetConfig)] : own
+  return type ? [...own, ...(type.needs ?? []), ...picked(type.fields, widgetState)] : own
 }
 
 // Data keys a node can use as {{key}}: what every node upstream of it adds (a manual trigger adds its JSON's keys,
@@ -141,14 +141,11 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
   const { widget } = context
   const type = widget && context.types.find((t) => t.type === widget.type)
   const config = { ...def.config, ...node.data.config }
-  const needs = needsOf(def, config, isWidget && type, { ...type?.config, ...widget?.config })
+  const needs = needsOf(def, config, isWidget && type, { ...type?.state, ...widget?.state })
   const missing = requirements.filter((r) => off.includes(r.key) && needs.includes(r.key))
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[def.type]) ?? icons.log
-  const fields = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={{ ...context, off }} onChange={onChange} />
-  const settings = !isWidget ? fields
-    : type && <WidgetSettings key={widget.id} widget={widget} type={type} inputs={fields} off={off} onChange={onWidgetChange} onCopy={onCopy} onError={onError} />
-  const live = isWidget ? type && <WidgetPreview widget={widget} type={type} testInput={node.data.config.input} />
-    : def.type === 'deck' ? <DeckGrid workflow={workflow} node={node.id} config={config} />
+  const settings = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={{ ...context, off }} onChange={onChange} />
+  const live = def.type === 'deck' ? <DeckGrid workflow={workflow} node={node.id} config={config} />
     : def.queue ? <QueueLine workflow={workflow} node={node.id} />
     : def.type === 'hue' && config.mode === 'routine' && (
       <Stack gap="xs">
@@ -173,13 +170,13 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
   ].filter(Boolean)
   return (
     <AppShell.Footer>
-      <div className={live || isMerge ? 'pane split' : 'pane'}>
+      <div className={live || isMerge || (isWidget && type) ? 'pane split' : 'pane'}>
         <Group gap="xs" mb={4} wrap="nowrap">
           <Icon size={20} color={colors[def.category]} style={{ flexShrink: 0 }} />
-          <Text fw={600} truncate>{isWidget ? widget?.name ?? 'Missing widget' : def.label}</Text>
+          <Text fw={600} truncate>{isWidget ? widget?.state.name ?? 'Missing widget' : def.label}</Text>
           {/* The widget's actions, as its settings allow them now (e.g. Voting's "win" only for a prediction). */}
           {isWidget && type && (
-            <Tooltip label={<ActionsInfo type={type} config={{ ...type.config, ...widget.config }} />} multiline withinPortal position="bottom-start">
+            <Tooltip label={<ActionsInfo type={type} state={{ ...type.state, ...widget.state }} />} multiline withinPortal position="bottom-start">
               <IconInfoCircle size={16} color="var(--mantine-color-dimmed)" style={{ cursor: 'help', flexShrink: 0 }} />
             </Tooltip>
           )}
@@ -189,6 +186,8 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
         {notices.length > 0 && <Stack gap="xs" mb="sm">{notices}</Stack>}
         {isMerge ? (
           <Merge workflow={workflow} node={node.id} config={config} widgets={context.inputs} types={context.types} onChange={onChange} />
+        ) : isWidget ? (
+          type && <WidgetPane key={widget.id} widget={widget} type={type} context={context} off={off} onChange={onWidgetChange} onCopy={onCopy} onError={onError} />
         ) : live ? (
           <Group className="widget-split" align="stretch" gap="xl" wrap="nowrap">
             <Stack className="settings" flex="1 1 280px" maw={420}>{settings}</Stack>
@@ -261,6 +260,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const source = new EventSource('/api/activity')
     source.onmessage = (e) => {
       const a = JSON.parse(e.data)
+      if (a.widget) return onWidgetChange() // an action changed a widget's state: its settings show it
       if (a.workflow !== workflow.id) return
       if ('running' in a) return setFirings(a.running)
       if (a.edge) return pass(a.edge)
@@ -323,10 +323,10 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const widget = findWidget(widgets, widgetRef(n, nodes, edges))
     const widgetType = types.find((t) => t.type === widget?.type)
     const isWidget = n.data.type === 'widget'
-    const needs = needsOf(def, { ...def?.config, ...n.data.config }, isWidget && widgetType, { ...widgetType?.config, ...widget?.config })
+    const needs = needsOf(def, { ...def?.config, ...n.data.config }, isWidget && widgetType, { ...widgetType?.state, ...widget?.state })
     const missing = requirements.filter((r) => off.includes(r.key) && needs.includes(r.key)).map((r) => r.needs)
     const context = { workflowId: workflow.id, def, widget, widgetType, missing }
-    const shown = { ...n, ariaLabel: (isWidget ? widget?.name : def?.label) ?? n.data.label, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
+    const shown = { ...n, ariaLabel: (isWidget ? widget?.state.name : def?.label) ?? n.data.label, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
     return live.nodes[n.id] ? { ...shown, className: `run-${live.nodes[n.id]}` } : shown
   })
   const shownEdges = allEdges.map((e) => ({ ...e, targetHandle: inputOf[e.id] })).map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow', markerEnd: { ...edgeOptions.markerEnd, color: '#4dabf7' } } : e))
@@ -411,7 +411,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const ids = new Set(list.filter((n) => n.data.type === 'widget').map((n) => n.data.config.widget))
     const missing = [...ids].filter((id) => knownWidgets[id] && !widgets.some((w) => w.id === id))
     for (const id of missing) {
-      await fetch(`/api/widgets/${id}`, json('PUT', knownWidgets[id]))
+      await fetch(`/api/widgets/${id}`, json('PUT', { type: knownWidgets[id].type, state: knownWidgets[id].state }))
     }
     if (missing.length) onWidgetChange()
   }
@@ -491,7 +491,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
       // Signed in to Twitch (Streamer mode): a widget with a Twitch mode (Voting) starts in it.
       const twitch = type.fields?.mode?.options?.find((o) => o.streamer)
       const mode = twitch && (await get('/api/twitch')).streamer ? { mode: twitch.value } : {}
-      const res = await fetch('/api/widgets', json('POST', { name: type.label, type: type.type, config: mode }))
+      const res = await fetch('/api/widgets', json('POST', { type: type.type, state: mode }))
       config = { widget: (await res.json()).id }
       onWidgetChange()
     }
@@ -531,7 +531,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     return () => window.removeEventListener('ovrly-add', onAdd)
   }, [])
 
-  const nodeName = (n) => (n.data.type === 'widget' ? findWidget(widgets, n.data.config.widget)?.name : defOf(n)?.label) ?? n.data.label
+  const nodeName = (n) => (n.data.type === 'widget' ? findWidget(widgets, n.data.config.widget)?.state.name : defOf(n)?.label) ?? n.data.label
   const copy = (picked) => {
     const ids = picked.map((n) => n.id)
     clipboard = { nodes: picked, edges: edges.filter((ed) => ids.includes(ed.source) && ids.includes(ed.target)) }
@@ -539,26 +539,28 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     notify(`Copied ${what}. Paste with Ctrl+V, here or in another workflow.`)
   }
   // Pasted nodes get new ids and keep their layout, centered on the pointer (or the canvas when the pointer is
-  // elsewhere). A widget instance already in this workflow is not pasted again: links from the copied widget node go
-  // to the one already here.
+  // elsewhere). A pasted widget node gets a new widget instance, with a copy of the copied one's state (settings,
+  // inputs, kept data); one whose instance is unknown (deleted) is pasted as it is, and says so in its settings.
   const pointer = useRef(null)
-  const paste = () => {
-    const here = Object.fromEntries(nodes.filter((n) => n.data.type === 'widget').map((n) => [n.data.config.widget, n.id]))
-    const fresh = clipboard.nodes.filter((n) => !(n.data.type === 'widget' && here[n.data.config.widget]))
-    const skipped = clipboard.nodes.length - fresh.length
-    if (!fresh.length) return notify(skipped === 1 ? 'This widget is already in this workflow.' : 'These widgets are already in this workflow.')
-    const ids = Object.fromEntries(clipboard.nodes.map((n) => [n.id, fresh.includes(n) ? crypto.randomUUID() : here[n.data.config.widget]]))
+  const paste = async () => {
+    const { nodes: copied, edges: links } = clipboard
+    const ids = Object.fromEntries(copied.map((n) => [n.id, crypto.randomUUID()]))
+    const instances = {} // copied widget id -> its new instance's id
+    for (const n of copied.filter((n) => n.data.type === 'widget' && knownWidgets[n.data.config.widget])) {
+      const { type, state } = knownWidgets[n.data.config.widget]
+      const res = await fetch('/api/widgets', json('POST', { type, state: structuredClone(state) }))
+      if (res.ok) instances[n.data.config.widget] = (await res.json()).id
+    }
     const r = flowRef.current.getBoundingClientRect()
     const at = screenToFlowPosition(pointer.current ?? { x: r.x + r.width / 2, y: r.y + r.height / 2 })
-    const b = boundsOf(fresh)
+    const b = boundsOf(copied)
     const d = snap({ x: at.x - b.x - b.width / 2, y: at.y - b.y - b.height / 2 })
-    const pasted = fresh.map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y } }))
+    // A Merge Widgets node pasted with its widget nodes keeps their placement, now keyed by the new instances.
+    const pasted = withWidgetIds(copied, instances).map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y } }))
     setNodes((ns) => ns.map((n) => ({ ...n, selected: false })).concat(pasted))
-    restoreWidgets(pasted)
-    const links = clipboard.edges.filter((ed) => ids[ed.source] && ids[ed.target])
     setEdges((es) => es.concat(links.map((ed) => ({ ...ed, id: crypto.randomUUID(), source: ids[ed.source], target: ids[ed.target] }))))
-    const what = fresh.length === 1 ? nodeName(fresh[0]) : `${fresh.length} nodes`
-    notify(`Pasted ${what}${skipped ? `; skipped ${skipped} widget${skipped > 1 ? 's' : ''} already in this workflow` : ''}.`)
+    if (Object.keys(instances).length) onWidgetChange()
+    notify(`Pasted ${copied.length === 1 ? nodeName(copied[0]) : `${copied.length} nodes`}.`)
   }
 
   // Deselecting closes the node settings (Escape, or their close button).

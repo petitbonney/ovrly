@@ -24,31 +24,31 @@
   let timer
 
   // Anarchy: the latest inputs, newest on top, older ones fading out.
-  function anarchy(config, state) {
-    $('foot').textContent = state.listening ? '' : 'Not listening'
-    $('rows').replaceChildren(...state.log.map(({ user, command, at }, i) => {
+  function anarchy(state, runtime) {
+    $('foot').textContent = runtime.listening ? '' : 'Not listening'
+    $('rows').replaceChildren(...runtime.log.map(({ user, command, at }, i) => {
       const row = el('div', 'row', el('span', 'muted', user || 'test'), el('span', '', command))
-      const opacity = 1 - i / (config.max + 1)
+      const opacity = 1 - i / (state.max + 1)
       row.style.opacity = opacity
       if (at > seen) animate(row, { translateX: [-40, 0], opacity: [0, opacity], duration: 300, ease: 'outQuad' })
       return row
     }))
-    seen = state.log[0]?.at ?? 0
+    seen = runtime.log[0]?.at ?? 0
   }
 
-  // Democracy: one bar per command for the loop under way, and its countdown. The loops are counted from state.since,
+  // Democracy: one bar per command for the loop under way, and its countdown. The loops are counted from runtime.since,
   // as in widget.js; the votes of the loop just over show its winner.
-  function democracy(config, state, render) {
-    const ms = config.window * 1000
+  function democracy(state, runtime, render) {
+    const ms = state.window * 1000
     const now = Date.now()
-    const loop = Math.floor((now - state.since) / ms)
-    const left = state.since + (loop + 1) * ms - now
-    if (state.listening) timer = setTimeout(render, left % 1000 || 1000)
-    const counts = config.commands.map((c, i) => (state.loop === loop ? state.counts[i] ?? 0 : 0))
+    const loop = Math.floor((now - runtime.since) / ms)
+    const left = runtime.since + (loop + 1) * ms - now
+    if (runtime.listening) timer = setTimeout(render, left % 1000 || 1000)
+    const counts = state.commands.map((c, i) => (runtime.loop === loop ? runtime.counts[i] ?? 0 : 0))
     const total = counts.reduce((a, b) => a + b, 0)
-    const past = state.loop >= 0 && state.loop === loop - 1 && Math.max(0, ...state.counts)
-    const last = past ? config.commands[state.counts.indexOf(past)]?.command : ''
-    $('rows').replaceChildren(...config.commands.map(({ command }, i) => {
+    const past = runtime.loop >= 0 && runtime.loop === loop - 1 && Math.max(0, ...runtime.counts)
+    const last = past ? state.commands[runtime.counts.indexOf(past)]?.command : ''
+    $('rows').replaceChildren(...state.commands.map(({ command }, i) => {
       const pct = total ? (counts[i] / total) * 100 : 0
       const bar = el('div', 'bar')
       bar.style.width = `${widths[i] ?? 0}%`
@@ -58,16 +58,16 @@
       if (command === last) row.classList.add('win')
       return row
     }))
-    $('foot').textContent = state.listening ? `${Math.ceil(left / 1000)}s to vote · type a command${last ? ` · last: ${last}` : ''}` : 'Not listening'
+    $('foot').textContent = runtime.listening ? `${Math.ceil(left / 1000)}s to vote · type a command${last ? ` · last: ${last}` : ''}` : 'Not listening'
   }
 
-  subscribe(function render({ config, state }) {
+  subscribe(function render({ state, runtime }) {
     clearTimeout(timer)
-    const mode = state.mode || config.mode // see widget.js
-    $('title').textContent = config.title
+    const mode = state.mode
+    $('title').textContent = state.title
     $('mode').textContent = mode === 'democracy' ? 'Democracy' : 'Anarchy'
-    document.body.classList.toggle('off', !state.listening)
-    if (mode === 'democracy') democracy(config, state, () => render({ config, state }))
-    else anarchy(config, state)
+    document.body.classList.toggle('off', !runtime.listening)
+    if (mode === 'democracy') democracy(state, runtime, () => render({ state, runtime }))
+    else anarchy(state, runtime)
   })
 </script>

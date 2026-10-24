@@ -15,11 +15,11 @@ export const LAYOUTS = {
   marquee: { label: 'Marquee', arrive: 'queue' },
   particles: { label: 'Particles', arrive: 'replace', sound: true },
 }
-const arrive = (config) => LAYOUTS[config.layout]?.arrive ?? 'replace'
+const arrive = (state) => LAYOUTS[state.layout]?.arrive ?? 'replace'
 
 // ms an alert lasts on screen, coming in and going out included; queued alerts wait GAP ms between them. On "stop",
 // the alerts showing fade out in FADE ms.
-export const life = (config) => config.duration * 1000
+export const life = (state) => state.duration * 1000
 const GAP = 300
 export const FADE = 400
 
@@ -27,7 +27,7 @@ export default {
   type: 'alerts',
   label: 'Alerts',
   description: 'Shows a text for a few seconds, e.g. who just ran a command: a banner, a neon sign, a flap board…',
-  config: { layout: 'banner', color: '#ffb400', metal: 'gold', duration: 5, volume: 100 },
+  state: { layout: 'banner', color: '#ffb400', metal: 'gold', duration: 5, volume: 100 },
   fields: {
     layout: { options: Object.entries(LAYOUTS).map(([value, { label }]) => ({ value, label })) },
     duration: { unit: 's', presets: [3, 5, 8, 10], hint: 'How long an alert stays on screen (the marquee: one pass)' },
@@ -46,21 +46,21 @@ export default {
     },
   },
   // items: the alerts on screen or waiting their turn, { id, text, at: when it starts (ms) }; n: the last id given.
-  state: { items: [], n: 0 },
+  runtime: { items: [], n: 0 },
   // A queued or stacked alert doesn't cut the one showing (server/widgets.js).
-  queues: (config) => arrive(config) !== 'replace',
+  queues: (action, { state }) => arrive(state) !== 'replace',
   // The workflow waits until its own alert has gone, queued ones too.
-  playTime: (action, config, state) => state.items.at(-1).at + life(config) - Date.now(),
+  playTime: (action, { state, runtime }) => runtime.items.at(-1).at + life(state) - Date.now(),
   stopTime: () => FADE,
   actions: {
     start: {
       description: 'Shows the text; the workflow goes on once the alert has gone (after the ones queued before it).',
       inputs: { text: { vars: true, default: 'New alert!', hint: 'Text to show, e.g. {{user}} just ran !hype' } },
-      run(state, { text }, config) {
+      run({ state, runtime, input: { text } }) {
         const now = Date.now()
-        const kept = arrive(config) === 'replace' || state.ended ? [] : state.items.filter((i) => i.at + life(config) > now)
-        const at = arrive(config) === 'queue' ? Math.max(now, ...kept.map((i) => i.at + life(config) + GAP)) : now
-        return { items: [...kept, { id: state.n + 1, text, at }], n: state.n + 1 }
+        const kept = arrive(state) === 'replace' || runtime.ended ? [] : runtime.items.filter((i) => i.at + life(state) > now)
+        const at = arrive(state) === 'queue' ? Math.max(now, ...kept.map((i) => i.at + life(state) + GAP)) : now
+        return { runtime: { items: [...kept, { id: runtime.n + 1, text, at }], n: runtime.n + 1 } }
       },
     },
     stop: { description: 'The alerts showing fade out now and the queued ones are dropped; the workflow goes on.' },

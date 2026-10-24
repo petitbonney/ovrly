@@ -51,9 +51,12 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   in another one. `GET /api/runs` has the last 100 firings (in memory), with each node's input and output.
 - **Widget concurrency**: starting a widget that is still playing (e.g. a second `!spin`) replaces what plays; the
   replaced run stops there. Put a queue node before the widget to play them in turn instead.
-- **Widgets in a workflow**: a widget node is one overlay instance, run in the flow like any node: it runs its
-  widget's **start** action (TwitchPlays: push) with the inputs set in its settings, keeps firing until the widget has
-  stopped, then adds the widget's output to the data and the flow goes on. To run another action (e.g. `!stop` stops
+- **Widgets in a workflow**: a widget node is its own overlay instance (with its own OBS link), run in the flow like
+  any node: it runs its widget's **start** action (TwitchPlays: push) with the inputs set in its settings, keeps firing
+  until the widget has stopped, then adds the widget's output to the data and the flow goes on. A widget's settings,
+  inputs and kept data (e.g. the lottery's options loaded from data) are saved in `data/widgets/<id>.json`; what plays
+  (a draw, a vote under way) is in memory, and lost on restart. A pasted widget node is a new instance with a copy of
+  those settings. To run another action (e.g. `!stop` stops
   the lottery, `!vote` votes), link a **Widget Action** node in front of the widget node (one widget node per Widget
   Action): its settings pick the action (stop by default) and ask for that action's inputs (`vote`: the option and who
   votes); the flow stops at the widget node. Other nodes linked after a Widget Action node get the data as it came in,
@@ -69,7 +72,9 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   link, `http://localhost:6875/m/<workflow>/<node>`, shows them all where they were placed, and follows changes live.
   Placement is relative to the canvas, which scales to fit any browser source size (widgets included) and stays
   centered, so resizing the source in OBS resizes everything. In the flow it only passes data on.
-- **Start, stop, cancel**: every widget has these actions, also as buttons under its preview. "start" plays it (a
+- **Start, stop, cancel**: every widget has these actions, also as buttons under its preview (named after the actions
+  its type binds to them); with more actions, Start is a split button listing them, and one that asks for inputs opens
+  a dialog that remembers them. "start" plays it (a
   draw, an alert, a vote…); its run keeps firing until the widget stops. A widget stops by itself when it is over, or
   with "stop", which ends it properly (the lottery jumps to its winner, an alert fades out, a vote closes) and lets the
   workflow that started it go on with the result. "cancel" cuts it (the lottery freezes, an alert disappears) and the

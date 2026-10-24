@@ -24,22 +24,22 @@
     fading = animate(level, { v: 0, duration: FADE, ease: 'linear', onUpdate: () => (audio.volume = level.v), onComplete: () => audio.pause() })
   }
 
-  subscribe(({ config, state, run }) => {
-    // Only an action plays, not a config change or a reload; a volume change applies to the sound playing.
-    if (!run || state.ended || !state.url) {
-      if (current) audio.volume = volume(config)
+  subscribe(({ state, runtime, run }) => {
+    // Only an action plays, not a settings change or a reload; a volume change applies to the sound playing.
+    if (!run || runtime.ended || !runtime.url) {
+      if (current) audio.volume = volume(state)
       return
     }
     stop(false)
     fading?.pause()
-    audio.volume = volume(config)
+    audio.volume = volume(state)
     return new Promise((resolve) => {
       current = { resolve }
-      audio.src = state.url
+      audio.src = runtime.url
       audio.onended = audio.onerror = () => stop(false)
       // OBS plays without a click; a plain browser tab may refuse, which ends the action at once.
       audio.play().then(() => {
-        if (current?.resolve === resolve && config.duration > 0) current.timer = setTimeout(() => stop(true), config.duration * 1000 - FADE)
+        if (current?.resolve === resolve && state.duration > 0) current.timer = setTimeout(() => stop(true), state.duration * 1000 - FADE)
       }, () => stop(false))
     })
   }, { stop: () => stop(true), cancel: () => stop(false) })

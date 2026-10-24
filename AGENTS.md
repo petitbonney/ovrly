@@ -25,6 +25,7 @@ pnpm dev      # server + UI on http://localhost:6875
 
 - One node type = one file in `server/nodes/`, exporting `{ type, label, category, group, config, run }` (`group` is its sub-section in the library).
 - One widget type = one folder in `widgets/`.
+- A widget node carries `state` (saved in its widget file: settings, action inputs, kept data) and `runtime` (in memory, lost on restart).
 - Data lives in `./data` as JSON files (gitignored). Never commit it.
 - Scope: Twitch and OBS, plus the Stream Deck as a controller (its plugin is in `streamdeck/`) and Philips Hue lights. Ask before adding another platform.
 - Twitch features that need the streamer signed in (Streamer mode) say so: a whole node or widget type with `needs: ['twitch']` (`needs` lists requirement keys: `twitch`, `obs`, `streamdeck`, `giphy`, `hue`, or `chat` for the Twitch chat in either mode; the UI marks the ones not ready in the library and on the graph, and notes them in the node's settings), one setting option with `{ value, label, streamer: true }` (the UI disables it in Guest mode). An option can also need an integration while picked: `{ value, label, needs: 'streamdeck' }`. On the server, call `needStreamer('Feature name')` from `server/sources/twitch.js` before using them.
@@ -32,7 +33,7 @@ pnpm dev      # server + UI on http://localhost:6875
 
 ## Node settings layout
 
-Every node's settings pane has the same layout (`Config` in `ui/src/Workflow.jsx`, fields in `ui/src/Fields.jsx`): header (icon, name, close), one-line description, notices (`Notice.jsx`: yellow when something won't run yet, red when broken, linking to the Settings pane that fixes it), then a settings column (420px at most, on the left even when nothing is beside it) and, only when the node has something to watch or press, a live column on its right (widget preview and Start/Stop/Cancel, Control Pad buttons, Queue line, Hue routine Stop/Cancel). Widget nodes split their settings in two sections: **This node** (the action's inputs) and **Widget (shared)**.
+Every node's settings pane has the same layout (`Config` in `ui/src/Workflow.jsx`, fields in `ui/src/Fields.jsx`): header (icon, name, close), one-line description, notices (`Notice.jsx`: yellow when something won't run yet, red when broken, linking to the Settings pane that fixes it), then a settings column (420px at most, on the left even when nothing is beside it) and, only when the node has something to watch or press, a live column on its right (widget preview and Start/Stop/Cancel, Control Pad buttons, Queue line, Hue routine Stop/Cancel). Widget nodes split their settings in two sections: the inputs of the action a signal runs (titled after it, e.g. **Start**) and **Widget** (its settings); their live column has the preview and the Start, Stop and Cancel buttons, named after the actions they run, Start being a split button when the widget has other actions.
 
 When writing a node or widget type's `config` and `fields`:
 

@@ -33,7 +33,8 @@ app.post('/api/emit/:event', (req, res) => {
   res.sendStatus(204)
 })
 
-// Live run feedback for the workflow editor: an SSE stream of the engine's node and link activity.
+// Live run feedback for the workflow editor: an SSE stream of the engine's node and link activity, and { widget: id }
+// when an action changed a widget's state.
 app.get('/api/activity', (req, res) => {
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }).flushHeaders()
   const send = (a) => res.write(`data: ${JSON.stringify(a)}\n\n`)
@@ -253,22 +254,26 @@ app.get('/api/widget-types', (req, res) => res.json(Object.values(widgets.types)
   ...meta,
   actions: Object.fromEntries(Object.entries(actions).map(([name, { run, ...action }]) => [name, action])),
 }))))
-// Run a widget action by hand, e.g. POST /api/widgets/<id>/action { action: 'vote', input: { option: '1', user } }.
-app.post('/api/widgets/:id/action', async (req, res) => {
-  const widget = await store.get('widgets', req.params.id)
-  if (!widget) return res.sendStatus(404)
-  widgets.update(widget, req.body).then(({ state }) => res.json(state), (err) => res.status(400).json({ error: err.message }))
+// Widget instances, one per widget node (server/widgets.js): created when a widget is dropped or pasted ({ type,
+// state }), saved by the editor (PUT, also to put one back on undo), and run by hand, e.g. POST /api/widgets/<id>/action
+// { action: 'vote', input: { option: '1', user } }, with the inputs as typed (templates aren't filled outside a run).
+// Reads go through the generic routes below: a widget's file is written before the editor hears of a change.
+const fail = (res) => (err) => res.status(400).json({ error: err.message })
+app.post('/api/widgets', (req, res) => widgets.create(req.body.type, req.body.state).then((w) => res.json(w), fail(res)))
+app.put('/api/widgets/:id', (req, res) => widgets.save({ ...req.body, id: req.params.id }).then((w) => res.json(w), fail(res)))
+app.delete('/api/widgets/:id', (req, res) => widgets.remove(req.params.id).then(() => res.sendStatus(204), fail(res)))
+app.post('/api/widgets/:id/action', (req, res) => {
+  widgets.update(req.params.id, req.body).then(({ state, runtime }) => res.json({ state, runtime }), fail(res))
 })
+// An action that changed a widget's state (e.g. TwitchPlays' mode) shows in the editor's settings: see /api/activity.
+widgets.changes.on('state', (widget) => activity.emit('activity', { widget: widget.id }))
 
-// A widget instance lives as long as a workflow node refers to it (pasted nodes can share one across workflows).
-// After a workflow is saved or deleted, the widgets it referred to and no workflow uses anymore are deleted.
+// A widget instance lives as long as its workflow node. After a workflow is saved or deleted, the widgets it referred
+// to and no workflow uses anymore are deleted.
 const widgetRefs = (workflow) => workflow?.nodes.filter((n) => n.data.type === 'widget').map((n) => n.data.config.widget) ?? []
 async function dropUnusedWidgets(refs) {
   const used = new Set((await store.list('workflows')).flatMap(widgetRefs))
-  for (const w of await store.list('widgets')) {
-    const referred = refs.includes(w.id) || refs.includes(w.name)
-    if (referred && !used.has(w.id) && !used.has(w.name)) await store.remove('widgets', w.id)
-  }
+  for (const id of refs.filter((id) => id && !used.has(id))) await widgets.remove(id)
 }
 
 app.get('/api/:kind', async (req, res) => res.json(await store.list(req.params.kind)))
@@ -283,7 +288,6 @@ app.put('/api/:kind/:id', async (req, res) => {
   const item = await store.save(req.params.kind, { ...old, ...req.body, id: req.params.id })
   if (old && req.body.enabled === false) cancel(item.id) // switched off: stop what is running
   if (old) pushMerges(item) // widgets moved on a Merge Widgets canvas
-  if (req.params.kind === 'widgets') widgets.push(item) // live config changes on the overlay
   if (old) await dropUnusedWidgets(widgetRefs(old))
   res.json(item)
 })
@@ -310,9 +314,9 @@ app.post('/w/:id/done', (req, res) => {
   res.sendStatus(204)
 })
 app.get('/w/:id{/:events}', async (req, res) => {
-  const widget = await store.get('widgets', req.params.id).catch(() => null)
-  if (!widget || !widgets.types[widget.type]) return req.params.events ? res.sendStatus(404) : blank(res)
-  if (req.params.events === 'events') return widgets.stream(widget, req, res)
+  const widget = await widgets.get(req.params.id).catch(() => null) // null for an unknown type too
+  if (!widget) return req.params.events ? res.sendStatus(404) : blank(res)
+  if (req.params.events === 'events') return widgets.stream(widget.id, req, res)
   res.sendFile(`widgets/${widget.type}/index.html`, { root: '.' })
 })
 
@@ -339,8 +343,8 @@ async function pushMerge(workflow, client) {
   const ids = view?.items.map((i) => i.id) ?? []
   for (const [id, detach] of client.widgets) if (!ids.includes(id)) detach(), client.widgets.delete(id)
   for (const id of ids.filter((id) => !client.widgets.has(id))) {
-    const widget = await store.get('widgets', id).catch(() => null)
-    if (widget) client.widgets.set(id, widgets.attach(widget, { write: (msg) => client.res.write(`event: ${id}\n${msg}`) }))
+    const widget = await widgets.get(id).catch(() => null)
+    if (widget) client.widgets.set(id, await widgets.attach(id, { write: (msg) => client.res.write(`event: ${id}\n${msg}`) }))
   }
 }
 function pushMerges(workflow) {
