@@ -19,6 +19,8 @@
 .empty-hint button { pointer-events: auto; }
 /* Field hints at 12px (Mantine makes them 10px on xs inputs). */
 .mantine-InputWrapper-description { font-size: var(--mantine-font-size-xs); }
+/* A line between a select's option groups (a '-' in a setting's options, Fields.jsx). */
+.mantine-Select-group + .mantine-Select-group { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--mantine-color-default-border); }
 /* A setting shown only while a switch is on, indented under it (Fields.jsx). */
 .nested { padding-left: var(--mantine-spacing-sm); border-left: 2px solid var(--mantine-color-default-border); }
 /* Classic "transparent PNG" checkerboard behind the overlay. color-scheme light matches the overlay page's, otherwise the

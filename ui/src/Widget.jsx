@@ -12,6 +12,8 @@ import { json } from './api.js'
 
 // An action's inputs with their defaults, e.g. { text: 'New alert!' }.
 const inputDefaults = (inputs = {}) => Object.fromEntries(Object.entries(inputs).map(([key, f]) => [key, f.default ?? '']))
+// Inputs as sent outside a workflow run: a list sends its own items (there is no data to read a key from).
+const sent = (inputs = {}, values) => Object.fromEntries(Object.entries(values).map(([key, v]) => [key, inputs[key]?.type === 'list' ? v?.items ?? [] : v]))
 
 // A widget type's actions that apply with this state (its start, stop and cancel first), each with what it does and the
 // inputs it asks for; the one a signal runs is marked. Shown in the widget node's header tooltip.
@@ -134,18 +136,19 @@ function WidgetSettings({ widget, type, state, setState, context, onCopy }) {
   )
 }
 
-// The live column: the OBS link, the preview, and buttons running the widget's start, stop and cancel actions, named
-// after them. Start sends the inputs saved for its action (variables like {{user}} aren't filled outside a run). Stop
-// and Cancel also end a workflow run waiting on the widget: Stop lets it go on, Cancel ends it. The widget's other
-// actions (those its settings allow) are in a menu beside Start: one asking for inputs opens a dialog, filled with the
-// inputs it last ran with (saved in the state, through save).
+// The live column: the OBS link, the preview, and buttons running the widget's start, stop and cancel actions: Start
+// named after its action, Stop and Cancel always named so. Start sends the inputs saved for its action (variables like
+// {{user}} aren't filled outside a run). Stop and Cancel also end a workflow run waiting on the widget: Stop lets it go
+// on, Cancel ends it. The widget's other actions (those its settings allow) are in a menu beside Start, with its stop or
+// cancel action too when it has a name of its own (Lottery's reset): one asking for inputs opens a dialog, filled with
+// the inputs it last ran with (saved in the state, through save).
 function WidgetPreview({ widget, type, state, save }) {
   const url = `${location.origin}/w/${widget.id}`
   const act = (action, input = {}) => fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, input })).then(async (res) => {
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? res.statusText)
   })
   const start = { ...inputDefaults(type.actions[type.onStart]?.inputs), ...state.input?.[type.onStart] }
-  const others = Object.keys(type.actions).filter((a) => ![type.onStart, type.onStop, type.onCancel].includes(a) && applies(type.actions[a], state, type.state))
+  const others = Object.keys(type.actions).filter((a) => ![type.onStart, 'stop', 'cancel'].includes(a) && applies(type.actions[a], state, type.state))
   // The action whose dialog is open, its inputs as typed, and the error of its last run.
   const [open, setOpen] = useState(null)
   const [draft, setDraft] = useState({})
@@ -160,13 +163,13 @@ function WidgetPreview({ widget, type, state, save }) {
     const inputs = type.actions[open].inputs
     try {
       await save({ ...state, input: { ...state.input, [open]: draft } })
-      await act(open, { ...inputDefaults(inputs), ...draft })
+      await act(open, sent(inputs, { ...inputDefaults(inputs), ...draft }))
       setOpen(null)
     } catch (err) {
       setError(err.message)
     }
   }
-  const startButton = <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => act(type.onStart, start).catch(() => {})}>{humanize(type.onStart)}</Button>
+  const startButton = <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => act(type.onStart, sent(type.actions[type.onStart]?.inputs, start)).catch(() => {})}>{humanize(type.onStart)}</Button>
   return (
     <>
       <Group gap={6} mb="xs" wrap="nowrap">
@@ -202,8 +205,8 @@ function WidgetPreview({ widget, type, state, save }) {
             </Menu>
           </Button.Group>
         )}
-        <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} onClick={() => act(type.onStop).catch(() => {})}>{humanize(type.onStop)}</Button>
-        <Button size="xs" variant="default" leftSection={<IconX size={14} />} onClick={() => act(type.onCancel).catch(() => {})}>{humanize(type.onCancel)}</Button>
+        <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} onClick={() => act(type.onStop).catch(() => {})}>Stop</Button>
+        <Button size="xs" variant="default" leftSection={<IconX size={14} />} onClick={() => act(type.onCancel).catch(() => {})}>Cancel</Button>
       </Group>
       <Modal opened={!!open} onClose={() => setOpen(null)} title={open && humanize(open)} size="sm">
         {open && (

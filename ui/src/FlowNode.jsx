@@ -7,7 +7,7 @@ import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
 import {
   IconAccessPoint, IconDiamond, IconFlame, IconGift, IconHeart, IconSparkles, IconStar, IconSwords,
-  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowForkTriple, IconLayoutCollage, IconBell, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconDeviceGamepad2, IconEdit,
+  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowForkTriple, IconLayoutCollage, IconBell, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconChartBar, IconClock, IconClockPause, IconCode, IconClover, IconDice5, IconTarget, IconDeviceGamepad2, IconEdit,
   IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
   IconMessageCode, IconMovie, IconAd, IconBan, IconBookmark, IconChecks, IconMessageCog, IconMessageShare, IconPencil, IconRocket,
   IconScissors, IconTicket, IconTrash, IconUserSearch, IconMessageStar, IconHeartHandshake,
@@ -83,6 +83,8 @@ export const icons = {
 export const widgetIcons = {
   alerts: IconBell,
   lottery: IconClover,
+  roulette: IconTarget,
+  dice: IconDice5,
   voting: IconChartBar,
   image: IconPhoto,
   sound: IconVolume,

@@ -12,7 +12,7 @@ Ovrly is a local, node-based automation tool for live stream interactions. See [
 
 Plain JavaScript (ESM), no TypeScript. pnpm, single package. Express + `ws` on the server; React + ReactFlow + Mantine + Vite for the UI.
 
-**Motion: anime.js (v4) is the animation standard** for the whole app, widget pages and UI alike. 3D goes through three.js, animated with anime.js's Three.js adapter (`animejs/adapters/three`); physics (the dice throw) through cannon-es, replayed with anime.js. Widget pages load them from `/vendor/` (see `widgets/lottery/index.html` for the import map).
+**Motion: anime.js (v4) is the animation standard** for the whole app, widget pages and UI alike. 3D goes through three.js, animated with anime.js's Three.js adapter (`animejs/adapters/three`); physics (the dice throw) through cannon-es, replayed with anime.js. Widget pages load them from `/vendor/` (see `widgets/dice/index.html` for the import map).
 
 ## Commands
 
@@ -33,7 +33,7 @@ pnpm dev      # server + UI on http://localhost:6875
 
 ## Node settings layout
 
-Every node's settings pane has the same layout (`Config` in `ui/src/Workflow.jsx`, fields in `ui/src/Fields.jsx`): header (icon, name, close), one-line description, notices (`Notice.jsx`: yellow when something won't run yet, red when broken, linking to the Settings pane that fixes it), then a settings column (420px at most, on the left even when nothing is beside it) and, only when the node has something to watch or press, a live column on its right (widget preview and Start/Stop/Cancel, Control Pad buttons, Queue line, Hue routine Stop/Cancel). Widget nodes split their settings in two sections: the inputs of the action a signal runs (titled after it, e.g. **Start**) and **Widget** (its settings); their live column has the preview and the Start, Stop and Cancel buttons, named after the actions they run, Start being a split button when the widget has other actions.
+Every node's settings pane has the same layout (`Config` in `ui/src/Workflow.jsx`, fields in `ui/src/Fields.jsx`): header (icon, name, close), one-line description, notices (`Notice.jsx`: yellow when something won't run yet, red when broken, linking to the Settings pane that fixes it), then a settings column (420px at most, on the left even when nothing is beside it) and, only when the node has something to watch or press, a live column on its right (widget preview and Start/Stop/Cancel, Control Pad buttons, Queue line, Hue routine Stop/Cancel). Widget nodes split their settings in two sections: the inputs of the action a signal runs (titled after it, e.g. **Start**) and **Widget** (its settings); their live column has the preview and the Start, Stop and Cancel buttons (Start named after the action it runs, Stop and Cancel always named so), Start being a split button when the widget has other actions.
 
 When writing a node or widget type's `config` and `fields`:
 

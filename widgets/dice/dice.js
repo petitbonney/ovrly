@@ -1,4 +1,4 @@
-// Dice layout (three.js), toon-styled after a 3D dice demo, with real physics (cannon-es): the die is kicked off from
+// Dice Roll (three.js), toon-styled after a 3D dice demo, with real physics (cannon-es): the die is kicked off from
 // where it rests, bounces off the floor and the edges of the view, rolls and tips over until it rests, then pops.
 // Before it plays, random kicks are tried in a few ms until one lands with the winner's face on top; anime.js then
 // replays that kick. A face labelled 1 to 6 shows as dots, other labels as
@@ -8,7 +8,7 @@ import * as CANNON from 'cannon-es'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { createTimeline } from 'animejs'
 import 'animejs/adapters/three' // lets anime.js animate three.js objects (x, y, rotateX, scale…)
-import { DICE_MS } from '/widgets/lottery/widget.js'
+import { DICE_MS } from '/widgets/dice/widget.js'
 
 const SIZE = 2.5
 const STEP = 1000 / 60 // ms per recorded frame

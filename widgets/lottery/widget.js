@@ -1,135 +1,113 @@
-// Lottery: "start" draws a winner at random, shown with one of four layouts: a wheel of weighted, colored options, a
-// roulette (0-36), a slot (one reel) or a die. Outputs { winner }, the winning label.
-// The wheel and the slot draw from their own options (Custom), or from options loaded from the workflow's data ("load",
-// added up until "clear"), kept in the state (state.loaded, saved). Loaded options without a color take the palette's.
+// Lottery: "start" draws a winner at random (see ../draw.js), shown with one of two layouts: a wheel of weighted options
+// or a slot (one reel), colored by the palette. Outputs { winner }, the winning label.
+// "load" and "loadAll" add options from the workflow, "clear" removes them all; a draw playing goes on with the options
+// it was made with. The wheel stays on the winner until "reset" (or the next draw) shows the options as they are now;
+// "reset" is the cancel action (onCancel), so it also cuts a draw playing.
 // The page (index.html) imports choices() too, so both sides agree on what each index means.
+import { draw } from '../draw.js'
 
-// European roulette: 0 is green; the reds, the rest black.
-export const REDS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]
+export const playMs = (state) => state.duration * 1000
 
-// ms a draw lasts: the duration setting, except for the dice, whose throw follows physics and always takes DICE_MS.
-export const DICE_MS = 3500
-export const playMs = (state) => (state.layout === 'dice' ? DICE_MS : state.duration * 1000)
-// ms the winner shows after "stop" jumps to the end of the draw, before the workflow goes on.
-const REVEAL = 1000
-
+// Built-in palettes: slice colors and the labels' color (picked to read on every slice). All but Ovrly's are from
+// coolors.co's trending palettes.
 export const PALETTES = {
-  ovrly: ['#9147ff', '#ff4f8b', '#00c2a8', '#ffb400', '#3d8bff', '#ff7a00', '#e03131', '#2f9e44'],
-  pastel: ['#b197fc', '#f783ac', '#38d9a9', '#fcc419', '#74c0fc', '#ffa94d', '#ff8787', '#8ce99a'],
-  neon: ['#ff00e6', '#00e5ff', '#39ff14', '#ffea00', '#ff3d00', '#7c4dff', '#00ff9d', '#ff1744'],
-  earth: ['#8d5524', '#c68642', '#6b8e23', '#556b2f', '#b5651d', '#a0522d', '#708090', '#cd853f'],
+  ovrly: { text: '#ffffff', colors: ['#9147ff', '#ff4f8b', '#00c2a8', '#ffb400', '#3d8bff', '#ff7a00', '#e03131', '#2f9e44'] },
+  sunset: { text: '#13262e', colors: ['#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'] },
+  vivid: { text: '#ffffff', colors: ['#390099', '#9e0059', '#ff0054', '#ff5400'] },
+  pop: { text: '#1b1b3a', colors: ['#ffbe0b', '#fb5607', '#ff006e', '#8338ec', '#3a86ff'] },
+  candy: { text: '#1b1b3a', colors: ['#9b5de5', '#f15bb5', '#fee440', '#00bbf9', '#00f5d4'] },
+  pastel: { text: '#22223b', colors: ['#cdb4db', '#ffc8dd', '#ffafcc', '#bde0fe', '#a2d2ff'] },
+  ocean: { text: '#023047', colors: ['#8ecae6', '#219ebc', '#ffb703', '#fb8500'] },
+  retro: { text: '#24263a', colors: ['#e07a5f', '#81b29a', '#f2cc8f', '#f4f1de'] },
 }
 
-// What can win with this layout, as [{ label, weight, color }]; index = winner.
+// What can win, as [{ label, weight, color }]; index = winner.
 export function choices(state) {
-  if (state.layout === 'roulette') return Array.from({ length: 37 }, (_, n) => ({ label: String(n), weight: 1 }))
-  if (state.layout === 'dice') return state.dice.map((label) => ({ label, weight: 1 }))
-  if (state.source !== 'data') return state.options // wheel, slots
   const colors = palette(state)
-  return (state.loaded ?? []).map((o, i) => ({ ...o, color: o.color || colors[i % colors.length] }))
+  return state.options.map((o, i) => ({ ...o, color: colors[i % colors.length] }))
 }
 
 // The picked palette's colors (a Custom one left empty: Ovrly's).
 export function palette(state) {
   const custom = state.colors.map((c) => c.color)
-  return state.palette === 'custom' && custom.length ? custom : PALETTES[state.palette] ?? PALETTES.ovrly
+  return state.palette === 'custom' && custom.length ? custom : (PALETTES[state.palette] ?? PALETTES.ovrly).colors
 }
 
-// One loaded option from a data item: a label, or { label, color, weight } (color and weight optional); null to skip.
-function option(item) {
-  const o = item && typeof item === 'object' ? item : { label: item }
-  const label = String(o.label ?? '').trim()
-  if (!label) return null
-  const weight = Number(o.weight)
-  return { label, ...(o.color && { color: String(o.color) }), weight: o.weight != null && o.weight !== '' && weight >= 0 ? weight : 1 }
+// The labels' color: the picked palette's.
+export const textColor = (state) => (state.palette === 'custom' ? state.textColor : (PALETTES[state.palette] ?? PALETTES.ovrly).text)
+
+// One option to add: a label, and a weight (1 when left out).
+function option(label, weight) {
+  label = String(label ?? '').trim()
+  const w = weight == null || weight === '' ? 1 : Number(weight)
+  if (!label) throw new Error('An option needs a label')
+  if (!(w >= 0)) throw new Error(`"${label}": the weight must be a number, 0 or more`)
+  return { label, weight: w }
 }
+
+const add = (state, added) => ({ state: { ...state, options: [...state.options, ...added] } })
+
+const base = draw(choices, playMs)
+const { cancel, ...actions } = base.actions // reset cancels instead
 
 export default {
   type: 'lottery',
   label: 'Lottery',
-  description: 'Draws a winner: a wheel, a roulette, a slot or a die.',
+  description: 'Draws a winner with a wheel or a slot.',
   state: {
     layout: 'wheel',
-    source: 'custom',
     options: [
-      { label: 'Purple', color: '#9147ff', weight: 1 },
-      { label: 'Pink', color: '#ff4f8b', weight: 1 },
-      { label: 'Teal', color: '#00c2a8', weight: 1 },
-      { label: 'Gold', color: '#ffb400', weight: 1 },
+      { label: 'Purple', weight: 1 },
+      { label: 'Pink', weight: 1 },
+      { label: 'Teal', weight: 1 },
+      { label: 'Gold', weight: 1 },
     ],
     palette: 'ovrly',
     colors: [{ color: '#9147ff' }, { color: '#ff4f8b' }, { color: '#00c2a8' }, { color: '#ffb400' }],
-    dice: ['1', '2', '3', '4', '5', '6'],
-    diceColor: '#9147ff',
-    dotColor: '#ffffff',
+    textColor: '#ffffff',
     duration: 5,
-    loaded: [], // options loaded from data, as given (no palette color)
   },
   fields: {
     layout: {
-      options: [
-        { value: 'wheel', label: 'Wheel' },
-        { value: 'slots', label: 'Slot' },
-        { value: 'roulette', label: 'Roulette' },
-        { value: 'dice', label: 'Dice' },
-      ],
+      options: [{ value: 'wheel', label: 'Wheel' }, { value: 'slots', label: 'Slot' }],
     },
-    source: {
-      options: [{ value: 'custom', label: 'Custom' }, { value: 'data', label: 'Options from data' }],
-      only: { layout: ['wheel', 'slots'] },
-      hint: 'From data: the "load" action adds options from the workflow, "clear" removes them',
-    },
-    options: { only: { layout: ['wheel', 'slots'], source: 'custom' }, hint: 'A bigger weight is a likelier winner' },
+    options: { hint: 'A bigger weight is a likelier winner' },
     palette: {
-      options: [
-        { value: 'ovrly', label: 'Ovrly' },
-        { value: 'pastel', label: 'Pastel' },
-        { value: 'neon', label: 'Neon' },
-        { value: 'earth', label: 'Earth' },
-        { value: 'custom', label: 'Custom' },
-      ],
-      only: { layout: ['wheel', 'slots'], source: 'data' },
-      hint: 'Colors of the loaded options that come without one',
+      options: ['custom', '-', ...Object.keys(PALETTES)],
     },
-    colors: { only: { layout: ['wheel', 'slots'], source: 'data', palette: 'custom' } },
-    dice: { label: 'Faces', fixed: true, only: { layout: 'dice' }, hint: 'A number from 1 to 6 shows as dots' },
-    diceColor: { label: 'Dice color', only: { layout: 'dice' } },
-    dotColor: { label: 'Dots color', only: { layout: 'dice' }, hint: 'Also the text of faces that are not 1 to 6' },
-    duration: { unit: 's', presets: [3, 5, 8, 12], hint: 'How long a draw lasts', only: { layout: ['wheel', 'roulette', 'slots'] } },
+    colors: { type: 'palette', text: 'textColor', only: { palette: 'custom' } },
+    textColor: { hidden: true }, // picked in colors' grid
+    duration: { unit: 's', presets: [3, 5, 8, 12], hint: 'How long a draw lasts' },
   },
-  runtime: { winner: -1, at: 0, layout: '' }, // layout: the one the draw was made with
-  adds: ['winner'],
-  output: ({ state, runtime }) => ({ winner: choices(state)[runtime.winner]?.label ?? '' }),
-  playTime: (action, { state }) => (action === 'start' ? playMs(state) : 0), // the workflow waits for the draw to end
-  stopTime: () => REVEAL,
+  ...base,
+  onCancel: 'reset',
+  // Adding or removing options doesn't replace the draw playing; a new draw does.
+  queues: (action) => action !== 'start',
   actions: {
-    start: {
-      description: 'Draws a winner at random; the workflow goes on with {{winner}} once the draw has ended.',
-      run({ state }) {
-        const options = choices(state)
-        if (!options.length) throw new Error('Lottery: no options to draw from')
-        const weights = options.map((o) => Math.max(0, Number(o.weight) || 0))
-        let r = Math.random() * weights.reduce((a, b) => a + b, 0)
-        // layout: the page only replays a draw made with the layout it shows.
-        // A fresh runtime: not "ended", left by a stop or cancel.
-        return { runtime: { winner: weights.findIndex((w) => (r -= w) < 0), at: Date.now(), layout: state.layout } }
-      },
-    },
+    ...actions,
     load: {
-      description: 'Adds options from the data: a list of labels or of { label, color, weight } (color and weight optional), or one of them. Cancels a draw playing.',
-      only: { layout: ['wheel', 'slots'], source: 'data' },
-      inputs: { list: { type: 'var', hint: 'The data key holding the options, e.g. items from a Fan In node' } },
-      run({ state, runtime, input: { list } }) {
-        const added = [list].flat().map(option).filter(Boolean)
-        if (added.length) return { state: { ...state, loaded: [...state.loaded, ...added] }, runtime: { ...runtime, winner: -1 } }
+      description: 'Adds one option. A draw playing goes on with its options.',
+      inputs: {
+        label: { vars: true },
+        weight: { vars: true, hint: '1 when left empty' },
+      },
+      run: ({ state, input: { label, weight } }) => add(state, [option(label, weight)]),
+    },
+    loadAll: {
+      description: 'Adds a list of { label, weight } options (weight optional). A draw playing goes on with its options.',
+      inputs: { options: { type: 'list', row: { label: '', weight: 1 } } },
+      run({ state, input: { options } }) {
+        if (!Array.isArray(options) || options.some((o) => !o || typeof o !== 'object')) throw new Error('Expects a list of { label, weight }')
+        if (options.length) return add(state, options.map((o) => option(o.label, o.weight)))
       },
     },
     clear: {
-      description: 'Removes the options loaded from data. Cancels a draw playing.',
-      only: { layout: ['wheel', 'slots'], source: 'data' },
-      run: ({ state, runtime }) => (state.loaded.length ? { state: { ...state, loaded: [] }, runtime: { ...runtime, winner: -1 } } : undefined),
+      description: 'Removes all the options. A draw playing goes on with its options.',
+      run: ({ state }) => (state.options.length ? { state: { ...state, options: [] } } : undefined),
     },
-    stop: { description: 'The draw jumps to its end, on the winner; the workflow goes on with {{winner}}.' },
-    cancel: { description: 'The draw freezes where it is; the workflow stops there.' },
+    reset: {
+      description: 'Shows the options as they are now, leaving the last winner. A draw playing stops there, and so does the workflow.',
+      run: ({ runtime }) => (runtime.options ? { runtime: { ...base.runtime } } : undefined),
+    },
   },
 }

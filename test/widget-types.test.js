@@ -38,6 +38,14 @@ test('lottery load adds to state.loaded', async () => {
   assert.equal(choices(out.state)[0].color, PALETTES.ovrly[0])
 })
 
+test('roulette and dice draw a winner among their choices', () => {
+  const roulette = start('roulette').runtime.winner
+  assert.ok(roulette >= 0 && roulette <= 36)
+  const runtime = start('dice').runtime
+  assert.equal(types.dice.output({ state: types.dice.state, runtime }).winner, String(runtime.winner + 1))
+  assert.equal(types.dice.playTime('start', { state: types.dice.state }), 3500)
+})
+
 test('voting counts a chat vote in runtime', () => {
   const out = run('voting', 'vote', { option: '2', user: 'bob' }, {}, { open: true, endsAt: Date.now() + 60000, counts: [0, 0] })
   assert.deepEqual(out.runtime.counts, [0, 1])

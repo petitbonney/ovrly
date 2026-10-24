@@ -1,8 +1,9 @@
 // Settings form generated from a config's defaults (shown in their order), plus optional per-field hints from the node
-// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'tags' | 'action' | 'inputs' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' }.
+// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'list' | 'tags' | 'action' | 'inputs' | 'palette' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' }.
 // hint: one short line under the label; info: anything longer, in an ⓘ tooltip beside the label. section: a heading
 // shown before this field, starting a group (for nodes with many settings). A field shown only while a switch is on
-// (only: { someSwitch: true }) is indented under it. Plain-text options show with a capital first letter.
+// (only: { someSwitch: true }) is indented under it. Plain-text options show with a capital first letter; a '-' among
+// them draws a line there in a select.
 // slider: true shows the options as marks on a slider, from the first to the last, instead of buttons; tips: { option: text } adds a tooltip to each mark.
 // On a number, slider: true is a slider from min to max (0 to 100 by default), its value beside the label; a volume's
 // slider has a mute button.
@@ -17,13 +18,16 @@
 // Any other list default (e.g. a poll's options) gets a list editor (columns: { key: field } for its items' fields, e.g. a
 // { type: 'tags' } input, { type: 'icon' } an icon picker, { type: 'id' } a hidden random id, { options } a select; a column's
 // label, unit, max, and only: { key: value } of the same item, else disabled), a color default ("#rrggbb") a color picker,
-// type: 'deck' a Control Pad node's buttons (with Companion, each with a button to copy its URL), type: 'hue-steps' a
+// type: 'list' a list the workflow gives at run time: a switch picks Custom (its own items, shaped like f.row, a list
+// editor) or From data (a data key, e.g. items from a Fan In node); both are kept, as { from, key, items }. Without data
+// before it (a trigger, a manual run) only its items show.
+// type: 'palette' a grid of color squares ([{ color }]; text: the key of a text color, picked in a square before them), type: 'deck' a Control Pad node's buttons (with Companion, each with a button to copy its URL), type: 'hue-steps' a
 // Hue routine's steps (warned of what its limits change), { obs: 'scenes' | 'sources' } suggestions from OBS and
 // { hue: 'devices' } a Hue light, room or zone.
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
-  ActionIcon, Autocomplete, Button, Chip, ColorInput, CopyButton, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
-  Select, Slider, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
+  ActionIcon, Autocomplete, Button, Chip, ColorInput, ColorPicker, CopyButton, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, Popover, SegmentedControl,
+  Select, Slider, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip, UnstyledButton,
 } from '@mantine/core'
 import { IconBraces, IconCheck, IconCopy, IconGripVertical, IconInfoCircle, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX } from '@tabler/icons-react'
 import { get } from './api.js'
@@ -341,7 +345,7 @@ function ListInput({ label, description, value, defaults, fixed, columns = {}, e
   }
   return (
     <Stack gap={4}>
-      <Text size="xs" fw={500}>{label}</Text>
+      {label && <Text size="xs" fw={500}>{label}</Text>}
       {description && <Text size="xs" c="dimmed">{description}</Text>}
       {typeof shape === 'object' && (
         // Column titles, as wide as the fields under them.
@@ -409,6 +413,94 @@ function ListInput({ label, description, value, defaults, fixed, columns = {}, e
   )
 }
 
+// A type: 'palette' field: a grid of color squares, [{ color }]. A square opens its picker (with Remove); the dashed
+// "+" adds the first swatch not used yet and opens it. With text (a text color) and onText, a square before them,
+// set apart by a line, picks the labels' color: an "A" in it, on the first color.
+function PaletteInput({ label, description, value, onChange, text, onText }) {
+  const [open, setOpen] = useState(null) // the square whose picker is open: its index, or 'text'
+  const set = (i, color) => onChange(value.map((v, j) => (j === i ? { color } : v)))
+  const add = () => {
+    const used = value.map((v) => v.color)
+    onChange([...value, { color: swatches.find((c) => !used.includes(c)) ?? swatches[value.length % swatches.length] }])
+    setOpen(value.length)
+  }
+  const square = { width: 28, height: 28, borderRadius: 6, cursor: 'pointer', flex: 'none' }
+  const swatch = (id, name, style, picker, content) => (
+    <Popover key={id} opened={open === id} onChange={(o) => setOpen(o ? id : null)} position="bottom-start" shadow="md">
+      <Popover.Target>
+        <UnstyledButton aria-label={name} onClick={() => setOpen(open === id ? null : id)}
+          style={{ ...square, boxShadow: open === id ? '0 0 0 2px var(--mantine-color-blue-5)' : 'inset 0 0 0 1px rgba(0,0,0,.2)', ...style }}>
+          {content}
+        </UnstyledButton>
+      </Popover.Target>
+      <Popover.Dropdown p="xs">{picker}</Popover.Dropdown>
+    </Popover>
+  )
+  return (
+    <Stack gap={4}>
+      <Text size="xs" fw={500}>{label}</Text>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
+      {/* p: room for the open square's ring, which the pane would clip on the left */}
+      <Group gap={6} wrap="nowrap" align="flex-start" p={2}>
+        {onText && <>
+          {swatch('text', `Text color ${text}`,
+            { display: 'grid', placeItems: 'center', background: value[0]?.color ?? '#3a3a44', color: text, fontWeight: 800, textShadow: '0 1px 2px #0009' },
+            <SwatchPicker color={text} swatches={['#ffffff', '#000000', ...swatches.slice(0, 6)]} onChange={onText} />, 'A')}
+          <div style={{ width: 1, height: 20, margin: '4px 2px', flex: 'none', background: 'var(--mantine-color-default-border)' }} />
+        </>}
+        <Group gap={6}>
+          {value.map((v, i) => swatch(i, `Color ${v.color}`, { background: v.color },
+            <SwatchPicker color={v.color} swatches={swatches} onChange={(c) => set(i, c)}
+              onRemove={() => {
+                onChange(value.filter((_, j) => j !== i))
+                setOpen(null)
+              }} />))}
+          <UnstyledButton aria-label="Add a color" onClick={add}
+            style={{ ...square, display: 'grid', placeItems: 'center', border: '1px dashed var(--mantine-color-dimmed)', color: 'var(--mantine-color-dimmed)' }}>
+            <IconPlus size={14} />
+          </UnstyledButton>
+        </Group>
+      </Group>
+    </Stack>
+  )
+}
+
+// A palette square's picker: the color, its hex (applied once valid) and, with onRemove, a Remove button.
+function SwatchPicker({ color, swatches, onChange, onRemove }) {
+  const [hex, setHex] = useState(color)
+  useEffect(() => setHex(color), [color])
+  return (
+    <Stack gap={6} w={200}>
+      <ColorPicker size="sm" fullWidth format="hex" swatches={swatches} swatchesPerRow={8} value={color} onChange={onChange} />
+      <Group gap={6} wrap="nowrap">
+        <TextInput size="xs" flex={1} value={hex} onChange={(e) => {
+          setHex(e.target.value)
+          if (isColor(e.target.value)) onChange(e.target.value)
+        }} />
+        {onRemove && <Button size="xs" variant="light" color="red" onClick={onRemove}>Remove</Button>}
+      </Group>
+    </Stack>
+  )
+}
+
+// A type: 'list' field (see the header): Custom items or a data key, picked with a switch where data comes in (vars).
+function ListField({ label, description, row, columns, vars, value, onChange }) {
+  const v = { from: 'custom', key: '', items: [], ...(value && typeof value === 'object' && value) }
+  const set = (patch) => onChange({ ...v, ...patch })
+  const items = <ListInput value={v.items} defaults={[row]} columns={columns} onChange={(items) => set({ items })} />
+  return (
+    <Stack gap={4}>
+      <Text size="xs" fw={500}>{label}</Text>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
+      {vars && (
+        <SegmentedControl size="xs" fullWidth value={v.from} onChange={(from) => set({ from })}
+          data={[{ value: 'custom', label: 'Custom' }, { value: 'data', label: 'From data' }]} />
+      )}
+      {vars && v.from === 'data' ? <Autocomplete size="xs" data={vars} placeholder="Data key, e.g. items" value={v.key} onChange={(key) => set({ key })} /> : items}
+    </Stack>
+  )
+}
+
 // A copy button for a URL, which its tooltip shows.
 function CopyUrl({ url }) {
   return (
@@ -439,7 +531,7 @@ function Label({ text, info }) {
 
 // One setting; context: { vars: data keys available here, trigger: whether the node is a trigger (no data comes
 // before it, so no "{}" menu), widget: the node's widget, types, off: the requirements not met } for the dynamic types.
-function Field({ name, f, fallback, value, set, values, context }) {
+function Field({ name, f, fallback, value, set, change, values, context }) {
   const vars = context.trigger ? null : context.vars ?? []
   const props = { label: <Label text={f.label ?? humanize(name)} info={f.info} />, description: f.hint, size: 'xs' }
   if (Array.isArray(fallback) && f.options) {
@@ -461,6 +553,10 @@ function Field({ name, f, fallback, value, set, values, context }) {
     return <HueSteps label={props.label} description={props.description} value={value} defaults={fallback} columns={f.columns} limits={f.limits}
       device={values.device ?? ''} transition={Number(values.transition) || 0} restore={values.restore} onChange={set} />
   }
+  if (f.type === 'palette') {
+    return <PaletteInput {...props} value={value} onChange={set} text={values[f.text]} onText={f.text && ((c) => change({ [f.text]: c }))} />
+  }
+  if (f.type === 'list') return <ListField {...props} row={f.row} columns={f.columns} vars={vars} value={value} onChange={set} />
   if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} columns={f.columns} onChange={set} />
   if (f.type === 'tags') {
     const tags = value ? value.split('+') : []
@@ -481,7 +577,8 @@ function Field({ name, f, fallback, value, set, values, context }) {
   // picked, and say why on hover; one picked earlier is noted at the top of the settings pane.
   const state = { ...type?.state, ...context.widget?.state }
   const options = f.type === 'action' ? Object.keys(type?.actions ?? {}).filter((a) => applies(type.actions[a], state)) : f.options
-  const choices = labelled(options)?.map(({ streamer, needs, ...option }) => {
+  const line = options?.indexOf('-') ?? -1
+  const choices = labelled(options?.filter((o) => o !== '-'))?.map(({ streamer, needs, ...option }) => {
     const unmet = requirements.find((r) => (r.key === needs || (streamer && r.key === 'twitch')) && context.off?.includes(r.key))
     return unmet ? { ...option, disabled: true, why: `Needs ${unmet.needs} (Settings → ${unmet.label})` } : option
   })
@@ -515,7 +612,12 @@ function Field({ name, f, fallback, value, set, values, context }) {
     )
   }
   // A Select needs text labels: a disabled option's reason goes after its name.
-  if (choices) return <Select {...props} data={choices.map(({ why, ...o }) => (why ? { ...o, label: `${o.label} (${why})` } : o))} value={picked} onChange={set} allowDeselect={false} />
+  // A '-' splits the options in two unnamed groups, a line between them (app.css).
+  if (choices) {
+    const data = choices.map(({ why, ...o }) => (why ? { ...o, label: `${o.label} (${why})` } : o))
+    const grouped = line < 0 ? data : [{ group: '', items: data.slice(0, line) }, { group: '', items: data.slice(line) }]
+    return <Select {...props} data={grouped} value={picked} onChange={set} allowDeselect={false} />
+  }
   if (f.type === 'var') return <Autocomplete {...props} data={vars ?? []} value={value} onChange={set} />
   if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} maxRows={8} />
   if (f.type === 'code') {
@@ -559,6 +661,7 @@ export default function Fields({ defaults, values, onChange, fields = {}, contex
             fallback={defaults[key]}
             value={values[key] ?? defaults[key]}
             set={(v) => onChange({ ...values, [key]: v })}
+            change={(patch) => onChange({ ...values, ...patch })}
             values={{ ...defaults, ...values }}
             context={context}
           />

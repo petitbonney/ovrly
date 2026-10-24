@@ -25,3 +25,14 @@ export function value(t, data) {
   const one = /^\{\{(.+?)\}\}$/s.exec(String(t).trim())
   return one && !one[1].includes('}}') ? evaluate(one[1].trim(), data) ?? '' : fill(t, data)
 }
+
+// A list field's value, { from: 'custom' | 'data', key, items }: its items with their text filled, or the value of the data
+// key (items, or {{items}}).
+export function list(v, data) {
+  if (v?.from === 'data') {
+    const key = String(v.key ?? '').trim().replace(/^\{\{(.*)\}\}$/s, '$1').trim()
+    return key ? value(`{{${key}}}`, data) : ''
+  }
+  const filled = (x) => (typeof x === 'string' ? fill(x, data) : x)
+  return (v?.items ?? []).map((item) => (item && typeof item === 'object' ? Object.fromEntries(Object.entries(item).map(([k, x]) => [k, filled(x)])) : filled(item)))
+}
