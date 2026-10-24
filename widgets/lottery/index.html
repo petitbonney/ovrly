@@ -92,22 +92,22 @@
   addEventListener('resize', () => shown && build(shown))
 
   let tl // the draw playing, or played last
-  subscribe(({ config: settings, state }) => {
+  subscribe(({ state: settings, runtime }) => {
     // The wheel and the slot show their options: their own, or those loaded from data, with the palette's colors. With
     // none loaded yet, one blank option per palette color, to show what the palette looks like (none can win).
-    let options = choices(settings, state)
+    let options = choices(settings)
     if (settings.source === 'data' && !options.length) options = palette(settings).map((color) => ({ label: '', color, weight: 1 }))
     const config = ['wheel', 'slots'].includes(settings.layout) ? { ...settings, options } : settings
     if (JSON.stringify(config) !== key) {
       key = JSON.stringify(config)
       build(config)
     }
-    if (state.winner < 0 || state.at === lastSpin || state.ended || state.layout !== config.layout) return
-    lastSpin = state.at
+    if (runtime.winner < 0 || runtime.at === lastSpin || runtime.ended || runtime.layout !== config.layout) return
+    lastSpin = runtime.at
     const ms = playMs(config)
-    const played = Math.min(Math.max(Date.now() - state.at, 0), ms) // a page opened mid-draw catches up
+    const played = Math.min(Math.max(Date.now() - runtime.at, 0), ms) // a page opened mid-draw catches up
     layout.stop()
-    tl = layout.play(state.winner, ms).seek(played)
+    tl = layout.play(runtime.winner, ms).seek(played)
     return wait(ms - played) // finished once the draw is over
   }, {
     stop: () => tl?.seek(tl.duration), // the draw jumps to its end, on the winner

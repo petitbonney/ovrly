@@ -25,28 +25,28 @@
   let shown = -1 // the winner already revealed, so it pops once
   let timer
 
-  subscribe(function render({ config, state }) {
+  subscribe(function render({ state, runtime }) {
     clearTimeout(timer)
-    const poll = config.kind !== 'prediction'
-    const left = Math.ceil((state.endsAt - Date.now()) / 1000)
-    const open = state.open && left > 0
+    const poll = state.kind !== 'prediction'
+    const left = Math.ceil((runtime.endsAt - Date.now()) / 1000)
+    const open = runtime.open && left > 0
     // A countdown, ticking every second while voting is open.
-    if (open) timer = setTimeout(() => render({ config, state }), 1000 - ((state.endsAt - Date.now()) % 1000))
+    if (open) timer = setTimeout(() => render({ state, runtime }), 1000 - ((runtime.endsAt - Date.now()) % 1000))
     // Voters per option; for a Twitch prediction, the channel points on it.
-    const points = !poll && state.twitch
-    const counts = config.options.map((o, i) => (points ? state.points[i] : state.counts[i]) ?? 0)
+    const points = !poll && runtime.twitch
+    const counts = state.options.map((o, i) => (points ? runtime.points[i] : runtime.counts[i]) ?? 0)
     const total = counts.reduce((a, b) => a + b, 0)
-    const voters = state.counts.reduce((a, b) => a + b, 0)
+    const voters = runtime.counts.reduce((a, b) => a + b, 0)
     const top = Math.max(0, ...counts)
-    const winner = poll ? (!open && top ? counts.indexOf(top) : -1) : state.winner
+    const winner = poll ? (!open && top ? counts.indexOf(top) : -1) : runtime.winner
 
-    $('title').textContent = config.title
+    $('title').textContent = state.title
     $('kind').textContent = poll ? 'Poll' : 'Prediction'
-    $('state').textContent = winner >= 0 && !poll ? `Winner: ${config.options[winner]}`
+    $('state').textContent = winner >= 0 && !poll ? `Winner: ${state.options[winner]}`
       : open ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} left`
-      : state.endsAt ? (poll ? 'Voting closed' : 'Bets are locked') : (poll ? 'Waiting for the poll' : 'Waiting for bets')
+      : runtime.endsAt ? (poll ? 'Voting closed' : 'Bets are locked') : (poll ? 'Waiting for the poll' : 'Waiting for bets')
     $('total').textContent = `${voters} ${poll ? 'vote' : 'bet'}${voters === 1 ? '' : 's'}`
-    $('rows').replaceChildren(...config.options.map((option, i) => {
+    $('rows').replaceChildren(...state.options.map((option, i) => {
       const pct = total ? (counts[i] / total) * 100 : 0
       const bar = el('div', 'bar')
       bar.style.width = `${widths[i] ?? 0}%`
@@ -60,7 +60,7 @@
     }))
     shown = winner
     // Prediction: who guessed right (a Twitch prediction's top predictors).
-    const winners = state.twitch ? state.top[winner] ?? [] : Object.keys(state.votes).filter((user) => state.votes[user] === winner)
+    const winners = runtime.twitch ? runtime.top[winner] ?? [] : Object.keys(runtime.votes).filter((user) => runtime.votes[user] === winner)
     $('winners').textContent = !poll && winner >= 0 ? `Right: ${winners.join(', ') || 'nobody'}` : ''
   })
 </script>
