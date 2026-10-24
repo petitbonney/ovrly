@@ -126,7 +126,7 @@ function WidgetSettings({ widget, type, state, setState, context, onCopy }) {
       <Group gap={6} wrap="nowrap">
         <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>Instance ID</Text>
         <Tooltip label={widget.id}><Code>{widget.id.slice(0, 8)}</Code></Tooltip>
-        <Tooltip label="Copy this node, to paste it into another workflow (same widget)">
+        <Tooltip label="Copy this node, to paste it here or into another workflow (a new widget with the same settings)">
           <Button size="compact-xs" variant="subtle" color="gray" leftSection={<IconCopy size={12} />} onClick={onCopy}>Copy node</Button>
         </Tooltip>
       </Group>

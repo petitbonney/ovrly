@@ -1,8 +1,8 @@
 // Workflow editor: ReactFlow graph (center) and selected node settings (bottom), autosaved.
 // Nodes are dropped from the library: node types, or widget types (each drop creates a widget instance and its widget
-// node). A widget node starts its widget (or runs the action its type links instead); a Widget Action node linked in
-// front of it makes it run another one, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; pasted
-// widget nodes share the same instance, which has one widget node per workflow. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y) undo and redo graph edits.
+// node). A widget node starts its widget (or runs the action its type binds to signals instead); a Widget Action node linked in
+// front of it makes it run another one, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; a
+// pasted widget node is a new instance with a copy of the widget's state. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y) undo and redo graph edits.
 // Canvas rule: the view never moves on its own, except to keep the selected node in sight. Shift+1 fits the graph,
 // Escape closes the node settings.
 import { useEffect, useRef, useState } from 'react'
@@ -411,7 +411,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const ids = new Set(list.filter((n) => n.data.type === 'widget').map((n) => n.data.config.widget))
     const missing = [...ids].filter((id) => knownWidgets[id] && !widgets.some((w) => w.id === id))
     for (const id of missing) {
-      await fetch(`/api/widgets/${id}`, json('PUT', knownWidgets[id]))
+      await fetch(`/api/widgets/${id}`, json('PUT', { type: knownWidgets[id].type, state: knownWidgets[id].state }))
     }
     if (missing.length) onWidgetChange()
   }
@@ -491,7 +491,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
       // Signed in to Twitch (Streamer mode): a widget with a Twitch mode (Voting) starts in it.
       const twitch = type.fields?.mode?.options?.find((o) => o.streamer)
       const mode = twitch && (await get('/api/twitch')).streamer ? { mode: twitch.value } : {}
-      const res = await fetch('/api/widgets', json('POST', { name: type.label, type: type.type, config: mode }))
+      const res = await fetch('/api/widgets', json('POST', { type: type.type, state: mode }))
       config = { widget: (await res.json()).id }
       onWidgetChange()
     }
@@ -539,26 +539,30 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     notify(`Copied ${what}. Paste with Ctrl+V, here or in another workflow.`)
   }
   // Pasted nodes get new ids and keep their layout, centered on the pointer (or the canvas when the pointer is
-  // elsewhere). A widget instance already in this workflow is not pasted again: links from the copied widget node go
-  // to the one already here.
+  // elsewhere). A pasted widget node gets a new widget instance, with a copy of the copied one's state (settings,
+  // inputs, kept data); one whose instance is unknown (deleted) is pasted as it is, and says so in its settings.
   const pointer = useRef(null)
-  const paste = () => {
-    const here = Object.fromEntries(nodes.filter((n) => n.data.type === 'widget').map((n) => [n.data.config.widget, n.id]))
-    const fresh = clipboard.nodes.filter((n) => !(n.data.type === 'widget' && here[n.data.config.widget]))
-    const skipped = clipboard.nodes.length - fresh.length
-    if (!fresh.length) return notify(skipped === 1 ? 'This widget is already in this workflow.' : 'These widgets are already in this workflow.')
-    const ids = Object.fromEntries(clipboard.nodes.map((n) => [n.id, fresh.includes(n) ? crypto.randomUUID() : here[n.data.config.widget]]))
+  const paste = async () => {
+    const { nodes: copied, edges: links } = clipboard
+    const ids = Object.fromEntries(copied.map((n) => [n.id, crypto.randomUUID()]))
+    const instances = {}
+    for (const n of copied.filter((n) => n.data.type === 'widget' && knownWidgets[n.data.config.widget])) {
+      const { type, state } = knownWidgets[n.data.config.widget]
+      const res = await fetch('/api/widgets', json('POST', { type, state: structuredClone(state) }))
+      if (res.ok) instances[n.id] = (await res.json()).id
+    }
     const r = flowRef.current.getBoundingClientRect()
     const at = screenToFlowPosition(pointer.current ?? { x: r.x + r.width / 2, y: r.y + r.height / 2 })
-    const b = boundsOf(fresh)
+    const b = boundsOf(copied)
     const d = snap({ x: at.x - b.x - b.width / 2, y: at.y - b.y - b.height / 2 })
-    const pasted = fresh.map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y } }))
+    const pasted = copied.map((n) => ({
+      ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y },
+      ...(instances[n.id] && { data: { ...n.data, config: { ...n.data.config, widget: instances[n.id] } } }),
+    }))
     setNodes((ns) => ns.map((n) => ({ ...n, selected: false })).concat(pasted))
-    restoreWidgets(pasted)
-    const links = clipboard.edges.filter((ed) => ids[ed.source] && ids[ed.target])
     setEdges((es) => es.concat(links.map((ed) => ({ ...ed, id: crypto.randomUUID(), source: ids[ed.source], target: ids[ed.target] }))))
-    const what = fresh.length === 1 ? nodeName(fresh[0]) : `${fresh.length} nodes`
-    notify(`Pasted ${what}${skipped ? `; skipped ${skipped} widget${skipped > 1 ? 's' : ''} already in this workflow` : ''}.`)
+    if (Object.keys(instances).length) onWidgetChange()
+    notify(`Pasted ${copied.length === 1 ? nodeName(copied[0]) : `${copied.length} nodes`}.`)
   }
 
   // Deselecting closes the node settings (Escape, or their close button).
