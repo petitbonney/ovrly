@@ -13,23 +13,34 @@
   import { subscribe, wait } from '/widgets/lib.js'
   import { FADE } from '/widgets/image/widget.js'
   const img = document.getElementById('img')
-  let timer, anim
+  let timer, anim, shown = 0 // shown: counts renders, so one still loading its image knows it was replaced
   const fade = (out) => {
     anim?.pause()
     anim = animate(img, { opacity: out ? 0 : [0, 1], duration: FADE, ease: out ? 'inQuad' : 'outQuad' })
   }
   // Stop: the image fades out now; cancel: it disappears at once.
   const end = (out) => {
+    shown++
     clearTimeout(timer)
     if (out) return fade(true)
     anim?.pause()
     img.style.opacity = 0
   }
   subscribe(async ({ state, runtime }) => {
+    const me = ++shown
     clearTimeout(timer)
-    const left = runtime.ended || !runtime.url ? 0 : runtime.at + state.duration * 1000 - Date.now()
+    const until = runtime.at + state.duration * 1000
+    if (runtime.ended || !runtime.url || until <= Date.now()) return void (img.style.opacity = 0)
+    // A new image: hidden until it has loaded, or the previous one would show while it does.
+    if (img.getAttribute('src') !== runtime.url) {
+      anim?.pause()
+      img.style.opacity = 0
+      img.src = runtime.url
+      await img.decode().catch(() => {})
+      if (me !== shown) return
+    }
+    const left = until - Date.now()
     if (left <= 0) return void (img.style.opacity = 0)
-    if (img.getAttribute('src') !== runtime.url) img.src = runtime.url
     fade(false)
     timer = setTimeout(() => fade(true), Math.max(left - FADE, 0))
     return wait(left + FADE)
