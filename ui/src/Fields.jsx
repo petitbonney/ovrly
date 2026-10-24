@@ -47,19 +47,22 @@ const labelled = (options) => options?.map((o) => (typeof o === 'string' ? { val
 const suggest = ({ options, search }) => (!search || options.some((o) => o.value === search) ? options
   : options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase())))
 
+const fit = ({ availableHeight, elements }) => { elements.floating.style.maxHeight = `${Math.min(availableHeight, innerHeight / 2)}px` }
+
 // The "{}" button: a menu of the data keys available at this node (vars null: none, on a trigger); onPick(key) gets
 // the one picked.
 function VarMenu({ vars, onPick }) {
   if (!vars) return null
   return (
-    <Menu position="bottom-end" withinPortal>
+    // On the side with more room, and no taller than that room (nor half the window): it never runs off-screen.
+    <Menu position="bottom-end" withinPortal middlewares={{ flip: { fallbackStrategy: 'bestFit' }, shift: true, size: { padding: 8, apply: fit } }}>
       <Menu.Target>
         <Tooltip label="Insert data from previous nodes">
           <ActionIcon variant="subtle" size="sm" aria-label="Insert data from previous nodes"><IconBraces size={16} /></ActionIcon>
         </Tooltip>
       </Menu.Target>
       {/* Scrollable and capped: a long list must scroll itself, not the canvas behind it (nowheel/nopan) */}
-      <Menu.Dropdown mah="50vh" className="nowheel nopan" style={{ overflowY: 'auto' }}>
+      <Menu.Dropdown className="nowheel nopan" style={{ overflowY: 'auto' }}>
         {vars.length ? vars.map((k) => <Menu.Item key={k} onClick={() => onPick(k)}>{`{{${k}}}`}</Menu.Item>)
           : <Menu.Label>Connect an input first</Menu.Label>}
       </Menu.Dropdown>
