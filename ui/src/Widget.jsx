@@ -4,8 +4,8 @@
 // cancel actions). Also the list of a widget's actions. Autosaved; the instance itself is created when its widget is
 // dropped onto the graph, and an action that changes its state on the server (e.g. TwitchPlays' mode) shows here.
 import { useEffect, useRef, useState } from 'react'
-import { ActionIcon, Alert, Anchor, Badge, Button, Code, CopyButton, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core'
-import { IconCheck, IconCopy, IconHourglassHigh, IconPlayerPlay, IconPlayerStop, IconX } from '@tabler/icons-react'
+import { ActionIcon, Alert, Anchor, Badge, Button, Code, CopyButton, Group, Menu, Modal, Stack, Text, TextInput, Tooltip } from '@mantine/core'
+import { IconCheck, IconChevronDown, IconCopy, IconHourglassHigh, IconPlayerPlay, IconPlayerStop, IconX } from '@tabler/icons-react'
 import Fields, { applies, humanize } from './Fields.jsx'
 import Heading from './Heading.jsx'
 import { json } from './api.js'
@@ -136,11 +136,37 @@ function WidgetSettings({ widget, type, state, setState, context, onCopy }) {
 
 // The live column: the OBS link, the preview, and buttons running the widget's start, stop and cancel actions, named
 // after them. Start sends the inputs saved for its action (variables like {{user}} aren't filled outside a run). Stop
-// and Cancel also end a workflow run waiting on the widget: Stop lets it go on, Cancel ends it.
-function WidgetPreview({ widget, type, state }) {
+// and Cancel also end a workflow run waiting on the widget: Stop lets it go on, Cancel ends it. The widget's other
+// actions (those its settings allow) are in a menu beside Start: one asking for inputs opens a dialog, filled with the
+// inputs it last ran with (saved in the state, through save).
+function WidgetPreview({ widget, type, state, save }) {
   const url = `${location.origin}/w/${widget.id}`
-  const act = (action, input = {}) => fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, input }))
+  const act = (action, input = {}) => fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, input })).then(async (res) => {
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? res.statusText)
+  })
   const start = { ...inputDefaults(type.actions[type.onStart]?.inputs), ...state.input?.[type.onStart] }
+  const others = Object.keys(type.actions).filter((a) => ![type.onStart, type.onStop, type.onCancel].includes(a) && applies(type.actions[a], state, type.state))
+  // The action whose dialog is open, its inputs as typed, and the error of its last run.
+  const [open, setOpen] = useState(null)
+  const [draft, setDraft] = useState({})
+  const [error, setError] = useState('')
+  const pick = (name) => {
+    if (!Object.keys(type.actions[name].inputs ?? {}).length) return act(name).catch(() => {})
+    setDraft(state.input?.[name] ?? {})
+    setError('')
+    setOpen(name)
+  }
+  const run = async () => {
+    const inputs = type.actions[open].inputs
+    try {
+      await save({ ...state, input: { ...state.input, [open]: draft } })
+      await act(open, { ...inputDefaults(inputs), ...draft })
+      setOpen(null)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+  const startButton = <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => act(type.onStart, start).catch(() => {})}>{humanize(type.onStart)}</Button>
   return (
     <>
       <Group gap={6} mb="xs" wrap="nowrap">
@@ -159,10 +185,36 @@ function WidgetPreview({ widget, type, state }) {
       {/* A widget with nothing to see (visual: false) keeps its page, hidden, so Start still plays it here. */}
       <div className="preview-fit" hidden={type.visual === false}><iframe className="preview" src={url} title="Preview" /></div>
       <Group gap="xs" mt="xs">
-        <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => act(type.onStart, start)}>{humanize(type.onStart)}</Button>
-        <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} onClick={() => act(type.onStop)}>{humanize(type.onStop)}</Button>
-        <Button size="xs" variant="default" leftSection={<IconX size={14} />} onClick={() => act(type.onCancel)}>{humanize(type.onCancel)}</Button>
+        {!others.length ? startButton : (
+          <Button.Group>
+            {startButton}
+            <Menu position="bottom-end" withinPortal>
+              <Menu.Target>
+                <Button size="xs" px={6} aria-label="More actions"><IconChevronDown size={14} /></Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                {others.map((name) => (
+                  <Tooltip key={name} label={type.actions[name].description} multiline w={260} position="left" withinPortal disabled={!type.actions[name].description}>
+                    <Menu.Item onClick={() => pick(name)}>{humanize(name)}</Menu.Item>
+                  </Tooltip>
+                ))}
+              </Menu.Dropdown>
+            </Menu>
+          </Button.Group>
+        )}
+        <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} onClick={() => act(type.onStop).catch(() => {})}>{humanize(type.onStop)}</Button>
+        <Button size="xs" variant="default" leftSection={<IconX size={14} />} onClick={() => act(type.onCancel).catch(() => {})}>{humanize(type.onCancel)}</Button>
       </Group>
+      <Modal opened={!!open} onClose={() => setOpen(null)} title={open && humanize(open)} size="sm">
+        {open && (
+          <Stack gap="sm">
+            <Text size="xs" c="dimmed">{type.actions[open].description}</Text>
+            <Fields defaults={inputDefaults(type.actions[open].inputs)} values={draft} fields={type.actions[open].inputs} context={{ trigger: true }} onChange={setDraft} />
+            {error && <Text size="xs" c="red">{error}</Text>}
+            <Group justify="flex-end"><Button size="xs" onClick={run}>Run</Button></Group>
+          </Stack>
+        )}
+      </Modal>
     </>
   )
 }
