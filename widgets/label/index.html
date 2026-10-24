@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Label</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<script type="importmap">{ "imports": { "animejs": "/vendor/animejs/index.js" } }</script>
+<style>
+  /* The text across the page, vertically centered, aligned by the align setting; long text wraps. --c is the color. */
+  #page { position: fixed; inset: 0; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box; }
+  #text { max-width: 100%; color: var(--c); overflow-wrap: anywhere; white-space: pre-wrap; opacity: 0; }
+  #text:empty { display: none; }
+  .card #text { margin: 0; }
+  .neon #text { font-family: 'Snell Roundhand', 'Segoe Script', 'Brush Script MT', cursive; color: color-mix(in srgb, var(--c), #fff 55%);
+    text-shadow: 0 0 2px #fff, 0 0 8px var(--c), 0 0 18px var(--c), 0 0 40px var(--c); }
+</style>
+<div id="page"><div id="text"></div></div>
+<script type="module">
+  import { animate, engine } from 'animejs'
+  import { subscribe } from '/widgets/lib.js'
+  import { FADE } from '/widgets/label/widget.js'
+  engine.pauseOnDocumentHidden = false // OBS may hide the source: a new text still shows
+  const page = document.getElementById('page'), text = document.getElementById('text')
+  let anim
+  const fade = (to, then) => {
+    anim?.pause()
+    anim = animate(text, { opacity: to, duration: FADE, ease: to ? 'outQuad' : 'inQuad', onComplete: then })
+  }
+  subscribe(({ state, runtime }) => {
+    page.className = state.style
+    page.style.justifyContent = { left: 'flex-start', center: 'center', right: 'flex-end' }[state.align]
+    text.className = state.style === 'card' ? 'card' : ''
+    text.style.setProperty('--c', state.color)
+    text.style.fontSize = `${state.size}px`
+    const next = runtime.ended ? '' : runtime.text
+    if (next === text.textContent) return
+    // A new text fades out the one showing, then fades in.
+    const show = () => {
+      text.textContent = next
+      if (next) fade(1)
+    }
+    if (text.textContent && Number(text.style.opacity)) fade(0, show)
+    else show()
+  }, {
+    stop: () => fade(0, () => (text.textContent = '')),
+    cancel: () => {
+      anim?.pause()
+      text.style.opacity = 0
+      text.textContent = ''
+    },
+  })
+</script>
