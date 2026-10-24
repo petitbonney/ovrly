@@ -18,7 +18,7 @@ import {
   useComputedColorScheme,
 } from '@mantine/core'
 import {
-  IconArrowBackUp, IconArrowForwardUp, IconDownload, IconInfoCircle, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
+  IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
   IconPlayerPlay, IconPlayerStop, IconPlus, IconSitemap,
   IconTrash, IconX,
 } from '@tabler/icons-react'
@@ -176,9 +176,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
           <Text fw={600} truncate>{isWidget ? widget?.state.name ?? 'Missing widget' : def.label}</Text>
           {/* The widget's actions, as its settings allow them now (e.g. Voting's "win" only for a prediction). */}
           {isWidget && type && (
-            <Tooltip label={<ActionsInfo type={type} state={{ ...type.state, ...widget.state }} />} multiline withinPortal position="bottom-start">
-              <IconInfoCircle size={16} color="var(--mantine-color-dimmed)" style={{ cursor: 'help', flexShrink: 0 }} />
-            </Tooltip>
+            <ActionsInfo key={widget.id} type={type} state={{ ...type.state, ...widget.state }} />
           )}
           <CloseButton size="sm" ml="auto" aria-label="Close settings" onClick={onClose} />
         </Group>
