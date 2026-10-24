@@ -50,14 +50,15 @@
   import slots from '/widgets/lottery/slots.js'
   const layouts = { wheel, slots }
 
-  // The wheel and the slot show their options: their own, or those loaded from data, with the palette's colors. With
-  // none loaded yet, one blank option per palette color, to show what the palette looks like (none can win).
+  // The wheel and the slot show the options of the last draw until a reset, or else the options as they are. With none,
+  // one blank option per palette color, to show what the palette looks like (none can win). drawn: a reset repaints the
+  // board even when the options haven't changed.
   mount((stage, board, config, res) => layouts[config.layout](stage, board, config, res), {
     playMs,
-    configure(state) {
-      let options = choices(state)
-      if (state.source === 'data' && !options.length) options = palette(state).map((color) => ({ label: '', color, weight: 1 }))
-      return { ...state, options }
+    configure(state, runtime) {
+      let options = runtime.options ?? choices(state)
+      if (!options.length) options = palette(state).map((color) => ({ label: '', color, weight: 1 }))
+      return { layout: state.layout, duration: state.duration, options, drawn: !!runtime.options }
     },
   })
 </script>

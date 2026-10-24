@@ -1,8 +1,8 @@
 // Widget helpers, shared by the overlay pages (browser) and widget.js files (server).
 
 // Page side: calls render({ state, runtime }) now and on every update from the server. When "stop" or "cancel" ends what
-// plays, the page's own handler for it runs instead (end: { stop, cancel }, e.g. play the outro, or cut); a page
-// without one renders the new state. render may return a promise (e.g. an animation): once it settles, the
+// plays, the page's own handler for it runs instead, given the update (end: { stop, cancel }, e.g. play the outro, or
+// cut); a page without one renders the new state. render may return a promise (e.g. an animation): once it settles, the
 // page tells the server the action finished, so the workflow moves on. EventSource reconnects by itself, so OBS
 // sources survive a server restart. In a Merge Widgets page (an iframe marked data-merged), the updates come from the
 // parent's stream (mergeSource), as events named by widget id, starting from the last one (mergeLast) without its run.
@@ -11,7 +11,7 @@ export function subscribe(render, end = {}) {
   const merged = window.frameElement?.dataset.merged !== undefined && parent.mergeSource
   const onMessage = async (e) => {
     const msg = JSON.parse(e.data)
-    if (end[msg.end]) return end[msg.end]()
+    if (end[msg.end]) return end[msg.end](msg)
     await render(msg)
     if (msg.run) fetch(`/w/${id}/done`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ run: msg.run }) })
   }

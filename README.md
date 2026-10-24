@@ -10,7 +10,8 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 
 - **Workflows**: node graphs of the form trigger → logic → action. Build one from scratch or start from a template.
 - **Widgets**: built-in browser-source overlays: alerts, image/GIF, sound, video, voting, lottery, roulette, dice roll, TwitchPlays. The sound widget plays a sound through its overlay (so it reaches the stream; tick "Control audio via OBS" on the browser source): a file on disk (Browse files), a search on [Myinstants](https://www.myinstants.com) (no API: Ovrly reads its search pages, for personal use), or a URL, e.g. `{{sound}}` from a previous node. Its max duration cuts it with a short fade-out (0 plays all of it) and its volume is a percentage. The video widget plays a short video the same way (a file on disk, mp4 or webm, or a URL; max duration and volume; it fades out at the end). The image/GIF widget shows the image set on its node: a file on disk (picked with Browse files, used where it is), a GIF picked from Giphy (once the Giphy integration has an API key), or a URL, e.g. `{{image}}` from a previous node; it fades in and out. The lottery draws a winner with a
-  wheel (weighted, colored options) or a slot (one reel); the roulette draws a number from 0 to 36; the dice roll rolls
+  wheel (weighted options colored by a palette) or a slot (one reel), its options typed in or added by the workflow
+  (load, loadAll; clear removes them all), and keeps the winner shown until reset or the next draw; the roulette draws a number from 0 to 36; the dice roll rolls
   a die with six faces of its own.
   Alerts show a text with one of ten layouts: banner, neon sign, ticket, speech bubble, arcade, flap board, trophy
   (three.js), sticky note, marquee or particles. A new alert replaces the one showing, except on the ticket, flap board
@@ -55,7 +56,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 - **Widgets in a workflow**: a widget node is its own overlay instance (with its own OBS link), run in the flow like
   any node: it runs its widget's **start** action (TwitchPlays: push) with the inputs set in its settings, keeps firing
   until the widget has stopped, then adds the widget's output to the data and the flow goes on. A widget's settings,
-  inputs and kept data (e.g. the lottery's options loaded from data) are saved in `data/widgets/<id>.json`; what plays
+  inputs and kept data (e.g. the lottery's options added by the workflow) are saved in `data/widgets/<id>.json`; what plays
   (a draw, a vote under way) is in memory, and lost on restart. A pasted widget node is a new instance with a copy of
   those settings. To run another action (e.g. `!stop` stops
   the lottery, `!vote` votes), link a **Widget Action** node in front of the widget node (one widget node per Widget

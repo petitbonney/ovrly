@@ -6,13 +6,13 @@ import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import bus, { record } from './bus.js'
 import * as store from './store.js'
-import { fill, value } from './template.js'
+import { fill, list } from './template.js'
 
 // Load every widget type from ../widgets/<type>/widget.js, keyed by type. Each action is { description, inputs, only,
 // run({ state, runtime, input }) → { state?, runtime? } }: inputs says what it asks for, as node fields ({ option: {
 // vars: true, hint }, user: { vars: true, default: '{{user}}' } }), and only when it applies, as a setting's only (e.g.
-// { mode: 'chat' }). An input of type: 'var' names a data key (e.g. items) and gets its raw value (a list, an object…)
-// instead of text. Four bindings name actions: onStart enters firing, onStop and onCancel end it (see end()), and
+// { mode: 'chat' }). An input of type: 'list' gets a list instead of text: its own items, or a data key's value (see
+// list() in template.js). Four bindings name actions: onStart enters firing, onStop and onCancel end it (see end()), and
 // onSignal is what a signal entering the widget node runs.
 const dir = new URL('../widgets/', import.meta.url)
 const builtIn = {
@@ -244,11 +244,7 @@ export async function play(id, action, input, data, signal) {
   const name = roles.includes(action) ? def[action] : action
   input ??= widget.state.input[name]
   const fields = Object.entries(def.actions[name]?.inputs ?? {})
-  const filled = Object.fromEntries(fields.map(([key, f]) => {
-    let t = String(input?.[key] ?? f.default ?? '').trim()
-    if (f.type === 'var') t = t.replace(/^\{\{(.*)\}\}$/s, '$1').trim() // "{{items}}" is items too
-    return [key, f.type !== 'var' ? fill(t, data) : t ? value(`{{${t}}}`, data) : '']
-  }))
+  const filled = Object.fromEntries(fields.map(([key, f]) => [key, f.type === 'list' ? list(input?.[key], data) : fill(String(input?.[key] ?? f.default ?? '').trim(), data)]))
   const { done, run } = await apply(widget, { action: name, input: filled })
   const cancel = () => end(widget, 'cancel', {}, run).catch((err) => record('sse', 'widget-error', { widget: widget.state.name, action: def.onCancel, error: err.message }))
   if (run) signal.addEventListener('abort', cancel, { once: true })

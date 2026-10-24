@@ -1,7 +1,8 @@
-// Lottery: "start" draws a winner at random (see ../draw.js), shown with one of two layouts: a wheel of weighted,
-// colored options or a slot (one reel). Outputs { winner }, the winning label.
-// The wheel and the slot draw from their own options (Custom), or from options loaded from the workflow's data ("load",
-// added up until "clear"), kept in the state (state.loaded, saved). Loaded options without a color take the palette's.
+// Lottery: "start" draws a winner at random (see ../draw.js), shown with one of two layouts: a wheel of weighted options
+// or a slot (one reel), colored by the palette. Outputs { winner }, the winning label.
+// "load" and "loadAll" add options from the workflow, "clear" removes them all; a draw playing goes on with the options
+// it was made with. The wheel stays on the winner until "reset" (or the next draw) shows the options as they are now;
+// "reset" is the cancel action (onCancel), so it also cuts a draw playing.
 // The page (index.html) imports choices() too, so both sides agree on what each index means.
 import { draw } from '../draw.js'
 
@@ -16,9 +17,8 @@ export const PALETTES = {
 
 // What can win, as [{ label, weight, color }]; index = winner.
 export function choices(state) {
-  if (state.source !== 'data') return state.options
   const colors = palette(state)
-  return (state.loaded ?? []).map((o, i) => ({ ...o, color: o.color || colors[i % colors.length] }))
+  return state.options.map((o, i) => ({ ...o, color: colors[i % colors.length] }))
 }
 
 // The picked palette's colors (a Custom one left empty: Ovrly's).
@@ -27,16 +27,19 @@ export function palette(state) {
   return state.palette === 'custom' && custom.length ? custom : PALETTES[state.palette] ?? PALETTES.ovrly
 }
 
-// One loaded option from a data item: a label, or { label, color, weight } (color and weight optional); null to skip.
-function option(item) {
-  const o = item && typeof item === 'object' ? item : { label: item }
-  const label = String(o.label ?? '').trim()
-  if (!label) return null
-  const weight = Number(o.weight)
-  return { label, ...(o.color && { color: String(o.color) }), weight: o.weight != null && o.weight !== '' && weight >= 0 ? weight : 1 }
+// One option to add: a label, and a weight (1 when left out).
+function option(label, weight) {
+  label = String(label ?? '').trim()
+  const w = weight == null || weight === '' ? 1 : Number(weight)
+  if (!label) throw new Error('An option needs a label')
+  if (!(w >= 0)) throw new Error(`"${label}": the weight must be a number, 0 or more`)
+  return { label, weight: w }
 }
 
+const add = (state, added) => ({ state: { ...state, options: [...state.options, ...added] } })
+
 const base = draw(choices, playMs)
+const { cancel, ...actions } = base.actions // reset cancels instead
 
 export default {
   type: 'lottery',
@@ -44,27 +47,21 @@ export default {
   description: 'Draws a winner with a wheel or a slot.',
   state: {
     layout: 'wheel',
-    source: 'custom',
     options: [
-      { label: 'Purple', color: '#9147ff', weight: 1 },
-      { label: 'Pink', color: '#ff4f8b', weight: 1 },
-      { label: 'Teal', color: '#00c2a8', weight: 1 },
-      { label: 'Gold', color: '#ffb400', weight: 1 },
+      { label: 'Purple', weight: 1 },
+      { label: 'Pink', weight: 1 },
+      { label: 'Teal', weight: 1 },
+      { label: 'Gold', weight: 1 },
     ],
     palette: 'ovrly',
     colors: [{ color: '#9147ff' }, { color: '#ff4f8b' }, { color: '#00c2a8' }, { color: '#ffb400' }],
     duration: 5,
-    loaded: [], // options loaded from data, as given (no palette color)
   },
   fields: {
     layout: {
       options: [{ value: 'wheel', label: 'Wheel' }, { value: 'slots', label: 'Slot' }],
     },
-    source: {
-      options: [{ value: 'custom', label: 'Custom' }, { value: 'data', label: 'Options from data' }],
-      hint: 'From data: the "load" action adds options from the workflow, "clear" removes them',
-    },
-    options: { only: { source: 'custom' }, hint: 'A bigger weight is a likelier winner' },
+    options: { hint: 'A bigger weight is a likelier winner' },
     palette: {
       options: [
         { value: 'ovrly', label: 'Ovrly' },
@@ -73,28 +70,39 @@ export default {
         { value: 'earth', label: 'Earth' },
         { value: 'custom', label: 'Custom' },
       ],
-      only: { source: 'data' },
-      hint: 'Colors of the loaded options that come without one',
     },
-    colors: { only: { source: 'data', palette: 'custom' } },
+    colors: { only: { palette: 'custom' } },
     duration: { unit: 's', presets: [3, 5, 8, 12], hint: 'How long a draw lasts' },
   },
   ...base,
+  onCancel: 'reset',
+  // Adding or removing options doesn't replace the draw playing; a new draw does.
+  queues: (action) => action !== 'start',
   actions: {
-    ...base.actions,
+    ...actions,
     load: {
-      description: 'Adds options from the data: a list of labels or of { label, color, weight } (color and weight optional), or one of them. Cancels a draw playing.',
-      only: { source: 'data' },
-      inputs: { list: { type: 'var', hint: 'The data key holding the options, e.g. items from a Fan In node' } },
-      run({ state, runtime, input: { list } }) {
-        const added = [list].flat().map(option).filter(Boolean)
-        if (added.length) return { state: { ...state, loaded: [...state.loaded, ...added] }, runtime: { ...runtime, winner: -1 } }
+      description: 'Adds one option. A draw playing goes on with its options.',
+      inputs: {
+        label: { vars: true },
+        weight: { vars: true, hint: '1 when left empty' },
+      },
+      run: ({ state, input: { label, weight } }) => add(state, [option(label, weight)]),
+    },
+    loadAll: {
+      description: 'Adds a list of { label, weight } options (weight optional). A draw playing goes on with its options.',
+      inputs: { options: { type: 'list', row: { label: '', weight: 1 } } },
+      run({ state, input: { options } }) {
+        if (!Array.isArray(options) || options.some((o) => !o || typeof o !== 'object')) throw new Error('Expects a list of { label, weight }')
+        if (options.length) return add(state, options.map((o) => option(o.label, o.weight)))
       },
     },
     clear: {
-      description: 'Removes the options loaded from data. Cancels a draw playing.',
-      only: { source: 'data' },
-      run: ({ state, runtime }) => (state.loaded.length ? { state: { ...state, loaded: [] }, runtime: { ...runtime, winner: -1 } } : undefined),
+      description: 'Removes all the options. A draw playing goes on with its options.',
+      run: ({ state }) => (state.options.length ? { state: { ...state, options: [] } } : undefined),
+    },
+    reset: {
+      description: 'Shows the options as they are now, leaving the last winner. A draw playing stops there, and so does the workflow.',
+      run: ({ runtime }) => (runtime.options ? { runtime: { ...base.runtime } } : undefined),
     },
   },
 }

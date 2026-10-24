@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults (shown in their order), plus optional per-field hints from the node
-// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'tags' | 'action' | 'inputs' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' }.
+// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'list' | 'tags' | 'action' | 'inputs' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' }.
 // hint: one short line under the label; info: anything longer, in an ⓘ tooltip beside the label. section: a heading
 // shown before this field, starting a group (for nodes with many settings). A field shown only while a switch is on
 // (only: { someSwitch: true }) is indented under it. Plain-text options show with a capital first letter.
@@ -17,6 +17,9 @@
 // Any other list default (e.g. a poll's options) gets a list editor (columns: { key: field } for its items' fields, e.g. a
 // { type: 'tags' } input, { type: 'icon' } an icon picker, { type: 'id' } a hidden random id, { options } a select; a column's
 // label, unit, max, and only: { key: value } of the same item, else disabled), a color default ("#rrggbb") a color picker,
+// type: 'list' a list the workflow gives at run time: a switch picks Custom (its own items, shaped like f.row, a list
+// editor) or From data (a data key, e.g. items from a Fan In node); both are kept, as { from, key, items }. Without data
+// before it (a trigger, a manual run) only its items show.
 // type: 'deck' a Control Pad node's buttons (with Companion, each with a button to copy its URL), type: 'hue-steps' a
 // Hue routine's steps (warned of what its limits change), { obs: 'scenes' | 'sources' } suggestions from OBS and
 // { hue: 'devices' } a Hue light, room or zone.
@@ -341,7 +344,7 @@ function ListInput({ label, description, value, defaults, fixed, columns = {}, e
   }
   return (
     <Stack gap={4}>
-      <Text size="xs" fw={500}>{label}</Text>
+      {label && <Text size="xs" fw={500}>{label}</Text>}
       {description && <Text size="xs" c="dimmed">{description}</Text>}
       {typeof shape === 'object' && (
         // Column titles, as wide as the fields under them.
@@ -409,6 +412,24 @@ function ListInput({ label, description, value, defaults, fixed, columns = {}, e
   )
 }
 
+// A type: 'list' field (see the header): Custom items or a data key, picked with a switch where data comes in (vars).
+function ListField({ label, description, row, columns, vars, value, onChange }) {
+  const v = { from: 'custom', key: '', items: [], ...(value && typeof value === 'object' && value) }
+  const set = (patch) => onChange({ ...v, ...patch })
+  const items = <ListInput value={v.items} defaults={[row]} columns={columns} onChange={(items) => set({ items })} />
+  return (
+    <Stack gap={4}>
+      <Text size="xs" fw={500}>{label}</Text>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
+      {vars && (
+        <SegmentedControl size="xs" fullWidth value={v.from} onChange={(from) => set({ from })}
+          data={[{ value: 'custom', label: 'Custom' }, { value: 'data', label: 'From data' }]} />
+      )}
+      {vars && v.from === 'data' ? <Autocomplete size="xs" data={vars} placeholder="Data key, e.g. items" value={v.key} onChange={(key) => set({ key })} /> : items}
+    </Stack>
+  )
+}
+
 // A copy button for a URL, which its tooltip shows.
 function CopyUrl({ url }) {
   return (
@@ -461,6 +482,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
     return <HueSteps label={props.label} description={props.description} value={value} defaults={fallback} columns={f.columns} limits={f.limits}
       device={values.device ?? ''} transition={Number(values.transition) || 0} restore={values.restore} onChange={set} />
   }
+  if (f.type === 'list') return <ListField {...props} row={f.row} columns={f.columns} vars={vars} value={value} onChange={set} />
   if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} columns={f.columns} onChange={set} />
   if (f.type === 'tags') {
     const tags = value ? value.split('+') : []

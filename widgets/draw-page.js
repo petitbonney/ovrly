@@ -7,7 +7,7 @@ engine.pauseOnDocumentHidden = false
 
 // build(stage, board, config, res) makes the layout: canvases in the stage, HTML pieces on the board, drawn at res
 // (device pixels per design px). It returns { play(winner, ms) → anime timeline that ends on the winner, stop(),
-// destroy() }. It is rebuilt when its config (configure(state), the state by default) changes, or the page is resized.
+// destroy() }. It is rebuilt when its config (configure(state, runtime), the state by default) changes, or the page is resized.
 // The page shows no result text: the winner is in the workflow's data ({{winner}}), for an alert or a chat message to
 // announce it.
 export function mount(build, { playMs, configure = (state) => state }) {
@@ -26,13 +26,19 @@ export function mount(build, { playMs, configure = (state) => state }) {
   }
   addEventListener('resize', () => shown && rebuild(shown))
 
-  let tl // the draw playing, or played last
-  subscribe(({ state, runtime }) => {
-    const config = configure(state)
+  // Shows the board for this state and runtime, rebuilt if its config changed.
+  function show(state, runtime) {
+    const config = configure(state, runtime)
     if (JSON.stringify(config) !== key) {
       key = JSON.stringify(config)
       rebuild(config)
     }
+    return config
+  }
+
+  let tl // the draw playing, or played last
+  subscribe(({ state, runtime }) => {
+    const config = show(state, runtime)
     if (runtime.winner < 0 || runtime.at === lastSpin || runtime.ended || runtime.layout !== (config.layout ?? '')) return
     lastSpin = runtime.at
     const ms = playMs(config)
@@ -42,6 +48,10 @@ export function mount(build, { playMs, configure = (state) => state }) {
     return wait(ms - played) // finished once the draw is over
   }, {
     stop: () => tl?.seek(tl.duration), // the draw jumps to its end, on the winner
-    cancel: () => layout?.stop(), // the draw freezes where it is
+    // The draw freezes where it is, unless the cancel action changed what the board shows (Lottery's reset).
+    cancel: ({ state, runtime }) => {
+      layout?.stop()
+      show(state, runtime)
+    },
   })
 }
