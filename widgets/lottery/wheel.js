@@ -16,7 +16,7 @@ function sections(options) {
   })
 }
 
-export default function wheel(stage, board, { options }, res) {
+export default function wheel(stage, board, { options, text }, res) {
   const parts = sections(options)
   // The canvas fills the page; the wheel is drawn in 880 units (2x the board), centered. It turns around the center.
   const disc = el('canvas', 'fill')
@@ -54,7 +54,7 @@ export default function wheel(stage, board, { options }, res) {
       ctx.fillStyle = options[i].color; ctx.fill()
       ctx.strokeStyle = '#fff6'; ctx.lineWidth = 4; ctx.stroke()
       ctx.save(); ctx.translate(c, c); ctx.rotate(a + seg / 2)
-      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.shadowColor = '#0009'; ctx.shadowBlur = 8
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = text; ctx.shadowColor = '#0009'; ctx.shadowBlur = 8
       ctx.font = `800 ${Math.min(44, seg * R * 0.4)}px system-ui`
       ctx.fillText(options[i].label, R - 60, 0) // clear of the pin's tip
       ctx.restore()

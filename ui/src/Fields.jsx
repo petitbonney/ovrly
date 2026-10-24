@@ -20,7 +20,7 @@
 // type: 'list' a list the workflow gives at run time: a switch picks Custom (its own items, shaped like f.row, a list
 // editor) or From data (a data key, e.g. items from a Fan In node); both are kept, as { from, key, items }. Without data
 // before it (a trigger, a manual run) only its items show.
-// type: 'palette' a grid of color squares ([{ color }]), type: 'deck' a Control Pad node's buttons (with Companion, each with a button to copy its URL), type: 'hue-steps' a
+// type: 'palette' a grid of color squares ([{ color }]; text: the key of a text color, picked in a square before them), type: 'deck' a Control Pad node's buttons (with Companion, each with a button to copy its URL), type: 'hue-steps' a
 // Hue routine's steps (warned of what its limits change), { obs: 'scenes' | 'sources' } suggestions from OBS and
 // { hue: 'devices' } a Hue light, room or zone.
 import { Fragment, useEffect, useRef, useState } from 'react'
@@ -413,47 +413,59 @@ function ListInput({ label, description, value, defaults, fixed, columns = {}, e
 }
 
 // A type: 'palette' field: a grid of color squares, [{ color }]. A square opens its picker (with Remove); the dashed
-// "+" adds the first swatch not used yet and opens it.
-function PaletteInput({ label, description, value, onChange }) {
-  const [open, setOpen] = useState(null) // index of the square whose picker is open
+// "+" adds the first swatch not used yet and opens it. With text (a text color) and onText, a square before them,
+// set apart by a line, picks the labels' color: an "A" in it, on the first color.
+function PaletteInput({ label, description, value, onChange, text, onText }) {
+  const [open, setOpen] = useState(null) // the square whose picker is open: its index, or 'text'
   const set = (i, color) => onChange(value.map((v, j) => (j === i ? { color } : v)))
   const add = () => {
     const used = value.map((v) => v.color)
     onChange([...value, { color: swatches.find((c) => !used.includes(c)) ?? swatches[value.length % swatches.length] }])
     setOpen(value.length)
   }
-  const square = { width: 28, height: 28, borderRadius: 6, cursor: 'pointer' }
+  const square = { width: 28, height: 28, borderRadius: 6, cursor: 'pointer', flex: 'none' }
+  const swatch = (id, name, style, picker, content) => (
+    <Popover key={id} opened={open === id} onChange={(o) => setOpen(o ? id : null)} position="bottom-start" shadow="md">
+      <Popover.Target>
+        <UnstyledButton aria-label={name} onClick={() => setOpen(open === id ? null : id)}
+          style={{ ...square, boxShadow: open === id ? '0 0 0 2px var(--mantine-color-blue-5)' : 'inset 0 0 0 1px rgba(0,0,0,.2)', ...style }}>
+          {content}
+        </UnstyledButton>
+      </Popover.Target>
+      <Popover.Dropdown p="xs">{picker}</Popover.Dropdown>
+    </Popover>
+  )
   return (
     <Stack gap={4}>
       <Text size="xs" fw={500}>{label}</Text>
       {description && <Text size="xs" c="dimmed">{description}</Text>}
-      <Group gap={6}>
-        {value.map((v, i) => (
-          <Popover key={i} opened={open === i} onChange={(o) => setOpen(o ? i : null)} position="bottom-start" shadow="md">
-            <Popover.Target>
-              <UnstyledButton aria-label={`Color ${v.color}`} onClick={() => setOpen(open === i ? null : i)}
-                style={{ ...square, background: v.color, boxShadow: open === i ? '0 0 0 2px var(--mantine-color-blue-5)' : 'inset 0 0 0 1px rgba(0,0,0,.2)' }} />
-            </Popover.Target>
-            <Popover.Dropdown p="xs">
-              <SwatchPicker color={v.color} onChange={(c) => set(i, c)}
-                onRemove={() => {
-                  onChange(value.filter((_, j) => j !== i))
-                  setOpen(null)
-                }} />
-            </Popover.Dropdown>
-          </Popover>
-        ))}
-        <UnstyledButton aria-label="Add a color" onClick={add}
-          style={{ ...square, display: 'grid', placeItems: 'center', border: '1px dashed var(--mantine-color-dimmed)', color: 'var(--mantine-color-dimmed)' }}>
-          <IconPlus size={14} />
-        </UnstyledButton>
+      {/* p: room for the open square's ring, which the pane would clip on the left */}
+      <Group gap={6} wrap="nowrap" align="flex-start" p={2}>
+        {onText && <>
+          {swatch('text', `Text color ${text}`,
+            { display: 'grid', placeItems: 'center', background: value[0]?.color ?? '#3a3a44', color: text, fontWeight: 800, textShadow: '0 1px 2px #0009' },
+            <SwatchPicker color={text} swatches={['#ffffff', '#000000', ...swatches.slice(0, 6)]} onChange={onText} />, 'A')}
+          <div style={{ width: 1, height: 20, margin: '4px 2px', flex: 'none', background: 'var(--mantine-color-default-border)' }} />
+        </>}
+        <Group gap={6}>
+          {value.map((v, i) => swatch(i, `Color ${v.color}`, { background: v.color },
+            <SwatchPicker color={v.color} swatches={swatches} onChange={(c) => set(i, c)}
+              onRemove={() => {
+                onChange(value.filter((_, j) => j !== i))
+                setOpen(null)
+              }} />))}
+          <UnstyledButton aria-label="Add a color" onClick={add}
+            style={{ ...square, display: 'grid', placeItems: 'center', border: '1px dashed var(--mantine-color-dimmed)', color: 'var(--mantine-color-dimmed)' }}>
+            <IconPlus size={14} />
+          </UnstyledButton>
+        </Group>
       </Group>
     </Stack>
   )
 }
 
-// A palette square's picker: the color, its hex (applied once valid) and a Remove button.
-function SwatchPicker({ color, onChange, onRemove }) {
+// A palette square's picker: the color, its hex (applied once valid) and, with onRemove, a Remove button.
+function SwatchPicker({ color, swatches, onChange, onRemove }) {
   const [hex, setHex] = useState(color)
   useEffect(() => setHex(color), [color])
   return (
@@ -464,7 +476,7 @@ function SwatchPicker({ color, onChange, onRemove }) {
           setHex(e.target.value)
           if (isColor(e.target.value)) onChange(e.target.value)
         }} />
-        <Button size="xs" variant="light" color="red" onClick={onRemove}>Remove</Button>
+        {onRemove && <Button size="xs" variant="light" color="red" onClick={onRemove}>Remove</Button>}
       </Group>
     </Stack>
   )
@@ -518,7 +530,7 @@ function Label({ text, info }) {
 
 // One setting; context: { vars: data keys available here, trigger: whether the node is a trigger (no data comes
 // before it, so no "{}" menu), widget: the node's widget, types, off: the requirements not met } for the dynamic types.
-function Field({ name, f, fallback, value, set, values, context }) {
+function Field({ name, f, fallback, value, set, change, values, context }) {
   const vars = context.trigger ? null : context.vars ?? []
   const props = { label: <Label text={f.label ?? humanize(name)} info={f.info} />, description: f.hint, size: 'xs' }
   if (Array.isArray(fallback) && f.options) {
@@ -540,7 +552,9 @@ function Field({ name, f, fallback, value, set, values, context }) {
     return <HueSteps label={props.label} description={props.description} value={value} defaults={fallback} columns={f.columns} limits={f.limits}
       device={values.device ?? ''} transition={Number(values.transition) || 0} restore={values.restore} onChange={set} />
   }
-  if (f.type === 'palette') return <PaletteInput {...props} value={value} onChange={set} />
+  if (f.type === 'palette') {
+    return <PaletteInput {...props} value={value} onChange={set} text={values[f.text]} onText={f.text && ((c) => change({ [f.text]: c }))} />
+  }
   if (f.type === 'list') return <ListField {...props} row={f.row} columns={f.columns} vars={vars} value={value} onChange={set} />
   if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} columns={f.columns} onChange={set} />
   if (f.type === 'tags') {
@@ -640,6 +654,7 @@ export default function Fields({ defaults, values, onChange, fields = {}, contex
             fallback={defaults[key]}
             value={values[key] ?? defaults[key]}
             set={(v) => onChange({ ...values, [key]: v })}
+            change={(patch) => onChange({ ...values, ...patch })}
             values={{ ...defaults, ...values }}
             context={context}
           />

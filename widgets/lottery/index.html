@@ -45,7 +45,7 @@
 <div id="stage"></div>
 <script type="module">
   import { mount } from '/widgets/draw-page.js'
-  import { playMs, choices, palette } from '/widgets/lottery/widget.js'
+  import { playMs, choices, palette, textColor } from '/widgets/lottery/widget.js'
   import wheel from '/widgets/lottery/wheel.js'
   import slots from '/widgets/lottery/slots.js'
   const layouts = { wheel, slots }
@@ -58,7 +58,7 @@
     configure(state, runtime) {
       let options = runtime.options ?? choices(state)
       if (!options.length) options = palette(state).map((color) => ({ label: '', color, weight: 1 }))
-      return { layout: state.layout, duration: state.duration, options, drawn: !!runtime.options }
+      return { layout: state.layout, duration: state.duration, options, text: textColor(state), drawn: !!runtime.options }
     },
   })
 </script>

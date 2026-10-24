@@ -71,7 +71,7 @@ function lightShow(lights) {
   }
 }
 
-export default function slots(stage, board, { options }) {
+export default function slots(stage, board, { options, text }) {
   const n = options.length
   const option = (i) => (n ? options[((i % n) + n) % n] : { label: i ? '' : 'No options', color: '#3a3a44' }) // no options: blank tiles
   // Five tiles, repainted as the reel turns: the strip never grows, however long the draw.
@@ -100,6 +100,7 @@ export default function slots(stage, board, { options }) {
       tiles.forEach((tile, j) => {
         const o = option(b - 2 + j)
         tile.textContent = o.label
+        tile.style.color = text
         tile.style.background = `linear-gradient(${o.color}, color-mix(in srgb, ${o.color}, #000 35%))`
       })
     }

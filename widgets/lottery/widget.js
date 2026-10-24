@@ -27,6 +27,9 @@ export function palette(state) {
   return state.palette === 'custom' && custom.length ? custom : PALETTES[state.palette] ?? PALETTES.ovrly
 }
 
+// The labels' color: the Custom palette's own, else white.
+export const textColor = (state) => (state.palette === 'custom' ? state.textColor : '#ffffff')
+
 // One option to add: a label, and a weight (1 when left out).
 function option(label, weight) {
   label = String(label ?? '').trim()
@@ -55,6 +58,7 @@ export default {
     ],
     palette: 'ovrly',
     colors: [{ color: '#9147ff' }, { color: '#ff4f8b' }, { color: '#00c2a8' }, { color: '#ffb400' }],
+    textColor: '#ffffff',
     duration: 5,
   },
   fields: {
@@ -71,7 +75,8 @@ export default {
         { value: 'custom', label: 'Custom' },
       ],
     },
-    colors: { type: 'palette', only: { palette: 'custom' } },
+    colors: { type: 'palette', text: 'textColor', only: { palette: 'custom' } },
+    textColor: { hidden: true }, // picked in colors' grid
     duration: { unit: 's', presets: [3, 5, 8, 12], hint: 'How long a draw lasts' },
   },
   ...base,
