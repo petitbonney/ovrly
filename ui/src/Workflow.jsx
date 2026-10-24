@@ -24,7 +24,7 @@ import {
 } from '@tabler/icons-react'
 import Fields from './Fields.jsx'
 import DeckGrid from './Deck.jsx'
-import WidgetSettings, { ActionsInfo, WidgetPreview } from './Widget.jsx'
+import WidgetPane, { ActionsInfo } from './Widget.jsx'
 import QueueLine from './QueueLine.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
@@ -34,7 +34,7 @@ import { exportWorkflow, download } from './share.js'
 import { get, json } from './api.js'
 import { requirements } from './Settings.jsx'
 
-const findWidget = (widgets, ref) => widgets.find((w) => w.id === ref || w.name === ref)
+const findWidget = (widgets, id) => widgets.find((w) => w.id === id)
 // The widget instance a node points to (id or name): a widget node's own, or a Widget Action node's linked widget node's.
 const widgetRef = (node, nodes, edges) => node?.data.type !== 'widget-action' ? node?.data.config.widget
   : nodes.find((n) => n.data.type === 'widget' && edges.some((e) => e.source === node.id && e.target === n.id))?.data.config.widget
@@ -53,14 +53,14 @@ const knownWidgets = {}
 
 // What a node needs (requirement keys, see Settings.jsx): its type's `needs`, its widget type's for a widget node, and
 // those of the options picked in their settings ({ needs: key }, or { streamer: true }: Twitch in Streamer mode).
-// config and widgetConfig: the settings with their defaults.
-function needsOf(def, config, type, widgetConfig) {
+// config and widgetState: the settings with their defaults.
+function needsOf(def, config, type, widgetState) {
   const picked = (fields = {}, values) => Object.entries(fields).flatMap(([key, f]) => {
     const option = f.options?.find((o) => o.value === values[key])
     return [option?.needs, option?.streamer && 'twitch'].filter(Boolean)
   })
   const own = [...(def?.needs ?? []), ...picked(def?.fields, config)]
-  return type ? [...own, ...(type.needs ?? []), ...picked(type.fields, widgetConfig)] : own
+  return type ? [...own, ...(type.needs ?? []), ...picked(type.fields, widgetState)] : own
 }
 
 // Data keys a node can use as {{key}}: what every node upstream of it adds (a manual trigger adds its JSON's keys,
@@ -141,14 +141,11 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
   const { widget } = context
   const type = widget && context.types.find((t) => t.type === widget.type)
   const config = { ...def.config, ...node.data.config }
-  const needs = needsOf(def, config, isWidget && type, { ...type?.config, ...widget?.config })
+  const needs = needsOf(def, config, isWidget && type, { ...type?.state, ...widget?.state })
   const missing = requirements.filter((r) => off.includes(r.key) && needs.includes(r.key))
   const Icon = (isWidget ? widgetIcons[widget?.type] : icons[def.type]) ?? icons.log
-  const fields = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={{ ...context, off }} onChange={onChange} />
-  const settings = !isWidget ? fields
-    : type && <WidgetSettings key={widget.id} widget={widget} type={type} inputs={fields} off={off} onChange={onWidgetChange} onCopy={onCopy} onError={onError} />
-  const live = isWidget ? type && <WidgetPreview widget={widget} type={type} testInput={node.data.config.input} />
-    : def.type === 'deck' ? <DeckGrid workflow={workflow} node={node.id} config={config} />
+  const settings = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={{ ...context, off }} onChange={onChange} />
+  const live = def.type === 'deck' ? <DeckGrid workflow={workflow} node={node.id} config={config} />
     : def.queue ? <QueueLine workflow={workflow} node={node.id} />
     : def.type === 'hue' && config.mode === 'routine' && (
       <Stack gap="xs">
@@ -173,13 +170,13 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
   ].filter(Boolean)
   return (
     <AppShell.Footer>
-      <div className={live || isMerge ? 'pane split' : 'pane'}>
+      <div className={live || isMerge || (isWidget && type) ? 'pane split' : 'pane'}>
         <Group gap="xs" mb={4} wrap="nowrap">
           <Icon size={20} color={colors[def.category]} style={{ flexShrink: 0 }} />
-          <Text fw={600} truncate>{isWidget ? widget?.name ?? 'Missing widget' : def.label}</Text>
+          <Text fw={600} truncate>{isWidget ? widget?.state.name ?? 'Missing widget' : def.label}</Text>
           {/* The widget's actions, as its settings allow them now (e.g. Voting's "win" only for a prediction). */}
           {isWidget && type && (
-            <Tooltip label={<ActionsInfo type={type} config={{ ...type.config, ...widget.config }} />} multiline withinPortal position="bottom-start">
+            <Tooltip label={<ActionsInfo type={type} state={{ ...type.state, ...widget.state }} />} multiline withinPortal position="bottom-start">
               <IconInfoCircle size={16} color="var(--mantine-color-dimmed)" style={{ cursor: 'help', flexShrink: 0 }} />
             </Tooltip>
           )}
@@ -189,6 +186,8 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
         {notices.length > 0 && <Stack gap="xs" mb="sm">{notices}</Stack>}
         {isMerge ? (
           <Merge workflow={workflow} node={node.id} config={config} widgets={context.inputs} types={context.types} onChange={onChange} />
+        ) : isWidget ? (
+          type && <WidgetPane key={widget.id} widget={widget} type={type} context={context} off={off} onChange={onWidgetChange} onCopy={onCopy} onError={onError} />
         ) : live ? (
           <Group className="widget-split" align="stretch" gap="xl" wrap="nowrap">
             <Stack className="settings" flex="1 1 280px" maw={420}>{settings}</Stack>
@@ -261,6 +260,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const source = new EventSource('/api/activity')
     source.onmessage = (e) => {
       const a = JSON.parse(e.data)
+      if (a.widget) return onWidgetChange() // an action changed a widget's state: its settings show it
       if (a.workflow !== workflow.id) return
       if ('running' in a) return setFirings(a.running)
       if (a.edge) return pass(a.edge)
@@ -323,10 +323,10 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const widget = findWidget(widgets, widgetRef(n, nodes, edges))
     const widgetType = types.find((t) => t.type === widget?.type)
     const isWidget = n.data.type === 'widget'
-    const needs = needsOf(def, { ...def?.config, ...n.data.config }, isWidget && widgetType, { ...widgetType?.config, ...widget?.config })
+    const needs = needsOf(def, { ...def?.config, ...n.data.config }, isWidget && widgetType, { ...widgetType?.state, ...widget?.state })
     const missing = requirements.filter((r) => off.includes(r.key) && needs.includes(r.key)).map((r) => r.needs)
     const context = { workflowId: workflow.id, def, widget, widgetType, missing }
-    const shown = { ...n, ariaLabel: (isWidget ? widget?.name : def?.label) ?? n.data.label, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
+    const shown = { ...n, ariaLabel: (isWidget ? widget?.state.name : def?.label) ?? n.data.label, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
     return live.nodes[n.id] ? { ...shown, className: `run-${live.nodes[n.id]}` } : shown
   })
   const shownEdges = allEdges.map((e) => ({ ...e, targetHandle: inputOf[e.id] })).map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow', markerEnd: { ...edgeOptions.markerEnd, color: '#4dabf7' } } : e))
@@ -531,7 +531,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     return () => window.removeEventListener('ovrly-add', onAdd)
   }, [])
 
-  const nodeName = (n) => (n.data.type === 'widget' ? findWidget(widgets, n.data.config.widget)?.name : defOf(n)?.label) ?? n.data.label
+  const nodeName = (n) => (n.data.type === 'widget' ? findWidget(widgets, n.data.config.widget)?.state.name : defOf(n)?.label) ?? n.data.label
   const copy = (picked) => {
     const ids = picked.map((n) => n.id)
     clipboard = { nodes: picked, edges: edges.filter((ed) => ids.includes(ed.source) && ids.includes(ed.target)) }

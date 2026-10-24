@@ -35,7 +35,7 @@ import GiphyPicker from './GiphyPicker.jsx'
 import MyinstantsPicker from './MyinstantsPicker.jsx'
 
 // "case1" -> "Case1", "sceneName" -> "Scene name"
-const humanize = (key) => key[0].toUpperCase() + key.slice(1).replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`)
+export const humanize = (key) => key[0].toUpperCase() + key.slice(1).replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`)
 // Plain-text options as { value, label }, the label with a capital first letter: "toggle" -> "Toggle".
 const labelled = (options) => options?.map((o) => (typeof o === 'string' ? { value: o, label: o[0].toUpperCase() + o.slice(1) } : o))
 
@@ -469,19 +469,18 @@ function Field({ name, f, fallback, value, set, values, context }) {
   }
   // A widget's actions come from its type: those that apply with the widget's settings. Short option lists are buttons.
   const type = context.types?.find((t) => t.type === context.widget?.type)
-  // A widget action's inputs, as their own settings: the fields its widget type asks for that action (none: nothing
-  // shown). A widget node's (linked: true) are those of the action its type links to it ("start", unless the type says
-  // otherwise), a Widget Action node's those of the one picked ("stop" by default).
+  // A Widget Action node's inputs, as their own settings: the fields its widget type asks for the action picked (its
+  // stop action by default; none: nothing shown).
   if (f.type === 'inputs') {
-    const fields = type?.actions[f.linked ? type.linked : values.action || 'stop']?.inputs ?? {}
+    const fields = type?.actions[values.action || type.onStop]?.inputs ?? {}
     if (!Object.keys(fields).length) return null
     const defaults = Object.fromEntries(Object.entries(fields).map(([key, f]) => [key, f.default ?? '']))
     return <Fields defaults={defaults} values={value} fields={fields} context={context} onChange={set} />
   }
   // Options needing a requirement not met (Twitch features without Streamer mode, an integration not ready) can't be
   // picked, and say why on hover; one picked earlier is noted at the top of the settings pane.
-  const config = { ...type?.config, ...context.widget?.config }
-  const options = f.type === 'action' ? Object.keys(type?.actions ?? {}).filter((a) => applies(type.actions[a], config)) : f.options
+  const state = { ...type?.state, ...context.widget?.state }
+  const options = f.type === 'action' ? Object.keys(type?.actions ?? {}).filter((a) => applies(type.actions[a], state)) : f.options
   const choices = labelled(options)?.map(({ streamer, needs, ...option }) => {
     const unmet = requirements.find((r) => (r.key === needs || (streamer && r.key === 'twitch')) && context.off?.includes(r.key))
     return unmet ? { ...option, disabled: true, why: `Needs ${unmet.needs} (Settings → ${unmet.label})` } : option
@@ -503,8 +502,8 @@ function Field({ name, f, fallback, value, set, values, context }) {
       </Stack>
     )
   }
-  // A Widget Action node with no action set runs "stop".
-  const picked = f.type === 'action' ? value || 'stop' : value
+  // A Widget Action node with no action set runs its widget's stop action.
+  const picked = f.type === 'action' ? value || type?.onStop : value
   if (choices?.length <= 4) {
     return (
       <Stack gap={4}>

@@ -158,7 +158,7 @@ export default function Merge({ workflow, node, config, widgets, types, onChange
                   onDragEnd={() => setDrag(null)}
                 >
                   <IconGripVertical size={14} />
-                  <Text size="xs" truncate>{widgets.find((w) => w.id === id).name}</Text>
+                  <Text size="xs" truncate>{widgets.find((w) => w.id === id).state.name}</Text>
                 </Group>
               ))}
               {drag?.over === top.length && <div style={{ height: 2, marginTop: -2, background: 'var(--mantine-color-blue-5)' }} />}
@@ -183,13 +183,13 @@ export default function Merge({ workflow, node, config, widgets, types, onChange
         <div ref={ref} className="merge-fit">
           <div className="preview merge-canvas" style={{ width: '100%', height: '100%' }}>
             {widgets.map((w, i) => {
-              if (!visual(w)) return <iframe key={w.id} src={`/w/${w.id}`} data-merged="" title={w.name} hidden />
+              if (!visual(w)) return <iframe key={w.id} src={`/w/${w.id}`} data-merged="" title={w.state.name} hidden />
               const b = moving?.id === w.id ? moving.box : toBox(layout[w.id], i)
               return (
                 <div key={w.id} className="merge-box" style={{ left: b.x * scale.x, top: b.y * scale.y, width: b.w * scale.x, height: b.h * scale.y, zIndex: top.length - top.indexOf(w.id) }}
                   onPointerDown={(e) => grab(e, w.id, i, 'move')}>
-                  <iframe src={`/w/${w.id}`} data-merged="" title={w.name} style={{ width: b.w, height: b.h, transform: `scale(${scale.x}, ${scale.y})` }} />
-                  <span className="name">{w.name}</span>
+                  <iframe src={`/w/${w.id}`} data-merged="" title={w.state.name} style={{ width: b.w, height: b.h, transform: `scale(${scale.x}, ${scale.y})` }} />
+                  <span className="name">{w.state.name}</span>
                   <span className="corner" onPointerDown={(e) => grab(e, w.id, i, 'size')} />
                 </div>
               )

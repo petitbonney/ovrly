@@ -1,19 +1,23 @@
-// Widget node settings: WidgetSettings, the settings column ("This node": the inputs of the action the node runs;
-// "Widget (shared)": the instance's name, mode or layout and settings, shared by every node using it; then its id, with
-// a button that copies the node), and WidgetPreview, the live column (OBS link, preview, Start, Stop and Cancel). Also
-// the list of a widget's actions. Autosaved; the instance itself is created when its widget is dropped onto the graph.
-import { useEffect, useState } from 'react'
+// Widget node pane: WidgetPane holds the widget's state (its settings, the inputs of its actions, kept data) and lays
+// out the settings column (the inputs of the action a signal runs, then the widget's settings, then its id, with a
+// button that copies the node) beside the live column (OBS link, preview, and the buttons running its start, stop and
+// cancel actions). Also the list of a widget's actions. Autosaved; the instance itself is created when its widget is
+// dropped onto the graph, and an action that changes its state on the server (e.g. TwitchPlays' mode) shows here.
+import { useEffect, useRef, useState } from 'react'
 import { ActionIcon, Alert, Anchor, Badge, Button, Code, CopyButton, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core'
 import { IconCheck, IconCopy, IconHourglassHigh, IconPlayerPlay, IconPlayerStop, IconX } from '@tabler/icons-react'
-import Fields, { applies } from './Fields.jsx'
+import Fields, { applies, humanize } from './Fields.jsx'
 import Heading from './Heading.jsx'
 import { json } from './api.js'
 
-// A widget type's actions that apply with this config ("start", "stop" and "cancel" first), each with what it does and
-// the inputs it asks for; the one its widget node runs is marked. Shown in the widget node's header tooltip.
-export function ActionsInfo({ type, config }) {
-  const names = Object.keys(type.actions).filter((a) => applies(type.actions[a], config, type.config))
-  const order = ['start', 'stop', 'cancel']
+// An action's inputs with their defaults, e.g. { text: 'New alert!' }.
+const inputDefaults = (inputs = {}) => Object.fromEntries(Object.entries(inputs).map(([key, f]) => [key, f.default ?? '']))
+
+// A widget type's actions that apply with this state (its start, stop and cancel first), each with what it does and the
+// inputs it asks for; the one a signal runs is marked. Shown in the widget node's header tooltip.
+export function ActionsInfo({ type, state }) {
+  const names = Object.keys(type.actions).filter((a) => applies(type.actions[a], state, type.state))
+  const order = [type.onStart, type.onStop, type.onCancel]
   names.sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9))
   return (
     <Stack gap={8} maw={360}>
@@ -23,7 +27,7 @@ export function ActionsInfo({ type, config }) {
           <Stack key={name} gap={2}>
             <Group gap={6}>
               <Text size="xs" fw={700}>{name}</Text>
-              {name === type.linked && <Badge size="xs" variant="light">this node</Badge>}
+              {name === type.onSignal && <Badge size="xs" variant="light">this node</Badge>}
             </Group>
             <Text size="xs">{description}</Text>
             {Object.entries(inputs).map(([key, f]) => (
@@ -38,55 +42,85 @@ export function ActionsInfo({ type, config }) {
   )
 }
 
-// A widget node's settings column. inputs: the fields of the action the node runs (none: no "This node" section);
-// off: the requirements not met (Settings.jsx); onCopy copies the node for pasting; onError says a save failed. A
-// widget type marked `soon` shows a "Coming soon" note instead of settings.
-export default function WidgetSettings({ widget, type, inputs, off, onChange, onCopy, onError }) {
-  const [name, setName] = useState(widget.name)
-  const [config, setConfig] = useState(widget.config)
+// The widget node's two columns. context: the node's field context (data keys…); off: the requirements not met
+// (Settings.jsx); onChange says the widget was saved; onCopy copies the node for pasting; onError says a save failed.
+export default function WidgetPane({ widget, type, context, off, onChange, onCopy, onError }) {
+  const [state, setState] = useState(widget.state)
+  // The state as the server last had it: a different one coming in was changed there (an action), and replaces ours.
+  const known = useRef(JSON.stringify(widget.state))
+  useEffect(() => {
+    const text = JSON.stringify(widget.state)
+    if (text === known.current) return
+    known.current = text
+    setState(widget.state)
+  }, [widget.state])
 
-  // Debounced autosave, tried again every few seconds while Ovrly can't be reached; the server pushes the new config to
+  const put = (next) => fetch(`/api/widgets/${widget.id}`, json('PUT', { type: widget.type, state: next })).then((res) => {
+    if (!res.ok) throw new Error(res.statusText)
+    known.current = JSON.stringify(next)
+    onChange()
+  })
+  // Debounced autosave, tried again every few seconds while Ovrly can't be reached; the server pushes the new state to
   // open overlays.
   const [retry, setRetry] = useState(0)
   useEffect(() => {
-    if (name === widget.name && config === widget.config) return
-    const timer = setTimeout(() => fetch(`/api/widgets/${widget.id}`, json('PUT', { name, type: widget.type, config })).then((res) => {
-      if (!res.ok) throw new Error(res.statusText)
-      onChange()
-    }).catch(() => {
-      onError()
-      setTimeout(() => setRetry((n) => n + 1), 3000)
-    }), 500)
+    const timer = setTimeout(() => {
+      if (JSON.stringify(state) === known.current) return
+      put(state).catch(() => {
+        onError()
+        setTimeout(() => setRetry((n) => n + 1), 3000)
+      })
+    }, 500)
     return () => clearTimeout(timer)
-  }, [name, config, retry])
+  }, [state, retry])
+  // Saves at once: an action's inputs, before it runs with them.
+  const save = (next) => {
+    setState(next)
+    return put(next)
+  }
 
-  const first = ['mode', 'layout'].filter((key) => key in type.config)
-  const hasInputs = Object.keys(type.actions[type.linked]?.inputs ?? {}).length > 0
+  return (
+    <Group className="widget-split" align="stretch" gap="xl" wrap="nowrap">
+      <Stack className="settings" flex="1 1 280px" maw={420}>
+        <WidgetSettings widget={widget} type={type} state={state} setState={setState} context={{ ...context, off }} onCopy={onCopy} />
+      </Stack>
+      <Stack className="live" gap={0} flex="1 1 320px" miw={0}>
+        <WidgetPreview widget={widget} type={type} state={state} save={save} />
+      </Stack>
+    </Group>
+  )
+}
+
+// The settings column: the inputs of the action a signal runs (none: no such section), then the widget's settings. A
+// widget type marked `soon` shows a "Coming soon" note instead of settings.
+function WidgetSettings({ widget, type, state, setState, context, onCopy }) {
+  const inputs = type.actions[type.onSignal]?.inputs ?? {}
+  const setInputs = (values) => setState({ ...state, input: { ...state.input, [type.onSignal]: values } })
+  // Settings are the state's keys with a field; the others are data the widget keeps (e.g. loaded options).
+  const settings = Object.keys(type.state).filter((key) => key in (type.fields ?? {}))
+  const first = settings.filter((key) => ['mode', 'layout'].includes(key))
   return (
     <Stack gap="lg">
-      {hasInputs && (
+      {Object.keys(inputs).length > 0 && (
         <Stack gap={0}>
-          <Heading title="This node" />
-          {inputs}
+          <Heading title={humanize(type.onSignal)} />
+          <Fields defaults={inputDefaults(inputs)} values={state.input?.[type.onSignal] ?? {}} fields={inputs} context={context} onChange={setInputs} />
         </Stack>
       )}
       <Stack gap="sm">
-        <div>
-          <Heading title="Widget (shared)" mb={4} />
-          <Text size="xs" c="dimmed">Shared by every node that uses this widget.</Text>
-        </div>
-        <TextInput size="xs" label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+        <Heading title="Widget" mb={4} />
+        <TextInput size="xs" label="Name" value={state.name} onChange={(e) => setState({ ...state, name: e.target.value })} />
         {/* A widget's mode (e.g. chat votes or a Twitch poll) or layout shapes everything below, so it comes first. */}
         {!type.soon && first.length > 0 && (
-          <Fields defaults={type.config} fields={type.fields} values={config} onChange={setConfig} context={{ off }} show={first} />
+          <Fields defaults={type.state} fields={type.fields} values={state} onChange={setState} context={context} show={first} />
         )}
         {type.soon ? (
           <Alert variant="light" color="yellow" icon={<IconHourglassHigh size={18} />} title="Coming soon">
             This widget is a work in progress: its settings will come in a later version.
           </Alert>
         ) : (
-          <Fields defaults={type.config} fields={type.fields} values={config} onChange={setConfig} context={{ off }}
-            show={Object.keys(type.config).filter((key) => !first.includes(key))} />
+          <Fields defaults={type.state} fields={type.fields} values={state} onChange={setState} context={context}
+            show={settings.filter((key) => !first.includes(key))} />
         )}
       </Stack>
       <Group gap={6} wrap="nowrap">
@@ -100,13 +134,13 @@ export default function WidgetSettings({ widget, type, inputs, off, onChange, on
   )
 }
 
-// A widget node's live column: the OBS link, the preview, and Start, Stop and Cancel. Start sends the node's inputs
-// (testInput) with their defaults when the node runs "start" (variables like {{user}} aren't filled outside a run).
-// Stop and Cancel also end a workflow run waiting on the widget: Stop lets it go on, Cancel ends it.
-export function WidgetPreview({ widget, type, testInput }) {
+// The live column: the OBS link, the preview, and buttons running the widget's start, stop and cancel actions, named
+// after them. Start sends the inputs saved for its action (variables like {{user}} aren't filled outside a run). Stop
+// and Cancel also end a workflow run waiting on the widget: Stop lets it go on, Cancel ends it.
+function WidgetPreview({ widget, type, state }) {
   const url = `${location.origin}/w/${widget.id}`
-  const act = (action, input) => fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, input }))
-  const defaults = Object.fromEntries(Object.entries(type.actions[type.linked]?.inputs ?? {}).map(([key, f]) => [key, f.default ?? '']))
+  const act = (action, input = {}) => fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, input }))
+  const start = { ...inputDefaults(type.actions[type.onStart]?.inputs), ...state.input?.[type.onStart] }
   return (
     <>
       <Group gap={6} mb="xs" wrap="nowrap">
@@ -125,9 +159,9 @@ export function WidgetPreview({ widget, type, testInput }) {
       {/* A widget with nothing to see (visual: false) keeps its page, hidden, so Start still plays it here. */}
       <div className="preview-fit" hidden={type.visual === false}><iframe className="preview" src={url} title="Preview" /></div>
       <Group gap="xs" mt="xs">
-        <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => act('start', type.linked === 'start' ? { ...defaults, ...testInput } : {})}>Start</Button>
-        <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} onClick={() => act('stop')}>Stop</Button>
-        <Button size="xs" variant="default" leftSection={<IconX size={14} />} onClick={() => act('cancel')}>Cancel</Button>
+        <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => act(type.onStart, start)}>{humanize(type.onStart)}</Button>
+        <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} onClick={() => act(type.onStop)}>{humanize(type.onStop)}</Button>
+        <Button size="xs" variant="default" leftSection={<IconX size={14} />} onClick={() => act(type.onCancel)}>{humanize(type.onCancel)}</Button>
       </Group>
     </>
   )

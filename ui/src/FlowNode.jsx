@@ -136,13 +136,13 @@ export default function FlowNode({ id, data, selected }) {
   // The bolt runs a Manual Trigger, or sends a chat trigger a test message (server: /api/workflows/:id/run).
   const testable = data.type === 'manual' || [def?.event].flat().includes('chat')
   // Subtitle like n8n's "mode: Rules": the node's first setting (not JSON, code or a secret). A widget node shows the
-  // action it runs unless it is "start" (TwitchPlays: "push"), a Widget Action node its widget and action.
+  // action a signal runs unless it is its start action (TwitchPlays: "push"), a Widget Action node its widget and action.
   const [key, value] = Object.entries({ ...def?.config, ...data.config })
     .find(([k]) => !def?.fields?.[k]?.hidden && !unshown.includes(def?.fields?.[k]?.type)) ?? []
   const shown = Array.isArray(value) ? value.map((v) => v?.name ?? v).join(', ') : value
-  const sub = isWidget ? type?.linked !== 'start' && type?.linked
+  const sub = isWidget ? type?.onSignal !== type?.onStart && type?.onSignal
     : data.type === 'merge' ? null // its only setting is the placement
-    : data.type === 'widget-action' ? [widget?.name ?? 'no widget', widget && (data.config.action || 'stop')].filter(Boolean).join(': ')
+    : data.type === 'widget-action' ? [widget?.state.name ?? 'no widget', widget && (data.config.action || type?.onStop)].filter(Boolean).join(': ')
     : key && shown !== '' && `${key}: ${shown}`
   return (
     <div className={`flow-node${trigger ? ' trigger' : ''}${selected ? ' selected' : ''}`} style={{ height: nodeHeight(def, data.config, inputs) }}>
@@ -167,7 +167,7 @@ export default function FlowNode({ id, data, selected }) {
         </Handle>
       )) : <Handle type="source" position="right" className="out" />}
       <div className="caption">
-        <div className="label">{isWidget ? widget?.name ?? 'Missing widget' : def?.label ?? data.label}</div>
+        <div className="label">{isWidget ? widget?.state.name ?? 'Missing widget' : def?.label ?? data.label}</div>
         {sub && <div className="sub">{sub}</div>}
       </div>
     </div>
