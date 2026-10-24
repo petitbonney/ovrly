@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults (shown in their order), plus optional per-field hints from the node
-// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'list' | 'tags' | 'action' | 'inputs' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' }.
+// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'list' | 'tags' | 'action' | 'inputs' | 'palette' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' }.
 // hint: one short line under the label; info: anything longer, in an ⓘ tooltip beside the label. section: a heading
 // shown before this field, starting a group (for nodes with many settings). A field shown only while a switch is on
 // (only: { someSwitch: true }) is indented under it. Plain-text options show with a capital first letter.
@@ -20,13 +20,13 @@
 // type: 'list' a list the workflow gives at run time: a switch picks Custom (its own items, shaped like f.row, a list
 // editor) or From data (a data key, e.g. items from a Fan In node); both are kept, as { from, key, items }. Without data
 // before it (a trigger, a manual run) only its items show.
-// type: 'deck' a Control Pad node's buttons (with Companion, each with a button to copy its URL), type: 'hue-steps' a
+// type: 'palette' a grid of color squares ([{ color }]), type: 'deck' a Control Pad node's buttons (with Companion, each with a button to copy its URL), type: 'hue-steps' a
 // Hue routine's steps (warned of what its limits change), { obs: 'scenes' | 'sources' } suggestions from OBS and
 // { hue: 'devices' } a Hue light, room or zone.
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
-  ActionIcon, Autocomplete, Button, Chip, ColorInput, CopyButton, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, SegmentedControl,
-  Select, Slider, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip,
+  ActionIcon, Autocomplete, Button, Chip, ColorInput, ColorPicker, CopyButton, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, Popover, SegmentedControl,
+  Select, Slider, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip, UnstyledButton,
 } from '@mantine/core'
 import { IconBraces, IconCheck, IconCopy, IconGripVertical, IconInfoCircle, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX } from '@tabler/icons-react'
 import { get } from './api.js'
@@ -412,6 +412,64 @@ function ListInput({ label, description, value, defaults, fixed, columns = {}, e
   )
 }
 
+// A type: 'palette' field: a grid of color squares, [{ color }]. A square opens its picker (with Remove); the dashed
+// "+" adds the first swatch not used yet and opens it.
+function PaletteInput({ label, description, value, onChange }) {
+  const [open, setOpen] = useState(null) // index of the square whose picker is open
+  const set = (i, color) => onChange(value.map((v, j) => (j === i ? { color } : v)))
+  const add = () => {
+    const used = value.map((v) => v.color)
+    onChange([...value, { color: swatches.find((c) => !used.includes(c)) ?? swatches[value.length % swatches.length] }])
+    setOpen(value.length)
+  }
+  const square = { width: 28, height: 28, borderRadius: 6, cursor: 'pointer' }
+  return (
+    <Stack gap={4}>
+      <Text size="xs" fw={500}>{label}</Text>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
+      <Group gap={6}>
+        {value.map((v, i) => (
+          <Popover key={i} opened={open === i} onChange={(o) => setOpen(o ? i : null)} position="bottom-start" shadow="md">
+            <Popover.Target>
+              <UnstyledButton aria-label={`Color ${v.color}`} onClick={() => setOpen(open === i ? null : i)}
+                style={{ ...square, background: v.color, boxShadow: open === i ? '0 0 0 2px var(--mantine-color-blue-5)' : 'inset 0 0 0 1px rgba(0,0,0,.2)' }} />
+            </Popover.Target>
+            <Popover.Dropdown p="xs">
+              <SwatchPicker color={v.color} onChange={(c) => set(i, c)}
+                onRemove={() => {
+                  onChange(value.filter((_, j) => j !== i))
+                  setOpen(null)
+                }} />
+            </Popover.Dropdown>
+          </Popover>
+        ))}
+        <UnstyledButton aria-label="Add a color" onClick={add}
+          style={{ ...square, display: 'grid', placeItems: 'center', border: '1px dashed var(--mantine-color-dimmed)', color: 'var(--mantine-color-dimmed)' }}>
+          <IconPlus size={14} />
+        </UnstyledButton>
+      </Group>
+    </Stack>
+  )
+}
+
+// A palette square's picker: the color, its hex (applied once valid) and a Remove button.
+function SwatchPicker({ color, onChange, onRemove }) {
+  const [hex, setHex] = useState(color)
+  useEffect(() => setHex(color), [color])
+  return (
+    <Stack gap={6} w={200}>
+      <ColorPicker size="sm" fullWidth format="hex" swatches={swatches} swatchesPerRow={8} value={color} onChange={onChange} />
+      <Group gap={6} wrap="nowrap">
+        <TextInput size="xs" flex={1} value={hex} onChange={(e) => {
+          setHex(e.target.value)
+          if (isColor(e.target.value)) onChange(e.target.value)
+        }} />
+        <Button size="xs" variant="light" color="red" onClick={onRemove}>Remove</Button>
+      </Group>
+    </Stack>
+  )
+}
+
 // A type: 'list' field (see the header): Custom items or a data key, picked with a switch where data comes in (vars).
 function ListField({ label, description, row, columns, vars, value, onChange }) {
   const v = { from: 'custom', key: '', items: [], ...(value && typeof value === 'object' && value) }
@@ -482,6 +540,7 @@ function Field({ name, f, fallback, value, set, values, context }) {
     return <HueSteps label={props.label} description={props.description} value={value} defaults={fallback} columns={f.columns} limits={f.limits}
       device={values.device ?? ''} transition={Number(values.transition) || 0} restore={values.restore} onChange={set} />
   }
+  if (f.type === 'palette') return <PaletteInput {...props} value={value} onChange={set} />
   if (f.type === 'list') return <ListField {...props} row={f.row} columns={f.columns} vars={vars} value={value} onChange={set} />
   if (Array.isArray(fallback)) return <ListInput label={props.label} description={props.description} value={value} defaults={fallback} fixed={f.fixed} columns={f.columns} onChange={set} />
   if (f.type === 'tags') {

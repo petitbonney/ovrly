@@ -71,7 +71,7 @@ export default {
         { value: 'custom', label: 'Custom' },
       ],
     },
-    colors: { only: { palette: 'custom' } },
+    colors: { type: 'palette', only: { palette: 'custom' } },
     duration: { unit: 's', presets: [3, 5, 8, 12], hint: 'How long a draw lasts' },
   },
   ...base,
