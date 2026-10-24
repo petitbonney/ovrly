@@ -1,7 +1,8 @@
 // Action: gets info on a channel (yours, or one named in Channel), as one of: its stream { live, title, game, tags,
-// viewers, uptime (minutes), startedAt, thumbnail }, its counts { followers, subs, subPoints } (subs only for yours), its
-// last clip { clipId, clipUrl, clipTitle, clipViews, clipBy }, its next scheduled stream { nextTitle, nextGame,
-// nextStart, nextIn (minutes) }, or the whole response of any Helix call { response }. Always adds channelId.
+// viewers, uptime (minutes), startedAt, thumbnail }, its counts { followers, lastFollower, lastFollowedAt, subs,
+// subPoints } (last follower for yours or one you moderate, subs only for yours), its last clip { clipId, clipUrl,
+// clipTitle, clipViews, clipBy }, its next scheduled stream { nextTitle, nextGame, nextStart, nextIn (minutes) }, or the
+// whole response of any Helix call { response }. Always adds channelId.
 import { helix, helixJson, status, user } from '../sources/twitch-auth.js'
 import { needStreamer } from '../sources/twitch.js'
 import { fill } from '../template.js'
@@ -21,7 +22,10 @@ const get = {
       helixJson('GET', 'channels/followers', undefined, { broadcaster_id: id, first: 1 }),
       mine && helixJson('GET', 'subscriptions', undefined, { broadcaster_id: id, first: 1 }),
     ])
-    return { followers: follows.total ?? 0, subs: mine ? subs.total ?? 0 : '', subPoints: mine ? subs.points ?? 0 : '' }
+    // Twitch lists the newest follower first, but only to the channel's broadcaster and its moderators.
+    const [last] = follows.data ?? []
+    return { followers: follows.total ?? 0, lastFollower: last?.user_name ?? '', lastFollowedAt: last?.followed_at ?? '',
+      subs: mine ? subs.total ?? 0 : '', subPoints: mine ? subs.points ?? 0 : '' }
   },
   // Twitch lists clips by views, not date: look in a growing window back from now, so a busy channel still gets its last one.
   async clip(id) {
@@ -52,8 +56,8 @@ export default {
   play: true,
   needs: ['twitch'],
   description: 'Gets info on a channel: its stream, follower and sub counts, last clip or next scheduled stream, or calls the Twitch API.',
-  adds: ['channelId', 'live', 'title', 'game', 'tags', 'viewers', 'uptime', 'startedAt', 'thumbnail', 'followers', 'subs', 'subPoints',
-    'clipId', 'clipUrl', 'clipTitle', 'clipViews', 'clipBy', 'nextTitle', 'nextGame', 'nextStart', 'nextIn', 'response'],
+  adds: ['channelId', 'live', 'title', 'game', 'tags', 'viewers', 'uptime', 'startedAt', 'thumbnail', 'followers',
+    'lastFollower', 'lastFollowedAt', 'subs', 'subPoints', 'clipId', 'clipUrl', 'clipTitle', 'clipViews', 'clipBy', 'nextTitle', 'nextGame', 'nextStart', 'nextIn', 'response'],
   fields: {
     what: {
       options: [
@@ -63,7 +67,7 @@ export default {
         { value: 'schedule', label: 'Next stream' },
         { value: 'custom', label: 'Custom API call' },
       ],
-      info: 'Stream: live, title, game, tags, viewers, uptime (min), startedAt, thumbnail. Followers and subs: followers, subs, subPoints (subs only for your channel). Last clip: clipUrl, clipTitle, clipViews, clipBy. Next stream: nextTitle, nextGame, nextStart, nextIn (min). Custom API call: response, the whole answer.',
+      info: 'Stream: live, title, game, tags, viewers, uptime (min), startedAt, thumbnail. Followers and subs: followers, lastFollower, lastFollowedAt (only for your channel or one you moderate), subs, subPoints (only for your channel). Last clip: clipUrl, clipTitle, clipViews, clipBy. Next stream: nextTitle, nextGame, nextStart, nextIn (min). Custom API call: response, the whole answer.',
     },
     channel: { vars: true, hint: 'A login, e.g. {{user}}; empty: yours', info: '{{ $vars.channel }} is yours, set when you sign in to Twitch.' },
     method: { options: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'], only: { what: 'custom' } },
