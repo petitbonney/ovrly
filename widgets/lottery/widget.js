@@ -8,11 +8,17 @@ import { draw } from '../draw.js'
 
 export const playMs = (state) => state.duration * 1000
 
+// Built-in palettes: slice colors and the labels' color (picked to read on every slice). All but Ovrly's are from
+// coolors.co's trending palettes.
 export const PALETTES = {
-  ovrly: ['#9147ff', '#ff4f8b', '#00c2a8', '#ffb400', '#3d8bff', '#ff7a00', '#e03131', '#2f9e44'],
-  pastel: ['#b197fc', '#f783ac', '#38d9a9', '#fcc419', '#74c0fc', '#ffa94d', '#ff8787', '#8ce99a'],
-  neon: ['#ff00e6', '#00e5ff', '#39ff14', '#ffea00', '#ff3d00', '#7c4dff', '#00ff9d', '#ff1744'],
-  earth: ['#8d5524', '#c68642', '#6b8e23', '#556b2f', '#b5651d', '#a0522d', '#708090', '#cd853f'],
+  ovrly: { text: '#ffffff', colors: ['#9147ff', '#ff4f8b', '#00c2a8', '#ffb400', '#3d8bff', '#ff7a00', '#e03131', '#2f9e44'] },
+  sunset: { text: '#13262e', colors: ['#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'] },
+  vivid: { text: '#ffffff', colors: ['#390099', '#9e0059', '#ff0054', '#ff5400'] },
+  pop: { text: '#1b1b3a', colors: ['#ffbe0b', '#fb5607', '#ff006e', '#8338ec', '#3a86ff'] },
+  candy: { text: '#1b1b3a', colors: ['#9b5de5', '#f15bb5', '#fee440', '#00bbf9', '#00f5d4'] },
+  pastel: { text: '#22223b', colors: ['#cdb4db', '#ffc8dd', '#ffafcc', '#bde0fe', '#a2d2ff'] },
+  ocean: { text: '#023047', colors: ['#8ecae6', '#219ebc', '#ffb703', '#fb8500'] },
+  retro: { text: '#24263a', colors: ['#e07a5f', '#81b29a', '#f2cc8f', '#f4f1de'] },
 }
 
 // What can win, as [{ label, weight, color }]; index = winner.
@@ -24,11 +30,11 @@ export function choices(state) {
 // The picked palette's colors (a Custom one left empty: Ovrly's).
 export function palette(state) {
   const custom = state.colors.map((c) => c.color)
-  return state.palette === 'custom' && custom.length ? custom : PALETTES[state.palette] ?? PALETTES.ovrly
+  return state.palette === 'custom' && custom.length ? custom : (PALETTES[state.palette] ?? PALETTES.ovrly).colors
 }
 
-// The labels' color: the Custom palette's own, else white.
-export const textColor = (state) => (state.palette === 'custom' ? state.textColor : '#ffffff')
+// The labels' color: the picked palette's.
+export const textColor = (state) => (state.palette === 'custom' ? state.textColor : (PALETTES[state.palette] ?? PALETTES.ovrly).text)
 
 // One option to add: a label, and a weight (1 when left out).
 function option(label, weight) {
@@ -67,13 +73,7 @@ export default {
     },
     options: { hint: 'A bigger weight is a likelier winner' },
     palette: {
-      options: [
-        { value: 'ovrly', label: 'Ovrly' },
-        { value: 'pastel', label: 'Pastel' },
-        { value: 'neon', label: 'Neon' },
-        { value: 'earth', label: 'Earth' },
-        { value: 'custom', label: 'Custom' },
-      ],
+      options: ['custom', '-', ...Object.keys(PALETTES)],
     },
     colors: { type: 'palette', text: 'textColor', only: { palette: 'custom' } },
     textColor: { hidden: true }, // picked in colors' grid

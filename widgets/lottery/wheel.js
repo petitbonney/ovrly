@@ -18,6 +18,9 @@ function sections(options) {
 
 export default function wheel(stage, board, { options, text }, res) {
   const parts = sections(options)
+  // A dark halo around light labels, a light one around dark labels.
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(text.slice(i, i + 2), 16))
+  const halo = r * 0.299 + g * 0.587 + b * 0.114 > 128 ? '#0009' : '#fff6'
   // The canvas fills the page; the wheel is drawn in 880 units (2x the board), centered. It turns around the center.
   const disc = el('canvas', 'fill')
   disc.width = innerWidth * devicePixelRatio
@@ -54,7 +57,7 @@ export default function wheel(stage, board, { options, text }, res) {
       ctx.fillStyle = options[i].color; ctx.fill()
       ctx.strokeStyle = '#fff6'; ctx.lineWidth = 4; ctx.stroke()
       ctx.save(); ctx.translate(c, c); ctx.rotate(a + seg / 2)
-      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = text; ctx.shadowColor = '#0009'; ctx.shadowBlur = 8
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = text; ctx.shadowColor = halo; ctx.shadowBlur = 8
       ctx.font = `800 ${Math.min(44, seg * R * 0.4)}px system-ui`
       ctx.fillText(options[i].label, R - 60, 0) // clear of the pin's tip
       ctx.restore()

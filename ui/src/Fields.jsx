@@ -2,7 +2,8 @@
 // or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'list' | 'tags' | 'action' | 'inputs' | 'palette' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' }.
 // hint: one short line under the label; info: anything longer, in an ⓘ tooltip beside the label. section: a heading
 // shown before this field, starting a group (for nodes with many settings). A field shown only while a switch is on
-// (only: { someSwitch: true }) is indented under it. Plain-text options show with a capital first letter.
+// (only: { someSwitch: true }) is indented under it. Plain-text options show with a capital first letter; a '-' among
+// them draws a line there in a select.
 // slider: true shows the options as marks on a slider, from the first to the last, instead of buttons; tips: { option: text } adds a tooltip to each mark.
 // On a number, slider: true is a slider from min to max (0 to 100 by default), its value beside the label; a volume's
 // slider has a mute button.
@@ -576,7 +577,8 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
   // picked, and say why on hover; one picked earlier is noted at the top of the settings pane.
   const state = { ...type?.state, ...context.widget?.state }
   const options = f.type === 'action' ? Object.keys(type?.actions ?? {}).filter((a) => applies(type.actions[a], state)) : f.options
-  const choices = labelled(options)?.map(({ streamer, needs, ...option }) => {
+  const line = options?.indexOf('-') ?? -1
+  const choices = labelled(options?.filter((o) => o !== '-'))?.map(({ streamer, needs, ...option }) => {
     const unmet = requirements.find((r) => (r.key === needs || (streamer && r.key === 'twitch')) && context.off?.includes(r.key))
     return unmet ? { ...option, disabled: true, why: `Needs ${unmet.needs} (Settings → ${unmet.label})` } : option
   })
@@ -610,7 +612,12 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
     )
   }
   // A Select needs text labels: a disabled option's reason goes after its name.
-  if (choices) return <Select {...props} data={choices.map(({ why, ...o }) => (why ? { ...o, label: `${o.label} (${why})` } : o))} value={picked} onChange={set} allowDeselect={false} />
+  // A '-' splits the options in two unnamed groups, a line between them (app.css).
+  if (choices) {
+    const data = choices.map(({ why, ...o }) => (why ? { ...o, label: `${o.label} (${why})` } : o))
+    const grouped = line < 0 ? data : [{ group: '', items: data.slice(0, line) }, { group: '', items: data.slice(line) }]
+    return <Select {...props} data={grouped} value={picked} onChange={set} allowDeselect={false} />
+  }
   if (f.type === 'var') return <Autocomplete {...props} data={vars ?? []} value={value} onChange={set} />
   if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} maxRows={8} />
   if (f.type === 'code') {
