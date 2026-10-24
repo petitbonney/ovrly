@@ -9,6 +9,7 @@ export default {
   label: 'Hue Lights',
   category: 'action',
   group: 'Home',
+  play: true,
   needs: ['hue'],
   description: 'Toggles, sets or turns off Philips Hue lights, or plays a routine of colors on them.',
   fields: {

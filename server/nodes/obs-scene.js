@@ -10,6 +10,7 @@ export default {
   label: 'Switch Scene',
   category: 'action',
   group: 'OBS',
+  play: true,
   needs: ['obs'],
   description: 'Switches the OBS program scene, and back after a while if set.',
   fields: {

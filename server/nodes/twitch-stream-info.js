@@ -8,6 +8,7 @@ export default {
   label: 'Stream Info',
   category: 'action',
   group: 'Twitch',
+  play: true,
   needs: ['twitch'],
   description: 'Changes the stream title, category or tags.',
   fields: {

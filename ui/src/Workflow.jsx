@@ -20,12 +20,13 @@ import {
 import {
   IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
   IconPlayerPlay, IconPlayerStop, IconPlus, IconSitemap,
-  IconTrash, IconX,
+  IconTrash,
 } from '@tabler/icons-react'
-import Fields from './Fields.jsx'
+import Fields, { applies } from './Fields.jsx'
 import DeckGrid from './Deck.jsx'
 import WidgetPane, { ActionsInfo } from './Widget.jsx'
 import QueueLine from './QueueLine.jsx'
+import Play from './Play.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
 import FlowNode, { colors, icons, widgetIcons, outputsOf } from './FlowNode.jsx'
@@ -131,8 +132,8 @@ function boundsOf(list) {
 // Settings of the selected node, laid out the same for every node (see AGENTS.md): a header (icon, name, ⓘ for a
 // widget's actions, close), the description, notices (needs not met, a widget to link or deleted, the last run's
 // error), then the settings column, with a live column on its right when the node has something to watch or press: a
-// widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, a Hue routine's Stop and
-// Cancel (while running). A Merge Widgets node shows its canvas instead (with the widgets linked into it,
+// widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, an action's Play and result
+// (Play.jsx). A Merge Widgets node shows its canvas instead (with the widgets linked into it,
 // context.inputs). context.widget is the widget the node points to; off: the requirements not met (Settings.jsx).
 function Config({ workflow, node, def, context, off, running, error, onChange, onWidgetChange, onCopy, onClose, onError }) {
   if (!node || !def) return null
@@ -147,20 +148,8 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
   const settings = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={{ ...context, off }} onChange={onChange} />
   const live = def.type === 'deck' ? <DeckGrid workflow={workflow} node={node.id} config={config} />
     : def.queue ? <QueueLine workflow={workflow} node={node.id} />
-    : def.type === 'hue' && config.mode === 'routine' && (
-      <Stack gap="xs">
-        <Text size="xs" c="dimmed">{running ? 'The routine is playing.' : 'Stop and Cancel work while the routine plays.'}</Text>
-        <Group gap="xs">
-          <Tooltip label="Ends the routine with a fade, lights back as they were: the workflow goes on">
-            <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} disabled={!running}
-              onClick={() => fetch(`/api/hue/routines/${workflow}/${node.id}/stop`, { method: 'POST' })}>Stop</Button>
-          </Tooltip>
-          <Tooltip label="Ends the routine at once, lights back as they were: the workflow stops there">
-            <Button size="xs" variant="default" leftSection={<IconX size={14} />} disabled={!running}
-              onClick={() => fetch(`/api/hue/routines/${workflow}/${node.id}/cancel`, { method: 'POST' })}>Cancel</Button>
-          </Tooltip>
-        </Group>
-      </Stack>
+    : def.play && applies(def.play, config) && (
+      <Play key={node.id} workflow={workflow} node={node.id} type={def.type} config={config} disabled={missing.length > 0} running={running} />
     )
   const notices = [
     ...missing.map((r) => <Notice key={r.key} settings={r.pane ?? r.key}>Needs {r.needs}.</Notice>),

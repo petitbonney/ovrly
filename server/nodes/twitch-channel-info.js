@@ -49,6 +49,7 @@ export default {
   label: 'Channel Info',
   category: 'action',
   group: 'Twitch',
+  play: true,
   needs: ['twitch'],
   description: 'Gets info on a channel: its stream, follower and sub counts, last clip or next scheduled stream, or calls the Twitch API.',
   adds: ['channelId', 'live', 'title', 'game', 'tags', 'viewers', 'uptime', 'startedAt', 'thumbnail', 'followers', 'subs', 'subPoints',
