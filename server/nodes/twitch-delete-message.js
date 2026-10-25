@@ -6,6 +6,7 @@ import { fill } from '../template.js'
 export default {
   type: 'twitch-delete-message',
   label: 'Delete Message',
+  icon: 'trash',
   category: 'action',
   group: 'Twitch',
   needs: ['twitch'],

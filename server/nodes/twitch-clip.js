@@ -6,6 +6,7 @@ import { needStreamer } from '../sources/twitch.js'
 export default {
   type: 'twitch-clip',
   label: 'Create Clip',
+  icon: 'scissors',
   category: 'action',
   group: 'Twitch',
   needs: ['twitch'],

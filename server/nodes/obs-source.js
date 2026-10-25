@@ -5,6 +5,7 @@ import { fill } from '../template.js'
 export default {
   type: 'obs-source',
   label: 'Toggle Source',
+  icon: 'eye',
   category: 'action',
   group: 'OBS',
   play: true,

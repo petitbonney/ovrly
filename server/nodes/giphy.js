@@ -7,6 +7,7 @@ import * as giphy from '../giphy.js'
 export default {
   type: 'giphy',
   label: 'GIPHY',
+  icon: 'gif',
   category: 'action',
   group: 'Media',
   play: { only: { pick: 'random' } },

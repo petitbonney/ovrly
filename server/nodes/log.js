@@ -4,6 +4,7 @@ import { record } from '../bus.js'
 export default {
   type: 'log',
   label: 'Log',
+  icon: 'notes',
   category: 'action',
   group: 'System',
   description: 'Prints a message and the current data to the server console and the events view.',

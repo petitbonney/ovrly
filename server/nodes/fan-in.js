@@ -8,6 +8,7 @@ const buckets = {} // node id -> { entries: Map key -> item, release(), timer, q
 export default {
   type: 'fan-in',
   label: 'Fan In',
+  icon: 'air-conditioning', iconRotate: 90,
   category: 'logic',
   group: 'Flow',
   description: 'Collects several firings into one list, released after a duration, a quiet period or a limit of entries.',

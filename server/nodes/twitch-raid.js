@@ -10,6 +10,7 @@ const cancel = () => helix('DELETE', 'raids', undefined, { broadcaster_id: statu
 export default {
   type: 'twitch-raid',
   label: 'Raid',
+  icon: 'rocket',
   category: 'action',
   group: 'Twitch',
   needs: ['twitch'],

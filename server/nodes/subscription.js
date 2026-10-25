@@ -10,6 +10,7 @@ const kinds = [
 export default {
   type: 'subscription',
   label: 'Subscription',
+  icon: 'star',
   category: 'trigger',
   needs: ['chat'],
   group: 'Twitch',

@@ -5,6 +5,7 @@ import { value } from '../template.js'
 export default {
   type: 'fan-out',
   label: 'Fan Out',
+  icon: 'air-conditioning', iconRotate: -90,
   category: 'logic',
   group: 'Flow',
   description: 'Runs what follows once per item of a list, e.g. {{recipients}}.',

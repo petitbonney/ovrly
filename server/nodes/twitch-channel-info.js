@@ -51,6 +51,7 @@ const get = {
 export default {
   type: 'twitch-channel-info',
   label: 'Channel Info',
+  icon: 'device-tv-old',
   category: 'action',
   group: 'Twitch',
   play: true,

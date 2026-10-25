@@ -10,6 +10,7 @@ const changes = { enable: { is_enabled: true }, disable: { is_enabled: false }, 
 export default {
   type: 'twitch-reward',
   label: 'Channel Points Reward',
+  icon: 'ticket',
   category: 'action',
   group: 'Twitch',
   play: true,

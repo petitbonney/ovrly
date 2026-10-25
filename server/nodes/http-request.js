@@ -7,6 +7,7 @@ import { record } from '../bus.js'
 export default {
   type: 'http-request',
   label: 'HTTP Request',
+  icon: 'world',
   category: 'action',
   group: 'System',
   play: true,

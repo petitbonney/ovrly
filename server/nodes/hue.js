@@ -7,6 +7,7 @@ import * as hue from '../hue.js'
 export default {
   type: 'hue',
   label: 'Hue Lights',
+  icon: 'bulb',
   category: 'action',
   group: 'Home',
   play: true,

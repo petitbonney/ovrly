@@ -5,6 +5,7 @@ import { value } from '../template.js'
 export default {
   type: 'map-value',
   label: 'Map Value',
+  icon: 'replace',
   category: 'logic',
   group: 'Data',
   description: 'Replaces a data key\'s value using a list of "from" → "to".',

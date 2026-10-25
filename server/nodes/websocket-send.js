@@ -6,6 +6,7 @@ import { record } from '../bus.js'
 export default {
   type: 'websocket-send',
   label: 'WebSocket Send',
+  icon: 'plug-connected',
   category: 'action',
   group: 'System',
   play: true,

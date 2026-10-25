@@ -2,6 +2,7 @@
 export default {
   type: 'error-trigger',
   label: 'Error Trigger',
+  icon: 'alert-triangle',
   category: 'trigger',
   group: 'Other',
   description: 'Fires when a node fails in another workflow.',

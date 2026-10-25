@@ -8,6 +8,7 @@ const current = async () => (await request('GetCurrentProgramScene')).currentPro
 export default {
   type: 'obs-scene',
   label: 'Switch Scene',
+  icon: 'movie',
   category: 'action',
   group: 'OBS',
   play: true,

@@ -3,6 +3,7 @@
 export default {
   type: 'wait-all',
   label: 'Wait For All',
+  icon: 'arrows-join-2',
   category: 'logic',
   group: 'Flow',
   description: 'Continues once every incoming link has delivered, with all their data merged.',

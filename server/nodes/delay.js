@@ -2,6 +2,7 @@
 export default {
   type: 'delay',
   label: 'Delay',
+  icon: 'hourglass',
   category: 'logic',
   group: 'Timing',
   description: 'Waits before passing data on.',

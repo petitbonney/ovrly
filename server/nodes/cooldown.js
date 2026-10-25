@@ -6,6 +6,7 @@ const until = {} // node id (+ key value) -> time it lets data through again
 export default {
   type: 'cooldown',
   label: 'Cooldown',
+  icon: 'clock-pause',
   category: 'logic',
   group: 'Timing',
   description: 'Lets data through, then sends the next to "blocked" for a while, for everyone and optionally per data key (e.g. per viewer).',

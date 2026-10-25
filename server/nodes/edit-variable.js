@@ -6,6 +6,7 @@ import { vars, saveVars } from '../vars.js'
 export default {
   type: 'edit-variable',
   label: 'Edit Variable',
+  icon: 'variable',
   category: 'logic',
   group: 'Data',
   description: 'Sets, adds to or deletes a variable: shared by all workflows, kept across runs and restarts.',

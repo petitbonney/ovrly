@@ -2,6 +2,7 @@
 export default {
   type: 'follow',
   label: 'Follow',
+  icon: 'heart',
   category: 'trigger',
   group: 'Twitch',
   needs: ['twitch'],

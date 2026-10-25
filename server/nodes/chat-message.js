@@ -8,6 +8,7 @@ const roles = ['everyone', 'sub', 'vip', 'mod', 'broadcaster']
 export default {
   type: 'chat-message',
   label: 'Chat Message',
+  icon: 'message',
   category: 'trigger',
   needs: ['chat'],
   group: 'Chat',

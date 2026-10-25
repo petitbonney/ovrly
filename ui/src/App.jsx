@@ -6,12 +6,12 @@ import {
   ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, Notification, SimpleGrid, Stack, Switch, Text,
   TextInput, Tooltip, UnstyledButton, useAppShellResize,
 } from '@mantine/core'
-import { IconChevronRight, IconFile, IconFileImport, IconPlugOff, IconPlus, IconSearch, IconSettings, IconTool, IconUrgent, IconX, createReactComponent } from '@tabler/icons-react'
+import { IconChevronRight, IconFile, IconFileImport, IconPlugOff, IconPlus, IconSearch, IconSettings, IconTool, IconUrgent, IconX } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
 import TimerBar from './TimerBar.jsx'
 import Settings, { StatusIcon, integrations, requirements, unmet, useStatuses } from './Settings.jsx'
 import Heading from './Heading.jsx'
-import { icons, colors } from './FlowNode.jsx'
+import { colors, withIcon } from './FlowNode.jsx'
 import templates from './templates.js'
 import { importBundle, importFile } from './share.js'
 import { get, json } from './api.js'
@@ -129,7 +129,7 @@ function Item({ label, description, icon: Icon, color, needs = [], off, badge, d
   )
 }
 const nodeItem = (d, color, off) => (
-  <Item key={d.type} label={d.label} description={d.description} icon={icons[d.type]} color={color} needs={d.needs} off={off}
+  <Item key={d.type} label={d.label} description={d.description} icon={d.Icon} color={color} needs={d.needs} off={off}
     data={['application/ovrly', d.type]} onAdd={() => addToWorkflow({ node: d.type })} />
 )
 
@@ -230,9 +230,8 @@ export default function App({ theme, onTheme }) {
   const refresh = () => setVersion((v) => v + 1)
 
   useEffect(() => {
-    get('/api/nodes').then(setDefs)
-    // Each type's icon comes as Tabler SVG shapes (server/widgets.js), drawn as a Tabler component.
-    get('/api/widget-types').then((list) => setTypes(list.map((t) => ({ ...t, Icon: t.iconNode && createReactComponent('outline', t.icon, t.icon, t.iconNode) }))))
+    get('/api/nodes').then((list) => setDefs(list.map(withIcon)))
+    get('/api/widget-types').then((list) => setTypes(list.map(withIcon)))
   }, [])
   useEffect(() => {
     get('/api/widgets').then(setWidgets)

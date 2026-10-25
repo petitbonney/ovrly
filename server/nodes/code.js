@@ -6,6 +6,7 @@ const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor
 export default {
   type: 'code',
   label: 'Code',
+  icon: 'code',
   category: 'logic',
   group: 'Data',
   description: 'Runs JavaScript: `data` is the current data, `$vars` the variables; return the new data, or null to stop.',

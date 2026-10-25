@@ -5,81 +5,16 @@
 // underneath unless it is "start".
 import { useEffect } from 'react'
 import { Handle, useUpdateNodeInternals } from '@xyflow/react'
-import {
-  IconAccessPoint, IconDiamond, IconFlame, IconGift, IconHeart, IconSparkles, IconStar, IconSwords,
-  IconAlertTriangle, IconArrowBarToRight, IconArrowsJoin2, IconArrowForkTriple, IconLayoutCollage, IconBolt, IconBox, IconBroadcast, IconGif, IconSpeakerphone, IconClock, IconClockPause, IconCode, IconEdit,
-  IconEye, IconFilter, IconGitBranch, IconHandClick, IconHourglass, IconKeyboard, IconLayoutDashboard, IconListNumbers, IconMessage,
-  IconMessageCode, IconMovie, IconAd, IconBan, IconBookmark, IconChecks, IconMessageCog, IconMessageShare, IconPencil, IconRocket,
-  IconScissors, IconTicket, IconTrash, IconUserSearch, IconDeviceTvOld, IconMessageStar, IconHeartHandshake,
-  IconNotes, IconPlugConnected, IconSubtask, IconVariable, IconWebhook, IconAirConditioning, IconWorld,
-  IconLayoutGrid, IconBulb, IconPlugOff, IconReplace,
-} from '@tabler/icons-react'
+import { IconBolt, IconBox, IconPlugOff, createReactComponent } from '@tabler/icons-react'
 import { deckIcons } from './Deck.jsx'
 
-// If/else branches left to right, like the graph.
-const IconIfElse = ({ style, ...props }) => <IconGitBranch {...props} style={{ ...style, transform: 'rotate(90deg)' }} />
-const IconSwitch = ({ style, ...props }) => <IconArrowForkTriple {...props} style={{ ...style, transform: 'rotate(90deg)' }} />
-const IconFanOut = ({ style, ...props }) => <IconAirConditioning {...props} style={{ ...style, transform: 'rotate(-90deg)' }} />
-const IconFanIn = ({ style, ...props }) => <IconAirConditioning {...props} style={{ ...style, transform: 'rotate(90deg)' }} />
-
-export const icons = {
-  'chat-command': IconMessageCode,
-  'chat-message': IconMessage,
-  follow: IconHeart,
-  subscription: IconStar,
-  'gift-subs': IconGift,
-  cheer: IconDiamond,
-  redeem: IconSparkles,
-  raid: IconSwords,
-  'stream-status': IconAccessPoint,
-  'hype-train': IconFlame,
-  webhook: IconWebhook,
-  deck: IconLayoutGrid,
-  schedule: IconClock,
-  'error-trigger': IconAlertTriangle,
-  'workflow-call': IconArrowBarToRight,
-  'edit-data': IconEdit,
-  'map-value': IconReplace,
-  code: IconCode,
-  'edit-variable': IconVariable,
-  'execute-workflow': IconSubtask,
-  manual: IconHandClick,
-  delay: IconHourglass,
-  filter: IconFilter,
-  'if-else': IconIfElse,
-  switch: IconSwitch,
-  'fan-out': IconFanOut,
-  'fan-in': IconFanIn,
-  'wait-all': IconArrowsJoin2,
-  cooldown: IconClockPause,
-  queue: IconListNumbers,
-  'http-request': IconWorld,
-  giphy: IconGif,
-  myinstants: IconSpeakerphone,
-  'key-press': IconKeyboard,
-  log: IconNotes,
-  'obs-scene': IconMovie,
-  'obs-source': IconEye,
-  hue: IconBulb,
-  'websocket-send': IconPlugConnected,
-  'twitch-chat': IconMessageShare,
-  'twitch-announce': IconMessageStar,
-  'twitch-shoutout': IconHeartHandshake,
-  'twitch-ban': IconBan,
-  'twitch-delete-message': IconTrash,
-  'twitch-stream-info': IconPencil,
-  'twitch-chat-mode': IconMessageCog,
-  'twitch-ad': IconAd,
-  'twitch-clip': IconScissors,
-  'twitch-marker': IconBookmark,
-  'twitch-redemption': IconChecks,
-  'twitch-reward': IconTicket,
-  'twitch-raid': IconRocket,
-  'twitch-user': IconUserSearch,
-  'twitch-channel-info': IconDeviceTvOld,
-  'widget-action': IconBroadcast,
-  widget: IconLayoutDashboard,
-  merge: IconLayoutCollage,
+// A node or widget type with its icon as Icon: a Tabler component drawn from the SVG shapes the server sends (iconNode, for
+// the icon its file names), turned iconRotate degrees (e.g. if/else branches left to right, like the graph).
+export function withIcon(type) {
+  if (!type.iconNode) return type
+  const Svg = createReactComponent('outline', type.icon, type.icon, type.iconNode)
+  const turn = type.iconRotate && `rotate(${type.iconRotate}deg)`
+  return { ...type, Icon: turn ? ({ style, ...props }) => <Svg {...props} style={{ ...style, transform: turn }} /> : Svg }
 }
 
 // Category colors, from the editor theme (themes.js).
@@ -123,7 +58,7 @@ export default function FlowNode({ id, data, selected }) {
   const handles = outputs.map((o) => o.id).join() + inputs
   useEffect(() => updateNodeInternals(id), [handles])
   const isWidget = data.type === 'widget'
-  const Icon = (isWidget ? type?.Icon : icons[data.type]) ?? IconBox
+  const Icon = (isWidget ? type : def)?.Icon ?? IconBox
   const trigger = def?.category === 'trigger'
   // The bolt runs a Manual Trigger, or sends a chat trigger a test message (server: /api/workflows/:id/run).
   const testable = data.type === 'manual' || [def?.event].flat().includes('chat')

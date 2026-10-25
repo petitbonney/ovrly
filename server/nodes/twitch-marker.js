@@ -6,6 +6,7 @@ import { fill } from '../template.js'
 export default {
   type: 'twitch-marker',
   label: 'Stream Marker',
+  icon: 'bookmark',
   category: 'action',
   group: 'Twitch',
   needs: ['twitch'],

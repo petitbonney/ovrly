@@ -16,6 +16,7 @@ const keys = { emote: 'emote_mode', follower: 'follower_mode', subscriber: 'subs
 export default {
   type: 'twitch-chat-mode',
   label: 'Chat Mode',
+  icon: 'message-cog',
   category: 'action',
   group: 'Twitch',
   play: true,

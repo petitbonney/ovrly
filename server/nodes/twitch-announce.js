@@ -14,6 +14,7 @@ const colors = [
 export default {
   type: 'twitch-announce',
   label: 'Announcement',
+  icon: 'message-star',
   category: 'action',
   group: 'Twitch',
   needs: ['twitch'],

@@ -8,6 +8,7 @@ const state = {} // node id -> { due: when it fires next, tick: when it was last
 export default {
   type: 'schedule',
   label: 'Schedule',
+  icon: 'clock',
   category: 'trigger',
   group: 'Other',
   description: 'Fires every so often while the workflow is on.',

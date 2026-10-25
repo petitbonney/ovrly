@@ -18,7 +18,7 @@ import {
   useComputedColorScheme,
 } from '@mantine/core'
 import {
-  IconArrowBackUp, IconArrowForwardUp, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
+  IconArrowBackUp, IconArrowForwardUp, IconBox, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
   IconPlayerPlay, IconPlayerStop, IconPlus, IconSitemap,
   IconTrash,
 } from '@tabler/icons-react'
@@ -30,7 +30,7 @@ import JoinLinks from './JoinLinks.jsx'
 import Play from './Play.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
-import FlowNode, { colors, icons, outputsOf } from './FlowNode.jsx'
+import FlowNode, { colors, outputsOf } from './FlowNode.jsx'
 import layout from './layout.js'
 import { exportWorkflow, download, withWidgetIds } from './share.js'
 import { get, json } from './api.js'
@@ -146,7 +146,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
   const config = { ...def.config, ...node.data.config }
   const needs = needsOf(def, config, isWidget && type, { ...type?.state, ...widget?.state })
   const missing = requirements.filter((r) => off.includes(r.key) && needs.includes(r.key))
-  const Icon = (isWidget ? type?.Icon : icons[def.type]) ?? icons.log
+  const Icon = (isWidget ? type : def)?.Icon ?? IconBox
   const settings = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={{ ...context, off }} onChange={onChange} />
   const live = def.type === 'deck' ? <DeckGrid workflow={workflow} node={node.id} config={config} />
     : def.queue ? <QueueLine workflow={workflow} node={node.id} />
