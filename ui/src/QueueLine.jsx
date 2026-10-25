@@ -4,9 +4,7 @@ import { useEffect, useState } from 'react'
 import { ActionIcon, Group, Stack, Text, Tooltip } from '@mantine/core'
 import { IconX } from '@tabler/icons-react'
 import { get } from './api.js'
-
-// What a firing carries, in short: "bob: !spin" for chat, else its data as JSON.
-const summary = (data) => (data.user && data.message ? `${data.user}: ${data.message}` : JSON.stringify(data))
+import { summary } from './NodeLive.jsx'
 
 export default function QueueLine({ workflow, node }) {
   const path = `/api/queues/${workflow}/${node}`

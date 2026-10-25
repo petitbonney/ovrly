@@ -27,7 +27,18 @@ app.use((req, res, next) => /^(::1|(::ffff:)?127\.0\.0\.1)$/.test(req.socket.rem
 app.use(express.json())
 
 // Node types for the UI library (metadata only, no run function).
-app.get('/api/nodes', (req, res) => res.json(Object.values(nodes).map(({ run, ...meta }) => meta)))
+app.get('/api/nodes', (req, res) => res.json(Object.values(nodes).map(({ run, live, control, ...meta }) => ({ ...meta, live: !!live }))))
+// What a node holds now, shown in its settings (node types with `live`, e.g. a Cooldown's time left), for ?type=.
+app.get('/api/nodes/:workflow/:node/live', (req, res) => {
+  const def = nodes[req.query.type]
+  if (!def?.live) return res.sendStatus(400)
+  res.json(def.live(`${req.params.workflow}/${req.params.node}`))
+})
+// Acts on it from there, { type, action, key }: a Cooldown's cross (drop), a Delay's or Fan In's Force and Cancel.
+app.post('/api/nodes/:workflow/:node/live', (req, res) => {
+  const { type, action, key } = req.body
+  res.sendStatus(nodes[type]?.control?.(`${req.params.workflow}/${req.params.node}`, action, key) ? 204 : 404)
+})
 // Play in an action node's settings (node types with `play`): runs the node once with the editor's config { type, config },
 // outside any workflow run and with no data (only {{ $vars }} fill), and answers { out } (null: stopped) or { error }.
 // Stop aborts it, as cancelling a workflow would (e.g. Switch Scene switches back at once).

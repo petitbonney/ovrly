@@ -1,9 +1,10 @@
 // Logic: the mirror of Fan Out. Collects several firings into one list, then goes on once with { items, count }.
 // The first firing waits here; the others add their entry and stop. It releases at the first condition met: a
-// duration from the first entry, a quiet period with no new event, or a limit of entries. Buckets live in memory.
+// duration from the first entry, a quiet period with no new event, or a limit of entries. Buckets live in memory; its
+// settings show the one filling (`live`), with Force and Cancel.
 import { value } from '../template.js'
 
-const buckets = {} // node id -> { entries: Map key -> item, release(), timer, quiet }
+const buckets = {} // node id -> { entries: Map key -> item, release(), timer, quiet, ends: release time(s) }
 
 export default {
   type: 'fan-in',
@@ -42,6 +43,7 @@ export default {
         }
       })
       if (duration > 0) bucket.timer = setTimeout(bucket.release, duration * 1000)
+      bucket.ends = { duration: duration > 0 ? Date.now() + duration * 1000 : Infinity, quiet: Infinity }
       signal.addEventListener('abort', bucket.release, { once: true }) // workflow cancelled: the bucket is dropped
     }
     // Without a key, every entry counts; a repeated key keeps its slot (Map order), with the first or last entry.
@@ -51,12 +53,28 @@ export default {
     if (quiet > 0) {
       clearTimeout(bucket.quiet)
       bucket.quiet = setTimeout(bucket.release, quiet * 1000)
+      bucket.ends.quiet = Date.now() + quiet * 1000
     }
     if (limit > 0 && bucket.entries.size >= limit) bucket.release()
     if (!released) return null // collected: the first firing carries the list on
     await released
-    if (signal.aborted) return null
+    if (signal.aborted || bucket.cancelled) return null
     const items = [...bucket.entries.values()]
     return { items, count: items.length }
+  },
+  // The bucket filling, if any: { items, left } with left the ms until it's released (null: only at the limit).
+  live(id) {
+    const bucket = buckets[id]
+    if (!bucket) return null
+    const ends = Math.min(bucket.ends.duration, bucket.ends.quiet)
+    return { items: [...bucket.entries.values()], left: ends === Infinity ? null : ends - Date.now() }
+  },
+  // Force: releases the bucket now; Cancel: drops it (the firing stops there).
+  control(id, action) {
+    const bucket = buckets[id]
+    if (!bucket) return false
+    bucket.cancelled = action === 'cancel'
+    bucket.release()
+    return true
   },
 }

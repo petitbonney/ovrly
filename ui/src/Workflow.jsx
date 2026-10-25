@@ -29,6 +29,7 @@ import QueueLine from './QueueLine.jsx'
 import JoinLinks from './JoinLinks.jsx'
 import Play from './Play.jsx'
 import LogResult from './LogResult.jsx'
+import NodeLive from './NodeLive.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
 import FlowNode, { colors, outputsOf } from './FlowNode.jsx'
@@ -135,8 +136,8 @@ function boundsOf(list) {
 // widget's actions, close), the description, notices (needs not met, a widget to link or deleted, the last run's
 // error), then the settings column, with a live column on its right when the node has something to watch or press: a
 // widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, a Wait For All's links with
-// Force and Cancel, an action's Play and result
-// (Play.jsx), a Log's last data (LogResult.jsx). A Merge Widgets node shows its canvas instead (with the widgets linked into it,
+// Force and Cancel, an action's Play and result (Play.jsx), a Log's last data (LogResult.jsx), a Cooldown's, Delay's
+// or Fan In's state (NodeLive.jsx). A Merge Widgets node shows its canvas instead (with the widgets linked into it,
 // context.inputs). context.widget is the widget the node points to; off: the requirements not met (Settings.jsx).
 function Config({ workflow, node, def, context, off, running, error, onChange, onWidgetChange, onCopy, onClose, onError }) {
   if (!node || !def) return null
@@ -153,6 +154,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
     : def.queue ? <QueueLine workflow={workflow} node={node.id} />
     : def.join ? <JoinLinks workflow={workflow} node={node.id} links={context.links} />
     : def.type === 'log' ? <LogResult key={node.id} workflow={workflow} node={node.id} />
+    : def.live ? <NodeLive key={node.id} workflow={workflow} node={node.id} type={def.type} config={config} />
     : def.play && applies(def.play, config) && (
       <Play key={node.id} workflow={workflow} node={node.id} type={def.type} config={config} disabled={missing.length > 0} running={running} />
     )
