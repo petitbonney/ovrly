@@ -18,6 +18,7 @@ import * as fonts from './fonts.js'
 import * as widgets from './widgets.js'
 import * as windows from './windows.js'
 import { vars, saveVars } from './vars.js'
+import { fill } from './template.js'
 
 const PORT = process.env.PORT || 6875 // OVRL on a phone keypad
 const app = express()
@@ -93,23 +94,29 @@ app.get('/api/events', (req, res) => {
 })
 // Run history: the recent firings with what each node got and returned, newest first; ?workflow=<id> for one workflow.
 app.get('/api/runs', (req, res) => res.json(history.filter((r) => !req.query.workflow || r.workflow === req.query.workflow)))
-// A test chat message, for the bolt on a chat trigger: from TestViewer, with the trigger's command if it has one, and the
-// role and first message it asks for, so the test gets through.
-const testChat = (config) => ({
-  user: 'TestViewer', login: 'testviewer', message: config.command || 'Hello from Ovrly!', channel: twitch.status.channel, messageId: '',
+// A test chat message, for the bolt on a chat trigger: from TestViewer, with the trigger's first command if it has one
+// (then the text given, if any: a Chat !command's args), and the role and first message it asks for, so the test gets
+// through.
+const testChat = (config, text = '') => ({
+  user: 'TestViewer', login: 'testviewer', channel: twitch.status.channel, messageId: '',
+  message: config.command ? `!${config.command.split('+')[0].trim().replace(/^!/, '')} ${text}`.trim() : 'Hello from Ovrly!',
   userId: '', color: '', timestamp: Date.now(), broadcaster: config.from === 'broadcaster', mod: config.from === 'mod',
   vip: config.from === 'vip', sub: config.from === 'sub', subMonths: config.from === 'sub' ? 1 : 0, firstMessage: !!config.firstOnly,
   returning: false, emotes: [], action: false, highlighted: false, rewardId: '', replyToId: '', replyToUser: '', replyToMessage: '',
 })
 // Runs a workflow's manual triggers now (the Run button in the editor), or just ?node=<id> (the bolt on a trigger): a
-// manual trigger, or a chat trigger, sent a test message.
+// manual trigger, or a chat trigger, sent a test message (with the body's text after its command, and its data over
+// the test message's, if any: its user filled, e.g. {{ $vars.channel }}, giving the login too, TestViewer when empty).
 app.post('/api/workflows/:id/run', async (req, res) => {
   const workflow = await store.get('workflows', req.params.id).catch(() => null)
   if (!workflow) return res.sendStatus(404)
   const node = workflow.nodes.find((n) => n.id === req.query.node)
   const chat = node && [nodes[node.data.type]?.event].flat().includes('chat')
   record('http', 'manual', { workflow: workflow.id, ...(chat && { test: 'chat' }) }) // not on the bus: it targets this workflow only
-  fire(workflow, chat ? 'chat' : 'manual', chat ? testChat({ ...nodes[node.data.type].config, ...node.data.config }) : {}, {}, req.query.node)
+  const user = fill(req.body?.data?.user ?? '', {}).trim() || 'TestViewer'
+  const data = chat ? { ...testChat({ ...nodes[node.data.type].config, ...node.data.config }, req.body?.text), ...req.body?.data,
+    user, login: user.toLowerCase() } : {}
+  fire(workflow, chat ? 'chat' : 'manual', data, {}, req.query.node)
   res.sendStatus(204)
 })
 // Cancels a workflow's firings in progress (the Cancel button in the editor); the workflow stays on.
