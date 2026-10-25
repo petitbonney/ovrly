@@ -5,6 +5,7 @@ export const FADE = 300 // ms: the text fading in, out, or into the next one
 export default {
   type: 'label',
   label: 'Label',
+  icon: 'typography',
   description: 'Shows a text that stays on screen until it changes, e.g. the last follower or the current goal.',
   state: { font: 'Inter', color: '#ffffff', size: 48, align: 'center' },
   fields: {

@@ -6,12 +6,12 @@ import {
   ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, Notification, SimpleGrid, Stack, Switch, Text,
   TextInput, Tooltip, UnstyledButton, useAppShellResize,
 } from '@mantine/core'
-import { IconChevronRight, IconFile, IconFileImport, IconPlugOff, IconPlus, IconSearch, IconSettings, IconTool, IconUrgent, IconX } from '@tabler/icons-react'
+import { IconChevronRight, IconFile, IconFileImport, IconPlugOff, IconPlus, IconSearch, IconSettings, IconTool, IconUrgent, IconX, createReactComponent } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
 import TimerBar from './TimerBar.jsx'
 import Settings, { StatusIcon, integrations, requirements, unmet, useStatuses } from './Settings.jsx'
 import Heading from './Heading.jsx'
-import { icons, colors, widgetIcons } from './FlowNode.jsx'
+import { icons, colors } from './FlowNode.jsx'
 import templates from './templates.js'
 import { importBundle, importFile } from './share.js'
 import { get, json } from './api.js'
@@ -168,7 +168,7 @@ function Library({ defs, types, off }) {
         {/* Widget types first; widget node types (Merge Widgets) last. The widget node itself is created by dropping a widget type. */}
         <Groups items={[
           ...types.filter(match).map((t) => ({ el: (
-            <Item key={t.type} label={t.label} description={t.soon ? `Coming soon. ${t.description}` : t.description} icon={widgetIcons[t.type]}
+            <Item key={t.type} label={t.label} description={t.soon ? `Coming soon. ${t.description}` : t.description} icon={t.Icon}
               color={colors.widget} needs={t.needs} off={off} badge={t.soon && <Badge size="xs" variant="light" color="yellow">Soon</Badge>}
               data={['application/ovrly-widget', t.type]} onAdd={() => addToWorkflow({ widget: t.type })} />
           ) })),
@@ -231,7 +231,8 @@ export default function App({ theme, onTheme }) {
 
   useEffect(() => {
     get('/api/nodes').then(setDefs)
-    get('/api/widget-types').then(setTypes)
+    // Each type's icon comes as Tabler SVG shapes (server/widgets.js), drawn as a Tabler component.
+    get('/api/widget-types').then((list) => setTypes(list.map((t) => ({ ...t, Icon: t.iconNode && createReactComponent('outline', t.icon, t.icon, t.iconNode) }))))
   }, [])
   useEffect(() => {
     get('/api/widgets').then(setWidgets)

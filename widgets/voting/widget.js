@@ -39,6 +39,7 @@ async function close({ state, runtime }) {
 export default {
   type: 'voting',
   label: 'Voting',
+  icon: 'chart-bar',
   description: 'A poll or a prediction, by chat or with Twitch; shows the results live and who guessed right.',
   state: { kind: 'poll', mode: 'chat', title: 'Who wins?', options: ['Yes', 'No'], duration: 60 },
   fields: {

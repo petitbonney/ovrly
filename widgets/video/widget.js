@@ -8,6 +8,7 @@ const videoUrl = (v) =>
 export default {
   type: 'video',
   label: 'Video',
+  icon: 'video',
   description: 'Plays a short video (a file on disk or a URL), up to a max duration.',
   state: { duration: 0, volume: 100 },
   fields: {

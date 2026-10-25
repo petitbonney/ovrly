@@ -8,6 +8,7 @@ const soundUrl = (v) =>
 export default {
   type: 'sound',
   label: 'Sound',
+  icon: 'volume',
   description: 'Plays a sound (a file on disk or a URL), up to a max duration.',
   visual: false, // nothing to see: no preview in its settings, no box on a Merge Widgets canvas
   state: { duration: 0, volume: 100 },

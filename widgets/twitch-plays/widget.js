@@ -17,6 +17,7 @@ const reset = (runtime) => ({ ...runtime, log: [], votes: {}, counts: [], loop: 
 export default {
   type: 'twitch-plays',
   label: 'TwitchPlays',
+  icon: 'device-gamepad-2',
   description: 'Translates chat commands into keys to press, by anarchy or democracy.',
   state: {
     mode: 'anarchy',
