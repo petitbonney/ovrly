@@ -4,6 +4,7 @@ import { value } from '../template.js'
 export default {
   type: 'edit-data',
   label: 'Edit Data',
+  icon: 'edit',
   category: 'logic',
   group: 'Data',
   description: 'Adds or overwrites data keys for this run only, from text and {{ }} expressions.',

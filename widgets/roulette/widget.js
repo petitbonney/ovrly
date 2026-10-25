@@ -11,6 +11,7 @@ export const choices = () => Array.from({ length: 37 }, (_, n) => ({ label: Stri
 export default {
   type: 'roulette',
   label: 'Roulette',
+  icon: 'target',
   description: 'Draws a number from 0 to 36 on a roulette.',
   state: { duration: 5 },
   fields: { duration: { unit: 's', presets: [3, 5, 8, 12], hint: 'How long a draw lasts' } },

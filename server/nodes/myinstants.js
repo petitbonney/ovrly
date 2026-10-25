@@ -6,6 +6,7 @@ import * as myinstants from '../myinstants.js'
 export default {
   type: 'myinstants',
   label: 'MyInstants',
+  icon: 'speakerphone',
   category: 'action',
   group: 'Media',
   play: { only: { pick: 'random' } },

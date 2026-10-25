@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import bus, { record } from './bus.js'
 import * as store from './store.js'
 import { fill, list } from './template.js'
+import { iconNode } from './icons.js'
 
 // Load every widget type from ../widgets/<type>/widget.js, keyed by type. Each action is { description, inputs, only,
 // run({ state, runtime, input }) → { state?, runtime? } }: inputs says what it asks for, as node fields ({ option: {
@@ -36,8 +37,9 @@ export const types = {}
 const folders = (await fs.readdir(dir, { withFileTypes: true })).filter((e) => e.isDirectory()).sort((a, b) => rank(a.name) - rank(b.name))
 for (const entry of folders) {
   const def = (await import(new URL(`${entry.name}/widget.js`, dir))).default
-  types[def.type] = normalize(def)
+  types[def.type] = { ...normalize(def), iconNode: await iconNode(def.icon) }
 }
+
 
 // An action's or handler's { state?, runtime? } over the current { state, runtime }: each part it returns replaces
 // that part. null when nothing changed.

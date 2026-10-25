@@ -10,6 +10,7 @@ const days = (iso) => (iso ? Math.floor((Date.now() - Date.parse(iso)) / 86_400_
 export default {
   type: 'twitch-user',
   label: 'User Info',
+  icon: 'user-search',
   category: 'action',
   group: 'Twitch',
   play: true,

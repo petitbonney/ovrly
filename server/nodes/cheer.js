@@ -3,6 +3,7 @@
 export default {
   type: 'cheer',
   label: 'Cheer',
+  icon: 'diamond',
   category: 'trigger',
   needs: ['chat'],
   group: 'Twitch',

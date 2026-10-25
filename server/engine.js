@@ -3,6 +3,7 @@ import fs from 'node:fs/promises'
 import { EventEmitter } from 'node:events'
 import bus from './bus.js'
 import * as store from './store.js'
+import { iconNode } from './icons.js'
 
 // Load every node type from ./nodes, keyed by type, in the library's order: most used first, a group's nodes together.
 // Types not listed go last.
@@ -22,7 +23,7 @@ const rank = (type) => (order.includes(type) ? order.indexOf(type) : order.lengt
 const dir = new URL('./nodes/', import.meta.url)
 const loaded = await Promise.all((await fs.readdir(dir)).map(async (name) => (await import(new URL(name, dir))).default))
 export const nodes = {}
-for (const def of loaded.sort((a, b) => rank(a.type) - rank(b.type))) nodes[def.type] = def
+for (const def of loaded.sort((a, b) => rank(a.type) - rank(b.type))) nodes[def.type] = { ...def, iconNode: await iconNode(def.icon) }
 
 // Live run feedback for the editor (GET /api/activity): { workflow, node, state } where state is running, done,
 // stopped (returned nothing), error or waiting (a join waiting for its other links), { workflow, edge, target }

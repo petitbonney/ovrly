@@ -10,6 +10,7 @@ export const choices = (state) => state.dice.map((label) => ({ label, weight: 1 
 export default {
   type: 'dice',
   label: 'Dice Roll',
+  icon: 'dice-5',
   description: 'Rolls a die and draws the face on top.',
   state: { dice: ['1', '2', '3', '4', '5', '6'], diceColor: '#9147ff', dotColor: '#ffffff' },
   fields: {

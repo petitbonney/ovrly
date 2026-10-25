@@ -3,6 +3,7 @@
 export default {
   type: 'redeem',
   label: 'Channel Points',
+  icon: 'sparkles',
   category: 'trigger',
   group: 'Twitch',
   needs: ['twitch'],

@@ -4,6 +4,7 @@
 export default {
   type: 'merge',
   label: 'Merge Widgets',
+  icon: 'layout-collage',
   category: 'widget', // listed in the library's Widget section
   description: 'Shows the widgets linked into it on one canvas, as a single OBS browser source. Drag them into place in its settings.',
   fields: {

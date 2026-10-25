@@ -26,6 +26,7 @@ export const FADE = 400
 export default {
   type: 'alerts',
   label: 'Alerts',
+  icon: 'bell',
   description: 'Shows a text for a few seconds, e.g. who just ran a command: a banner, a neon sign, a flap board…',
   state: { layout: 'banner', color: '#ffb400', metal: 'gold', duration: 5, volume: 100 },
   fields: {

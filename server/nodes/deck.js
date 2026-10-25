@@ -4,6 +4,7 @@
 export default {
   type: 'deck',
   label: 'Control Pad',
+  icon: 'layout-grid',
   category: 'trigger',
   group: 'Other',
   description: 'One output per button, fired by a Stream Deck key (with the Ovrly plugin) or, with Companion, by a URL per button.',

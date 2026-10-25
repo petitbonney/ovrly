@@ -32,6 +32,7 @@ export function compare(who, config, data) {
 export default {
   type: 'if-else',
   label: 'If / Else',
+  icon: 'git-branch', iconRotate: 90,
   category: 'logic',
   group: 'Flow',
   description: 'Sends data to "true" or "false" by comparing two values.',

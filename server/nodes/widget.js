@@ -8,6 +8,7 @@ import * as widgets from '../widgets.js'
 export default {
   type: 'widget',
   label: 'Widget',
+  icon: 'layout-dashboard',
   category: 'widget', // not in the library's node sections: widgets are dragged from their own section
   description: 'A widget overlay. Starts when the flow reaches it, and goes on once it has stopped; Widget Action nodes in front of it run its other actions.',
   fields: {

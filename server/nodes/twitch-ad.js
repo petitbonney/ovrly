@@ -6,6 +6,7 @@ import { needStreamer } from '../sources/twitch.js'
 export default {
   type: 'twitch-ad',
   label: 'Ad Break',
+  icon: 'ad',
   category: 'action',
   group: 'Twitch',
   needs: ['twitch'],

@@ -8,6 +8,7 @@ const statuses = [
 export default {
   type: 'stream-status',
   label: 'Stream On/Off',
+  icon: 'access-point',
   category: 'trigger',
   group: 'Twitch',
   needs: ['twitch'],

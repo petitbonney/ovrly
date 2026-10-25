@@ -4,6 +4,7 @@
 export default {
   type: 'gift-subs',
   label: 'Gift Subs',
+  icon: 'gift',
   category: 'trigger',
   needs: ['chat'],
   group: 'Twitch',

@@ -3,6 +3,7 @@
 export default {
   type: 'hype-train',
   label: 'Hype Train',
+  icon: 'flame',
   category: 'trigger',
   group: 'Twitch',
   needs: ['twitch'],

@@ -5,6 +5,7 @@ import { operators, compare } from './if-else.js'
 export default {
   type: 'filter',
   label: 'Filter',
+  icon: 'filter',
   category: 'logic',
   group: 'Flow',
   description: 'Continues only if the comparison holds.',

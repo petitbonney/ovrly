@@ -2,6 +2,7 @@
 export default {
   type: 'webhook',
   label: 'API Call',
+  icon: 'webhook',
   category: 'trigger',
   group: 'Other',
   description: 'Fires on a request to /hooks/<path> on this server; the query and JSON body become data.',

@@ -23,8 +23,8 @@ pnpm dev      # server + UI on http://localhost:6875
 
 ## Conventions
 
-- One node type = one file in `server/nodes/`, exporting `{ type, label, category, group, config, run }` (`group` is its sub-section in the library). An action worth trying from its settings sets `play: true` (or `play: { only: { … } }` for some settings only): its live column gets Play and the result.
-- One widget type = one folder in `widgets/`.
+- One node type = one file in `server/nodes/`, exporting `{ type, label, icon, category, group, config, run }` (`icon` a Tabler name, e.g. `'dice-5'`, with `iconRotate` in degrees if it needs turning; `group` is its sub-section in the library). An action worth trying from its settings sets `play: true` (or `play: { only: { … } }` for some settings only): its live column gets Play and the result.
+- One widget type = one folder in `widgets/`, its `widget.js` naming its `icon` the same way.
 - A widget node carries `state` (saved in its widget file: settings, action inputs, kept data) and `runtime` (in memory, lost on restart).
 - Data lives in `./data` as JSON files (gitignored). Never commit it.
 - Scope: Twitch and OBS, plus the Stream Deck as a controller (its plugin is in `streamdeck/`) and Philips Hue lights. Ask before adding another platform.

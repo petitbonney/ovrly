@@ -4,6 +4,7 @@
 export default {
   type: 'widget-action',
   label: 'Widget Action',
+  icon: 'broadcast',
   category: 'action',
   group: 'System',
   description: 'Link it to a widget node: that widget runs the action picked here (start, stop, cancel or its own), then the flow stops there.',

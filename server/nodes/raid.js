@@ -3,6 +3,7 @@
 export default {
   type: 'raid',
   label: 'Raid',
+  icon: 'swords',
   category: 'trigger',
   needs: ['chat'],
   group: 'Twitch',

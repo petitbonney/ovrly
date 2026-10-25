@@ -4,6 +4,7 @@
 export default {
   type: 'queue',
   label: 'Queue',
+  icon: 'list-numbers',
   category: 'logic',
   group: 'Timing',
   description: 'Runs what follows one firing at a time: the next wait in line, in arrival order.',

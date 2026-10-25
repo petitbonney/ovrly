@@ -11,7 +11,7 @@ import Workflow from './Workflow.jsx'
 import TimerBar from './TimerBar.jsx'
 import Settings, { StatusIcon, integrations, requirements, unmet, useStatuses } from './Settings.jsx'
 import Heading from './Heading.jsx'
-import { icons, colors, widgetIcons } from './FlowNode.jsx'
+import { colors, withIcon } from './FlowNode.jsx'
 import templates from './templates.js'
 import { importBundle, importFile } from './share.js'
 import { get, json } from './api.js'
@@ -129,7 +129,7 @@ function Item({ label, description, icon: Icon, color, needs = [], off, badge, d
   )
 }
 const nodeItem = (d, color, off) => (
-  <Item key={d.type} label={d.label} description={d.description} icon={icons[d.type]} color={color} needs={d.needs} off={off}
+  <Item key={d.type} label={d.label} description={d.description} icon={d.Icon} color={color} needs={d.needs} off={off}
     data={['application/ovrly', d.type]} onAdd={() => addToWorkflow({ node: d.type })} />
 )
 
@@ -168,7 +168,7 @@ function Library({ defs, types, off }) {
         {/* Widget types first; widget node types (Merge Widgets) last. The widget node itself is created by dropping a widget type. */}
         <Groups items={[
           ...types.filter(match).map((t) => ({ el: (
-            <Item key={t.type} label={t.label} description={t.soon ? `Coming soon. ${t.description}` : t.description} icon={widgetIcons[t.type]}
+            <Item key={t.type} label={t.label} description={t.soon ? `Coming soon. ${t.description}` : t.description} icon={t.Icon}
               color={colors.widget} needs={t.needs} off={off} badge={t.soon && <Badge size="xs" variant="light" color="yellow">Soon</Badge>}
               data={['application/ovrly-widget', t.type]} onAdd={() => addToWorkflow({ widget: t.type })} />
           ) })),
@@ -230,8 +230,8 @@ export default function App({ theme, onTheme }) {
   const refresh = () => setVersion((v) => v + 1)
 
   useEffect(() => {
-    get('/api/nodes').then(setDefs)
-    get('/api/widget-types').then(setTypes)
+    get('/api/nodes').then((list) => setDefs(list.map(withIcon)))
+    get('/api/widget-types').then((list) => setTypes(list.map(withIcon)))
   }, [])
   useEffect(() => {
     get('/api/widgets').then(setWidgets)

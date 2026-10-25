@@ -6,6 +6,7 @@ import call from './workflow-call.js'
 export default {
   type: 'execute-workflow',
   label: 'Execute Workflow',
+  icon: 'subtask',
   category: 'logic',
   group: 'Flow',
   description: 'Runs another workflow with the current data, and waits for its result.',

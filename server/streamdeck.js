@@ -5,19 +5,12 @@ import { record } from './bus.js'
 import { fire } from './engine.js'
 import * as store from './store.js'
 import deck from './nodes/deck.js'
+import { iconNode } from './icons.js'
 
 // connected: the plugin is listening; devices: id -> { name, columns, rows }; keys: the paired keys,
 // [{ context, device, column, row, workflow, node, button }] (no column or row for a key in a multi action).
 export const status = { connected: false, devices: {}, keys: [] }
 const clients = new Set()
-
-// A Tabler icon's SVG shapes, e.g. "dice-5" -> IconDice5's; a star if there is no such icon.
-const shapes = {}
-async function iconShapes(name) {
-  const file = `Icon${name.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join('')}.mjs`
-  shapes[name] ??= import(`@tabler/icons-react/dist/esm/icons/${file}`).then((m) => m.__iconNode, () => iconShapes('star'))
-  return shapes[name]
-}
 
 // Images go raw in a data URL, so no "#" (it would end the URL): named entities, and colors as rgb().
 const esc = (s) => String(s).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c])
@@ -25,7 +18,7 @@ const rgb = (hex) => (/^#[0-9a-f]{6}$/i.test(hex) ? `rgb(${hex.slice(1).match(/.
 
 // A key image (144px SVG): the button's color, its icon and name in white; faded while its workflow is off.
 async function keyImage(button, on) {
-  const icon = (await iconShapes(button.icon || 'star'))
+  const icon = ((await iconNode(button.icon)) ?? (await iconNode('star'))) // a star if there is no such icon
     .map(([tag, { key, ...attrs }]) => `<${tag} ${Object.entries(attrs).map(([k, v]) => `${k}="${esc(v)}"`).join(' ')}/>`).join('')
   const name = button.name.length > 12 ? `${button.name.slice(0, 11)}…` : button.name
   const size = name.length > 8 ? 17 : 22

@@ -53,6 +53,7 @@ const { cancel, ...actions } = base.actions // reset cancels instead
 export default {
   type: 'lottery',
   label: 'Lottery',
+  icon: 'clover',
   description: 'Draws a winner with a wheel or a slot.',
   state: {
     layout: 'wheel',

@@ -6,6 +6,7 @@ import { fill } from '../template.js'
 export default {
   type: 'twitch-ban',
   label: 'Ban / Timeout',
+  icon: 'ban',
   category: 'action',
   group: 'Twitch',
   needs: ['twitch'],

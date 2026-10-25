@@ -7,6 +7,7 @@ import { fill } from '../template.js'
 export default {
   type: 'twitch-shoutout',
   label: 'Shoutout',
+  icon: 'heart-handshake',
   category: 'action',
   group: 'Twitch',
   needs: ['twitch'],

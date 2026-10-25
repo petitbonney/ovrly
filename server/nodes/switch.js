@@ -5,6 +5,7 @@ import { fill } from '../template.js'
 export default {
   type: 'switch',
   label: 'Switch',
+  icon: 'arrow-fork-triple', iconRotate: 90,
   category: 'logic',
   group: 'Flow',
   description: 'Sends data to the first case equal to the value (not case-sensitive), else to "else".',

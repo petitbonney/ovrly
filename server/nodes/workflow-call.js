@@ -2,6 +2,7 @@
 export default {
   type: 'workflow-call',
   label: 'Called By Workflow',
+  icon: 'arrow-bar-to-right',
   category: 'trigger',
   group: 'Other',
   description: 'Fires when another workflow runs this one (Execute Workflow node).',

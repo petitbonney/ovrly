@@ -6,6 +6,7 @@ import { fill } from '../template.js'
 export default {
   type: 'twitch-stream-info',
   label: 'Stream Info',
+  icon: 'pencil',
   category: 'action',
   group: 'Twitch',
   play: true,

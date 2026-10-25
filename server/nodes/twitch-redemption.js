@@ -7,6 +7,7 @@ import { fill } from '../template.js'
 export default {
   type: 'twitch-redemption',
   label: 'Complete Redemption',
+  icon: 'checks',
   category: 'action',
   group: 'Twitch',
   needs: ['twitch'],

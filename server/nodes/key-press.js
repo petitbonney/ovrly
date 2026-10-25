@@ -11,6 +11,7 @@ keyboard.config.autoDelayMs = 0 // nut.js waits 300 ms before each press and rel
 export default {
   type: 'key-press',
   label: 'Key Press',
+  icon: 'keyboard',
   category: 'action',
   group: 'System',
   description: 'Presses a key combo on this machine, optionally only while a given window is focused.',

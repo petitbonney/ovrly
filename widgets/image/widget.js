@@ -8,6 +8,7 @@ export const FADE = 300 // ms: the image fading in, and out
 export default {
   type: 'image',
   label: 'Image/GIF',
+  icon: 'photo',
   description: 'Shows an image or animated GIF (a file on disk or a URL) for a few seconds.',
   state: { duration: 5 },
   fields: {
