@@ -12,7 +12,7 @@ import {
   IconMessageCode, IconMovie, IconAd, IconBan, IconBookmark, IconChecks, IconMessageCog, IconMessageShare, IconPencil, IconRocket,
   IconScissors, IconTicket, IconTrash, IconUserSearch, IconDeviceTvOld, IconMessageStar, IconHeartHandshake,
   IconNotes, IconPhoto, IconPlugConnected, IconSubtask, IconVideo, IconVolume, IconVariable, IconWebhook, IconAirConditioning, IconWorld,
-  IconLayoutGrid, IconBulb, IconPlugOff, IconTypography,
+  IconLayoutGrid, IconBulb, IconPlugOff, IconTypography, IconReplace,
 } from '@tabler/icons-react'
 import { deckIcons } from './Deck.jsx'
 
@@ -39,6 +39,7 @@ export const icons = {
   'error-trigger': IconAlertTriangle,
   'workflow-call': IconArrowBarToRight,
   'edit-data': IconEdit,
+  'map-value': IconReplace,
   code: IconCode,
   'edit-variable': IconVariable,
   'execute-workflow': IconSubtask,

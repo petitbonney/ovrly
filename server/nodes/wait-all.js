@@ -1,5 +1,5 @@
-// Logic: waits until every incoming link has delivered data (from the same trigger firing), then continues once
-// with it all merged. The engine does the waiting (`join`); a branch that stops early means it never continues.
+// Logic: waits until every incoming link has delivered data (from any firing, e.g. two triggers), then continues once
+// with it all merged. The engine does the waiting (`join`); its settings can force it on or cancel the wait.
 export default {
   type: 'wait-all',
   label: 'Wait For All',

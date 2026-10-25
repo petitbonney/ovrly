@@ -5,7 +5,7 @@ import os from 'node:os'
 import express from 'express'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
-import { nodes, fire, cancel, running, activity, history, line, drop } from './engine.js'
+import { nodes, fire, cancel, running, activity, history, line, drop, arrived, unjoin } from './engine.js'
 import * as twitch from './sources/twitch.js'
 import * as twitchAuth from './sources/twitch-auth.js'
 import * as eventsub from './sources/twitch-eventsub.js'
@@ -70,6 +70,10 @@ app.get('/api/activity', (req, res) => {
 app.get('/api/queues/:workflow/:node', (req, res) => res.json(line(req.params.workflow, req.params.node)))
 app.delete('/api/queues/:workflow/:node/:entry', (req, res) =>
   res.sendStatus(drop(req.params.workflow, req.params.node, Number(req.params.entry)) ? 204 : 404))
+// Wait For All nodes: the links that have delivered, and ending the wait: Force (continue now) or Cancel (stop there).
+app.get('/api/joins/:workflow/:node', (req, res) => res.json(arrived(req.params.workflow, req.params.node)))
+app.post('/api/joins/:workflow/:node/:end', (req, res) =>
+  res.sendStatus(['force', 'cancel'].includes(req.params.end) && unjoin(req.params.workflow, req.params.node, req.params.end === 'force') ? 204 : 404))
 // Developer view: the recent events (chat, API calls, manual runs…), newest first. Browsers get a live table
 // (events.html), anything else the JSON; ?format=json forces JSON.
 app.get('/api/events', (req, res) => {
@@ -271,9 +275,12 @@ app.get('/file', (req, res) => {
   res.sendFile(file, { dotfiles: 'allow' }, (err) => err && !res.headersSent && res.status(404).end())
 })
 
-// The open windows, for Key Press's "Only when focused" picker.
-app.get('/api/windows', (req, res) =>
-  windows.list().then((list) => res.json([...new Set(list.filter(Boolean))]), (err) => res.status(503).json({ error: err.message })))
+// The open windows, for Key Press's "Only when focused" picker, with a hint when macOS gave app names alone.
+app.get('/api/windows', (req, res) => windows.list().then((list) => {
+  const names = [...new Set(list.filter(Boolean))]
+  const titles = process.platform !== 'darwin' || !names.length || names.some((n) => n.includes(' — '))
+  res.json({ windows: names, hint: titles ? '' : 'Window titles need the Accessibility permission' })
+}, (err) => res.status(503).json({ error: err.message })))
 
 // Widget types for the UI: metadata, and each action's description, inputs and only (no functions).
 app.get('/api/widget-types', (req, res) => res.json(Object.values(widgets.types).map(({ actions, output, playTime, stopTime, on, queues, over, ...meta }) => ({

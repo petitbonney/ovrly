@@ -33,6 +33,9 @@ export const activity = new EventEmitter()
 // { id, at, data, go } where go(true) lets one through and go(false) drops it }.
 const queues = {}
 let lastEntry = 0
+// Wait For All nodes (`join`): node key -> { arrived: { [link id]: data }, waiting: resolves of the firings waiting
+// there }. It waits across firings (e.g. two triggers), until every incoming link has delivered once.
+const joins = {}
 // Node key -> how many firings are running it: a node only shows as finished once the last one has.
 const active = {}
 // Workflow id -> abort controllers of its firings in progress, for cancel().
@@ -45,20 +48,25 @@ export const history = []
 let lastRun = 0
 
 // Runs one node, then the nodes connected to its outputs. A null result stops the branch.
-// `run` is the state of one trigger firing: its abort signal and the data waiting at "wait for all" (join) nodes.
-// `from` is the node the data came from, { type, config }: a widget node runs the action of a Widget Action node.
+// `run` is the state of one trigger firing: its abort signal, the node outputs so far, its history record.
+// `from` is the node the data came from, { type, config, edge }: a widget node runs the action of a Widget Action node.
 async function walk(workflow, node, data, run, from) {
   if (run.signal.aborted) return
   const def = nodes[node.data.type]
   const status = (state, extra) => activity.emit('activity', { workflow: workflow.id, node: node.id, state, ...extra })
-  if (def.join) {
-    const arrived = (run.joins[node.id] ??= [])
-    arrived.push(data)
-    if (arrived.length < workflow.edges.filter((e) => e.target === node.id).length) return status('waiting')
-    data = Object.assign({}, ...arrived)
-  }
   // `id` keys a node's memory across firings (cooldown).
   const id = `${workflow.id}/${node.id}`
+  // A join holds each firing that arrives before every link has delivered; the last one to complete it continues, with
+  // all the data merged, and the ones waiting end there.
+  if (def.join) {
+    const j = (joins[id] ??= { arrived: {}, waiting: [] })
+    j.arrived[from.edge] = data
+    if (workflow.edges.some((e) => e.target === node.id && !(e.id in j.arrived))) {
+      status('waiting')
+      data = await new Promise((resolve) => j.waiting.push(resolve))
+      if (!data) return
+    } else data = release(id, false)
+  }
   const config = { ...def.config, ...node.data.config }
   // A queue node lets one firing at a time through: the next waits until everything after it has finished.
   if (def.queue) {
@@ -91,6 +99,28 @@ export function drop(workflow, node, entry) {
   const i = q?.line.findIndex((e) => e.id === entry) ?? -1
   if (i >= 0) q.line.splice(i, 1)[0].go(false)
   return i >= 0
+}
+
+// Ends the wait at a Wait For All node and returns the data that arrived, merged. The firings waiting there end, but
+// with go the last one to arrive continues with that data (Force).
+function release(key, go) {
+  const j = joins[key]
+  delete joins[key]
+  const data = Object.assign({}, ...Object.values(j.arrived))
+  j.waiting.forEach((resolve, i) => resolve(go && i === j.waiting.length - 1 ? data : null))
+  return data
+}
+
+// The links that have delivered to a Wait For All node, as link ids (GET /api/joins/:workflow/:node).
+export const arrived = (workflow, node) => Object.keys(joins[`${workflow}/${node}`]?.arrived ?? {})
+
+// Ends the wait at a Wait For All node: Force continues now with what arrived, Cancel drops it (the firings stop there).
+export function unjoin(workflow, node, go) {
+  const key = `${workflow}/${node}`
+  if (!joins[key]) return false
+  release(key, go)
+  if (!go) activity.emit('activity', { workflow, node, state: 'stopped' })
+  return true
 }
 
 // Runs the node itself, then walks on from its outputs. Besides the data, the node can read {{ $node.<type>.<key> }},
@@ -142,7 +172,7 @@ async function step(workflow, node, data, run, { def, config, id, status, from }
   await Promise.all(next.flatMap((e) => {
     const target = workflow.nodes.find((n) => n.id === e.target)
     if (target) activity.emit('activity', { workflow: workflow.id, edge: e.id, target: e.target })
-    return target ? items.map((item) => walk(workflow, target, multi ? out[e.sourceHandle] : item, run, { type: def.type, config })) : []
+    return target ? items.map((item) => walk(workflow, target, multi ? out[e.sourceHandle] : item, run, { type: def.type, config, edge: e.id })) : []
   }))
 }
 
@@ -168,7 +198,7 @@ export function fire(workflow, event, data, parent = {}, only) {
     }
     // outputs: node type or id -> output of the last node of that type that ran, for {{ $node... }}. origins: the
     // triggers this firing comes from, as `workflow/node` keys: its own, after those of the firings that called it.
-    const run = { event, signal: controller.signal, joins: {}, outputs: {}, depth: parent.depth ?? 0, record, start,
+    const run = { event, signal: controller.signal, outputs: {}, depth: parent.depth ?? 0, record, start,
       origins: [...(parent.origins ?? []), `${workflow.id}/${t.id}`] }
     const began = Date.now()
     try {
@@ -192,10 +222,11 @@ export function fire(workflow, event, data, parent = {}, only) {
 // Workflow id -> number of firings in progress, for clients that connect while some run.
 export const running = () => Object.fromEntries(Object.entries(runs).filter(([, set]) => set.size).map(([id, set]) => [id, set.size]))
 
-// Stops a workflow's firings in progress (e.g. when it's switched off): nodes waiting (delay, widget, queue) give up,
-// and nothing after them runs.
+// Stops a workflow's firings in progress (e.g. when it's switched off): nodes waiting (delay, widget, queue, wait for
+// all) give up, and nothing after them runs.
 export function cancel(workflowId) {
   for (const controller of runs[workflowId] ?? []) controller.abort()
+  for (const key in joins) if (key.startsWith(`${workflowId}/`)) unjoin(workflowId, key.slice(workflowId.length + 1), false)
 }
 
 // Workflows are re-read on each event so edits apply without a restart. Workflows switched off are skipped

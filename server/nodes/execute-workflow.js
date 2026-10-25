@@ -1,6 +1,7 @@
-// Logic: runs another workflow, from its "Called By Workflow" trigger, with the current data. By default it waits for
-// that workflow to finish, merges the data of its last node into this one's, and fails if it failed.
+// Logic: runs another workflow, from one of its "Called By Workflow" triggers, with the current data. By default it waits
+// for that workflow to finish, merges the data of its last node into this one's, and fails if it failed.
 import * as store from '../store.js'
+import call from './workflow-call.js'
 
 export default {
   type: 'execute-workflow',
@@ -12,10 +13,14 @@ export default {
   config: { workflow: '', wait: true },
   async run({ config, data, signal, depth, origins }) {
     if (depth >= 10) throw new Error('Execute Workflow: workflows call each other too deep')
-    const target = (await store.list('workflows')).find((w) => w.id === config.workflow || w.name === config.workflow)
-    if (!target) throw new Error(`Workflow not found: ${config.workflow}`)
+    // "<workflow id>/<trigger ID>"; a bare workflow id (older nodes) runs all its Called By Workflow triggers.
+    const [id, callId] = config.workflow.split(/\/(.*)/)
+    const target = (await store.list('workflows')).find((w) => w.id === id || w.name === id)
+    if (!target) throw new Error(`Workflow not found: ${id}`)
+    const trigger = callId && target.nodes.find((n) => n.data.type === call.type && { ...call.config, ...n.data.config }.id === callId)
+    if (callId && !trigger) throw new Error(`"${target.name}" has no Called By Workflow trigger with ID "${callId}"`)
     const { fire } = await import('../engine.js') // not imported on top: the engine loads this file
-    const runs = fire(target, 'call', data, { signal, depth: depth + 1, origins })
+    const runs = fire(target, 'call', data, { signal, depth: depth + 1, origins }, trigger?.id)
     if (!config.wait) return data
     const [run] = await runs
     if (!run) throw new Error(`"${target.name}" has no Called By Workflow trigger`)

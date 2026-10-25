@@ -26,6 +26,7 @@ import Fields, { applies } from './Fields.jsx'
 import DeckGrid from './Deck.jsx'
 import WidgetPane, { ActionsInfo } from './Widget.jsx'
 import QueueLine from './QueueLine.jsx'
+import JoinLinks from './JoinLinks.jsx'
 import Play from './Play.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
@@ -132,7 +133,8 @@ function boundsOf(list) {
 // Settings of the selected node, laid out the same for every node (see AGENTS.md): a header (icon, name, ⓘ for a
 // widget's actions, close), the description, notices (needs not met, a widget to link or deleted, the last run's
 // error), then the settings column, with a live column on its right when the node has something to watch or press: a
-// widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, an action's Play and result
+// widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, a Wait For All's links with
+// Force and Cancel, an action's Play and result
 // (Play.jsx). A Merge Widgets node shows its canvas instead (with the widgets linked into it,
 // context.inputs). context.widget is the widget the node points to; off: the requirements not met (Settings.jsx).
 function Config({ workflow, node, def, context, off, running, error, onChange, onWidgetChange, onCopy, onClose, onError }) {
@@ -148,6 +150,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
   const settings = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={{ ...context, off }} onChange={onChange} />
   const live = def.type === 'deck' ? <DeckGrid workflow={workflow} node={node.id} config={config} />
     : def.queue ? <QueueLine workflow={workflow} node={node.id} />
+    : def.join ? <JoinLinks workflow={workflow} node={node.id} links={context.links} />
     : def.play && applies(def.play, config) && (
       <Play key={node.id} workflow={workflow} node={node.id} type={def.type} config={config} disabled={missing.length > 0} running={running} />
     )
@@ -469,6 +472,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const from = spawned && def.category !== 'trigger' ? nodes.find((n) => n.selected) : null
     position ??= spawnPosition(def, from)
     let config = {}
+    // An ID setting (a Called By Workflow trigger's) starts unique.
+    for (const [key, f] of Object.entries(def.fields ?? {})) if (f.type === 'id') config[key] = crypto.randomUUID()
     // An option needing an integration (a Control Pad node's Stream Deck mode) is picked when that integration is ready.
     for (const [key, f] of Object.entries(def.fields ?? {})) {
       const option = f.options?.find((o) => o.needs)
@@ -525,7 +530,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const what = picked.length === 1 ? nodeName(picked[0]) : `${picked.length} nodes`
     notify(`Copied ${what}. Paste with Ctrl+V, here or in another workflow.`)
   }
-  // Pasted nodes get new ids and keep their layout, centered on the pointer (or the canvas when the pointer is
+  // Pasted nodes get new ids (their ID settings too) and keep their layout, centered on the pointer (or the canvas when the pointer is
   // elsewhere). A pasted widget node gets a new widget instance, with a copy of the copied one's state (settings,
   // inputs, kept data); one whose instance is unknown (deleted) is pasted as it is, and says so in its settings.
   const pointer = useRef(null)
@@ -543,7 +548,9 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const b = boundsOf(copied)
     const d = snap({ x: at.x - b.x - b.width / 2, y: at.y - b.y - b.height / 2 })
     // A Merge Widgets node pasted with its widget nodes keeps their placement, now keyed by the new instances.
-    const pasted = withWidgetIds(copied, instances).map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y } }))
+    const newIds = (n) => Object.entries(defOf(n)?.fields ?? {}).filter(([, f]) => f.type === 'id').map(([key]) => [key, crypto.randomUUID()])
+    const pasted = withWidgetIds(copied, instances).map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y },
+      data: { ...n.data, config: { ...n.data.config, ...Object.fromEntries(newIds(n)) } } }))
     setNodes((ns) => ns.map((n) => ({ ...n, selected: false })).concat(pasted))
     setEdges((es) => es.concat(links.map((ed) => ({ ...ed, id: crypto.randomUUID(), source: ids[ed.source], target: ids[ed.target] }))))
     if (Object.keys(instances).length) onWidgetChange()
@@ -744,6 +751,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
           // The widgets linked into the selected node (for a Merge Widgets node), in link order.
           inputs: [...new Set(edges.filter((e) => e.target === selected?.id).map((e) => nodes.find((n) => n.id === e.source))
             .filter((n) => n?.data.type === 'widget').map((n) => n.data.config.widget))].map((ref) => findWidget(widgets, ref)).filter(Boolean),
+          // The links into the selected node, named after the node each comes from (for Wait For All).
+          links: edges.filter((e) => e.target === selected?.id).map((e) => ({ id: e.id, name: shownNodes.find((n) => n.id === e.source)?.ariaLabel })),
           types,
         }}
         onChange={setConfig}

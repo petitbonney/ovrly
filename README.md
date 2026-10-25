@@ -36,7 +36,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
 - **Multiple instances**: run several widgets and workflows side by side.
 - **Triggers**: a schedule, Twitch chat (any message or a `!command`), an API call to `http://localhost:6875/hooks/<path>` (query and JSON body become data), a Control Pad button (the Control Pad node: a list of buttons, each with a name, icon and color and its own output; its mode picks how they fire: **Companion**, a URL per button, `/hooks/<path>/<name>-<id>`, to copy for Companion or anything that sends HTTP, where only the id counts, so renaming keeps old URLs working, or **Stream Deck**, keys paired with the Ovrly plugin (see below; a new node starts on it while the plugin is connected, and it can't be picked while it isn't); each fires its own way only; its settings show the buttons as a grid to press, which fire nothing while the workflow is off), or the Run button in the editor (Manual Trigger).
 - **Logic**: filter (continues only if a comparison holds, like if/else; 13 operators: equals, contains, regex, numbers, empty…), delay (in seconds), if/else, switch (a list
-  of cases, one output each, labelled by the case; links follow their case when cases move or are removed), wait for all (continues once every incoming link has delivered),
+  of cases, one output each, labelled by the case; links follow their case when cases move or are removed), wait for all (continues once every incoming link has delivered, from any firing, e.g. two triggers; its settings show which links have, Force to continue now and Cancel to drop what arrived),
   cooldown (lets data through, then sends the next to "blocked" for a while, for everyone and optionally per data key),
   fan out (what follows runs once per item of a list, e.g. a gift's recipients), fan in (collects firings into one
   `{{items}}` list with `{{count}}`, released after a duration, a quiet period or a limit of entries, whichever comes
@@ -46,9 +46,9 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   (`{{ score * 2 }}`). Expressions and the Code node run as code: only import workflows you trust.
 - **Data vs variables**: *data* is the payload that travels from node to node during one run (`{{user}}`), gone when
   the run ends. *Variables* are shared by all workflows and kept across runs and restarts (`{{$vars.score}}`).
-  Edit Data changes data; Edit Variable sets, adds to or deletes a variable.
+  Edit Data changes data, Map Value swaps a key's value through a "from" → "to" list; Edit Variable sets, adds to or deletes a variable.
 - **More nodes**: Code (JavaScript on the data), Schedule (a trigger every N minutes),
-  Execute Workflow (runs another workflow, which starts with a Called By Workflow trigger, and merges its result in).
+  Execute Workflow (runs another workflow from one of its Called By Workflow triggers, picked by its ID, and merges its result in).
 - **Errors and history**: a node that fails stops the firing there. An Error Trigger workflow runs when a node fails
   in another one. `GET /api/runs` has the last 100 firings (in memory), with each node's input and output.
 - **Widget concurrency**: starting a widget that is still playing (e.g. a second `!spin`) replaces what plays; the
