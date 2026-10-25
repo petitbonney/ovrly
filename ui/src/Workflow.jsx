@@ -472,6 +472,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const from = spawned && def.category !== 'trigger' ? nodes.find((n) => n.selected) : null
     position ??= spawnPosition(def, from)
     let config = {}
+    // An ID setting (a Called By Workflow trigger's) starts unique.
+    for (const [key, f] of Object.entries(def.fields ?? {})) if (f.type === 'id') config[key] = crypto.randomUUID()
     // An option needing an integration (a Control Pad node's Stream Deck mode) is picked when that integration is ready.
     for (const [key, f] of Object.entries(def.fields ?? {})) {
       const option = f.options?.find((o) => o.needs)
@@ -528,7 +530,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const what = picked.length === 1 ? nodeName(picked[0]) : `${picked.length} nodes`
     notify(`Copied ${what}. Paste with Ctrl+V, here or in another workflow.`)
   }
-  // Pasted nodes get new ids and keep their layout, centered on the pointer (or the canvas when the pointer is
+  // Pasted nodes get new ids (their ID settings too) and keep their layout, centered on the pointer (or the canvas when the pointer is
   // elsewhere). A pasted widget node gets a new widget instance, with a copy of the copied one's state (settings,
   // inputs, kept data); one whose instance is unknown (deleted) is pasted as it is, and says so in its settings.
   const pointer = useRef(null)
@@ -546,7 +548,9 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const b = boundsOf(copied)
     const d = snap({ x: at.x - b.x - b.width / 2, y: at.y - b.y - b.height / 2 })
     // A Merge Widgets node pasted with its widget nodes keeps their placement, now keyed by the new instances.
-    const pasted = withWidgetIds(copied, instances).map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y } }))
+    const newIds = (n) => Object.entries(defOf(n)?.fields ?? {}).filter(([, f]) => f.type === 'id').map(([key]) => [key, crypto.randomUUID()])
+    const pasted = withWidgetIds(copied, instances).map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y },
+      data: { ...n.data, config: { ...n.data.config, ...Object.fromEntries(newIds(n)) } } }))
     setNodes((ns) => ns.map((n) => ({ ...n, selected: false })).concat(pasted))
     setEdges((es) => es.concat(links.map((ed) => ({ ...ed, id: crypto.randomUUID(), source: ids[ed.source], target: ids[ed.target] }))))
     if (Object.keys(instances).length) onWidgetChange()

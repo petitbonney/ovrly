@@ -48,7 +48,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   the run ends. *Variables* are shared by all workflows and kept across runs and restarts (`{{$vars.score}}`).
   Edit Data changes data; Edit Variable sets, adds to or deletes a variable.
 - **More nodes**: Code (JavaScript on the data), Schedule (a trigger every N minutes),
-  Execute Workflow (runs another workflow, which starts with a Called By Workflow trigger, and merges its result in).
+  Execute Workflow (runs another workflow from one of its Called By Workflow triggers, picked by its ID, and merges its result in).
 - **Errors and history**: a node that fails stops the firing there. An Error Trigger workflow runs when a node fails
   in another one. `GET /api/runs` has the last 100 firings (in memory), with each node's input and output.
 - **Widget concurrency**: starting a widget that is still playing (e.g. a second `!spin`) replaces what plays; the

@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults (shown in their order), plus optional per-field hints from the node
-// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'workflow' | 'secret' | 'var' | 'list' | 'tags' | 'action' | 'inputs' | 'palette' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' | 'font' }.
+// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'id' | 'workflow' | 'secret' | 'var' | 'list' | 'tags' | 'action' | 'inputs' | 'palette' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' | 'font' }.
 // hint: one short line under the label; info: anything longer, in an ⓘ tooltip beside the label. section: a heading
 // shown before this field, starting a group (for nodes with many settings). A field shown only while a switch is on
 // (only: { someSwitch: true }) is indented under it. Plain-text options show with a capital first letter; a '-' among
@@ -157,13 +157,16 @@ function HueSteps({ value, limits, device, transition, restore, ...props }) {
   )
 }
 
-// A saved workflow, picked by id.
+// A saved workflow's Called By Workflow trigger, as "<workflow id>/<trigger ID>" (see server/nodes/execute-workflow.js).
 function WorkflowSelect({ value, onChange, ...props }) {
   const [list, setList] = useState([])
   useEffect(() => {
-    get('/api/workflows').then((all) => setList(all.map((w) => ({ value: w.id, label: w.name || w.id }))))
+    get('/api/workflows').then((all) => setList(all.flatMap((w) => [...new Set(w.nodes.filter((n) => n.data.type === 'workflow-call')
+      .map((n) => n.data.config.id ?? 'main'))] // 'main': the trigger's default ID; two triggers sharing one show once
+      .map((id) => ({ value: `${w.id}/${id}`, label: `${w.name || w.id} > ${id}` })))))
   }, [])
-  return <Select {...props} data={list} value={value} onChange={onChange} placeholder="Pick a workflow" />
+  return <Select {...props} data={list} value={value} onChange={onChange} placeholder="Pick a Called By Workflow trigger"
+    nothingFoundMessage="No workflow has a Called By Workflow trigger" />
 }
 
 // An app or window (or part of its name), picked from those open now, listed again each time the list opens. Typing
@@ -529,13 +532,13 @@ function ListField({ label, description, row, columns, vars, value, onChange }) 
   )
 }
 
-// A copy button for a URL, which its tooltip shows.
-function CopyUrl({ url }) {
+// A copy button for a text (a URL, an ID), which its tooltip shows.
+function Copy({ text }) {
   return (
-    <CopyButton value={url}>
+    <CopyButton value={text}>
       {({ copied, copy }) => (
-        <Tooltip label={copied ? 'Copied' : `Copy ${url}`}>
-          <ActionIcon size="sm" variant="subtle" color={copied ? 'teal' : 'gray'} onClick={copy} aria-label="Copy URL">
+        <Tooltip label={copied ? 'Copied' : `Copy ${text}`}>
+          <ActionIcon size="sm" variant="subtle" color={copied ? 'teal' : 'gray'} onClick={copy} aria-label="Copy">
             {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
           </ActionIcon>
         </Tooltip>
@@ -575,7 +578,7 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
   if (f.type === 'deck') {
     return <ListInput label={props.label} description={props.description} value={value} onChange={set}
       defaults={[{ id: '', icon: 'star', name: '', color: swatches[0] }]} columns={{ id: { type: 'id' }, icon: { type: 'icon' } }}
-      extra={values.mode === 'companion' ? (b) => <CopyUrl url={location.origin + deckUrl(b)} /> : undefined} />
+      extra={values.mode === 'companion' ? (b) => <Copy text={location.origin + deckUrl(b)} /> : undefined} />
   }
   if (f.type === 'hue-steps') {
     return <HueSteps label={props.label} description={props.description} value={value} defaults={fallback} columns={f.columns} limits={f.limits}
@@ -651,6 +654,7 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
   if (f.type === 'code') {
     return <Textarea {...props} value={value} onChange={(e) => set(e.target.value)} autosize minRows={4} maxRows={12} spellCheck={false} styles={{ input: { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 } }} />
   }
+  if (f.type === 'id') return <TextInput {...props} rightSection={<Copy text={value} />} value={value} onChange={(e) => set(e.target.value)} />
   if (f.type === 'workflow') return <WorkflowSelect {...props} value={value} onChange={set} />
   if (FILE_KINDS[f.type]) return <FileInput kind={f.type} {...props} vars={vars} value={value} onChange={set} />
   if (f.type === 'giphy' || f.type === 'myinstants') {
