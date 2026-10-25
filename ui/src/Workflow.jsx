@@ -26,6 +26,7 @@ import Fields, { applies } from './Fields.jsx'
 import DeckGrid from './Deck.jsx'
 import WidgetPane, { ActionsInfo } from './Widget.jsx'
 import QueueLine from './QueueLine.jsx'
+import JoinLinks from './JoinLinks.jsx'
 import Play from './Play.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
@@ -132,7 +133,8 @@ function boundsOf(list) {
 // Settings of the selected node, laid out the same for every node (see AGENTS.md): a header (icon, name, ⓘ for a
 // widget's actions, close), the description, notices (needs not met, a widget to link or deleted, the last run's
 // error), then the settings column, with a live column on its right when the node has something to watch or press: a
-// widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, an action's Play and result
+// widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, a Wait For All's links with
+// Force and Cancel, an action's Play and result
 // (Play.jsx). A Merge Widgets node shows its canvas instead (with the widgets linked into it,
 // context.inputs). context.widget is the widget the node points to; off: the requirements not met (Settings.jsx).
 function Config({ workflow, node, def, context, off, running, error, onChange, onWidgetChange, onCopy, onClose, onError }) {
@@ -148,6 +150,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
   const settings = <Fields defaults={def.config} values={node.data.config} fields={def.fields} context={{ ...context, off }} onChange={onChange} />
   const live = def.type === 'deck' ? <DeckGrid workflow={workflow} node={node.id} config={config} />
     : def.queue ? <QueueLine workflow={workflow} node={node.id} />
+    : def.join ? <JoinLinks workflow={workflow} node={node.id} links={context.links} />
     : def.play && applies(def.play, config) && (
       <Play key={node.id} workflow={workflow} node={node.id} type={def.type} config={config} disabled={missing.length > 0} running={running} />
     )
@@ -744,6 +747,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
           // The widgets linked into the selected node (for a Merge Widgets node), in link order.
           inputs: [...new Set(edges.filter((e) => e.target === selected?.id).map((e) => nodes.find((n) => n.id === e.source))
             .filter((n) => n?.data.type === 'widget').map((n) => n.data.config.widget))].map((ref) => findWidget(widgets, ref)).filter(Boolean),
+          // The links into the selected node, named after the node each comes from (for Wait For All).
+          links: edges.filter((e) => e.target === selected?.id).map((e) => ({ id: e.id, name: shownNodes.find((n) => n.id === e.source)?.ariaLabel })),
           types,
         }}
         onChange={setConfig}

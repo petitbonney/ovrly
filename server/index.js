@@ -5,7 +5,7 @@ import os from 'node:os'
 import express from 'express'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
-import { nodes, fire, cancel, running, activity, history, line, drop } from './engine.js'
+import { nodes, fire, cancel, running, activity, history, line, drop, arrived, unjoin } from './engine.js'
 import * as twitch from './sources/twitch.js'
 import * as twitchAuth from './sources/twitch-auth.js'
 import * as eventsub from './sources/twitch-eventsub.js'
@@ -70,6 +70,10 @@ app.get('/api/activity', (req, res) => {
 app.get('/api/queues/:workflow/:node', (req, res) => res.json(line(req.params.workflow, req.params.node)))
 app.delete('/api/queues/:workflow/:node/:entry', (req, res) =>
   res.sendStatus(drop(req.params.workflow, req.params.node, Number(req.params.entry)) ? 204 : 404))
+// Wait For All nodes: the links that have delivered, and ending the wait: Force (continue now) or Cancel (stop there).
+app.get('/api/joins/:workflow/:node', (req, res) => res.json(arrived(req.params.workflow, req.params.node)))
+app.post('/api/joins/:workflow/:node/:end', (req, res) =>
+  res.sendStatus(['force', 'cancel'].includes(req.params.end) && unjoin(req.params.workflow, req.params.node, req.params.end === 'force') ? 204 : 404))
 // Developer view: the recent events (chat, API calls, manual runs…), newest first. Browsers get a live table
 // (events.html), anything else the JSON; ?format=json forces JSON.
 app.get('/api/events', (req, res) => {
