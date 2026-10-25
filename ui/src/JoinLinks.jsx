@@ -17,7 +17,7 @@ export default function JoinLinks({ workflow, node, links }) {
   }, [path])
   const end = (how) => fetch(`${path}/${how}`, { method: 'POST' }).then(load)
   return (
-    <Stack gap={4} maw={420} mt="sm">
+    <Stack gap={4} mt="sm">
       <Text size="xs" fw={500}>Links</Text>
       {links.length === 0 && <Text size="xs" c="dimmed">None yet: link nodes into this one</Text>}
       {links.map((l) => (

@@ -24,7 +24,7 @@ export default function ChatTest({ workflow, node, config }) {
     },
   }))
   return (
-    <Stack gap="sm" maw={420}>
+    <Stack gap="sm">
       <TextInput size="xs" label="Args" placeholder="red 3" value={text} onChange={(e) => setText(e.currentTarget.value)}
         onKeyDown={(e) => e.key === 'Enter' && run()} />
       <TextInput size="xs" label="User" value={user} onChange={(e) => setUser(e.currentTarget.value)} />

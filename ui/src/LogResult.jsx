@@ -23,7 +23,7 @@ export default function LogResult({ workflow, node }) {
     return () => source.close()
   }, [workflow, node])
   return (
-    <Stack gap={6} maw={420}>
+    <Stack gap={6}>
       <Text size="xs" fw={500}>Result{last && <Text span inherit c="dimmed" fw={400}> · {last.at.toLocaleTimeString()}</Text>}</Text>
       {last ? <Code block mah={320} style={{ overflow: 'auto' }}>{JSON.stringify(last.data, null, 2)}</Code>
         : <Text size="xs" c="dimmed">Not run yet: the data it gets shows here.</Text>}

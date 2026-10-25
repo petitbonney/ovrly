@@ -83,7 +83,7 @@ export default function NodeLive({ workflow, node, type, config }) {
   }, [path, type])
   const [View, title] = views[type]
   return (
-    <Stack gap={4} maw={420} mt="sm">
+    <Stack gap={4} mt="sm">
       <Text size="xs" fw={500}>{title}</Text>
       {state !== undefined && <View state={state} config={config} act={act} />}
     </Stack>

@@ -17,7 +17,7 @@ export default function QueueLine({ workflow, node }) {
   }, [path])
   const remove = (id) => fetch(`${path}/${id}`, { method: 'DELETE' }).then(load)
   return (
-    <Stack gap={4} maw={420} mt="sm">
+    <Stack gap={4} mt="sm">
       <Text size="xs" fw={500}>Waiting in line</Text>
       {line.length === 0 && <Text size="xs" c="dimmed">Nobody: the next firing goes straight through</Text>}
       {line.map((entry, i) => (

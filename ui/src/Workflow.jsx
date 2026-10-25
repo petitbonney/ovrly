@@ -14,7 +14,7 @@ import { animate } from 'animejs'
 import TimerBar from './TimerBar.jsx'
 import '@xyflow/react/dist/style.css'
 import {
-  ActionIcon, AppShell, Button, Center, CloseButton, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip,
+  ActionIcon, AppShell, Button, Center, CloseButton, Divider, Group, Modal, Notification, SimpleGrid, Stack, Text, TextInput, Tooltip,
   useComputedColorScheme,
 } from '@mantine/core'
 import {
@@ -168,7 +168,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
   ].filter(Boolean)
   return (
     <AppShell.Footer>
-      <div className={live || isMerge || (isWidget && type) ? 'pane split' : 'pane'}>
+      <div className={isWidget && !type ? 'pane' : 'pane split'}>
         <Group gap="xs" mb={4} wrap="nowrap">
           <Icon size={20} color={colors[def.category]} style={{ flexShrink: 0 }} />
           <Text fw={600} truncate>{isWidget ? widget?.state.name ?? 'Missing widget' : def.label}</Text>
@@ -184,12 +184,13 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
           <Merge workflow={workflow} node={node.id} config={config} widgets={context.inputs} types={context.types} onChange={onChange} />
         ) : isWidget ? (
           type && <WidgetPane key={widget.id} widget={widget} type={type} context={context} off={off} onChange={onWidgetChange} onCopy={onCopy} onError={onError} />
-        ) : live ? (
-          <Group className="widget-split" align="stretch" gap="xl" wrap="nowrap">
-            <Stack className="settings" flex="1 1 280px" maw={420}>{settings}</Stack>
-            <Stack className="live" gap={0} flex="1 1 320px" miw={0}>{live}</Stack>
-          </Group>
-        ) : settings}
+        ) : (
+          // Two equal halves, the right one empty when there's nothing live.
+          <SimpleGrid className="widget-split" cols={2} spacing="xl">
+            <Stack className="settings">{settings}</Stack>
+            <Stack className="live" gap={0}>{live}</Stack>
+          </SimpleGrid>
+        )}
       </div>
     </AppShell.Footer>
   )
