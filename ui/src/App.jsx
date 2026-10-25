@@ -3,7 +3,7 @@
 // both toggle and resize.
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
-  ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, Notification, SimpleGrid, Stack, Switch, Text,
+  ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, Notification, ScrollArea, SimpleGrid, Stack, Switch, Text,
   TextInput, Tooltip, UnstyledButton, useAppShellResize,
 } from '@mantine/core'
 import { IconChevronRight, IconFile, IconFileImport, IconPlugOff, IconPlus, IconSearch, IconSettings, IconTool, IconUrgent, IconX } from '@tabler/icons-react'
@@ -208,9 +208,13 @@ function NewWorkflow({ opened, onDone, onClose }) {
           <>
             <Divider my="xs" />
             <Heading title="Templates" />
-            {templates.map((t) => (
-              <Choice key={t.name} title={t.name} description={t.description} onClick={() => importBundle(t).then(onDone)} />
-            ))}
+            <ScrollArea.Autosize mah="calc(100dvh - 20rem)" offsetScrollbars>
+              <Stack gap="xs">
+                {templates.map((t) => (
+                  <Choice key={t.name} title={t.name} description={t.description} onClick={() => importBundle(t).then(onDone)} />
+                ))}
+              </Stack>
+            </ScrollArea.Autosize>
           </>
         )}
       </Stack>
