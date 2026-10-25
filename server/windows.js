@@ -1,11 +1,14 @@
 // Open windows, as "App — Title" names, for Key Press's "Only when focused". macOS asks System Events, which needs
-// only the Accessibility permission Key Press already needs (nut.js would also need Screen Recording for titles);
-// without it, app names alone. Other systems use nut.js window titles.
+// the Automation permission for it, then the Accessibility one Key Press already needs for titles (nut.js would also
+// need Screen Recording); without Accessibility, app names alone. Other systems use nut.js window titles.
 import { execFile } from 'node:child_process'
 import { getWindows, getActiveWindow } from '@nut-tree-fork/nut-js'
 
+// -1743: the app running Ovrly may not control System Events (denied once, macOS doesn't ask again).
 const osa = (script) => new Promise((resolve, reject) =>
-  execFile('osascript', ['-e', script], (err, out) => (err ? reject(err) : resolve(out.trim()))))
+  execFile('osascript', ['-e', script], (err, out) => (err ? reject(err.message.includes('-1743')
+    ? new Error('Allow the app running Ovrly to control System Events: System Settings → Privacy & Security → Automation')
+    : err) : resolve(out.trim()))))
 
 // One "app<TAB>title" line per window (title empty if unreadable) of the given processes.
 const lines = (processes) => `

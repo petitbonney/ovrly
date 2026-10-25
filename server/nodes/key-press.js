@@ -19,7 +19,7 @@ export default {
       type: 'tags',
       options: Object.keys(Key).filter((k) => isNaN(k)), // the enum also maps numbers back to names
       hint: 'Pressed together, e.g. LeftControl + F1, or {{keys}} from data',
-      info: 'macOS needs the Accessibility permission (System Settings → Privacy & Security).',
+      info: process.platform === 'darwin' ? 'macOS needs the Accessibility permission (System Settings → Privacy & Security).' : undefined,
     },
     window: { type: 'window', label: 'Only when focused', hint: 'An app or window (or part of its name); empty: any' },
     hold: { label: 'Hold for', unit: 'ms', presets: [50, 100, 250, 500, 1000], hint: 'Longer for a move in a game' },

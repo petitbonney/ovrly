@@ -173,13 +173,15 @@ function WorkflowSelect({ value, onChange, ...props }) {
 // stays free.
 function WindowInput({ onChange, ...props }) {
   const [names, setNames] = useState([])
-  const load = () => fetch('/api/windows').then((r) => r.json()).then((list) => Array.isArray(list) && setNames(list), () => {})
+  const [note, setNote] = useState('') // the server's error or hint: macOS permissions
+  const load = () => fetch('/api/windows').then((r) => r.json()).then((body) => {
+    setNote(body.error ?? body.hint)
+    if (body.windows) setNames(body.windows)
+  }, () => {})
   useEffect(() => {
     load()
   }, [])
-  // Without the Accessibility permission (macOS), only app names come back.
-  const titles = names.some((n) => n.includes(' — '))
-  const description = titles || !names.length ? props.description : `${props.description}. Window titles need the Accessibility permission`
+  const description = note ? `${props.description}. ${note}` : props.description
   return <Autocomplete {...props} description={description} data={names} filter={suggest} limit={100} onDropdownOpen={load}
     onChange={onChange} placeholder="Pick or type an app or window" />
 }

@@ -275,9 +275,12 @@ app.get('/file', (req, res) => {
   res.sendFile(file, { dotfiles: 'allow' }, (err) => err && !res.headersSent && res.status(404).end())
 })
 
-// The open windows, for Key Press's "Only when focused" picker.
-app.get('/api/windows', (req, res) =>
-  windows.list().then((list) => res.json([...new Set(list.filter(Boolean))]), (err) => res.status(503).json({ error: err.message })))
+// The open windows, for Key Press's "Only when focused" picker, with a hint when macOS gave app names alone.
+app.get('/api/windows', (req, res) => windows.list().then((list) => {
+  const names = [...new Set(list.filter(Boolean))]
+  const titles = process.platform !== 'darwin' || !names.length || names.some((n) => n.includes(' — '))
+  res.json({ windows: names, hint: titles ? '' : 'Window titles need the Accessibility permission' })
+}, (err) => res.status(503).json({ error: err.message })))
 
 // Widget types for the UI: metadata, and each action's description, inputs and only (no functions).
 app.get('/api/widget-types', (req, res) => res.json(Object.values(widgets.types).map(({ actions, output, playTime, stopTime, on, queues, over, ...meta }) => ({
