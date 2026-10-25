@@ -46,7 +46,7 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   (`{{ score * 2 }}`). Expressions and the Code node run as code: only import workflows you trust.
 - **Data vs variables**: *data* is the payload that travels from node to node during one run (`{{user}}`), gone when
   the run ends. *Variables* are shared by all workflows and kept across runs and restarts (`{{$vars.score}}`).
-  Edit Data changes data; Edit Variable sets, adds to or deletes a variable.
+  Edit Data changes data, Map Value swaps a key's value through a "from" → "to" list; Edit Variable sets, adds to or deletes a variable.
 - **More nodes**: Code (JavaScript on the data), Schedule (a trigger every N minutes),
   Execute Workflow (runs another workflow from one of its Called By Workflow triggers, picked by its ID, and merges its result in).
 - **Errors and history**: a node that fails stops the firing there. An Error Trigger workflow runs when a node fails

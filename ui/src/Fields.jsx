@@ -651,7 +651,8 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
     const grouped = line < 0 ? data : [{ group: '', items: data.slice(0, line) }, { group: '', items: data.slice(line) }]
     return <Select {...props} data={grouped} value={picked} onChange={set} allowDeselect={false} />
   }
-  if (f.type === 'var') return <Autocomplete {...props} data={vars ?? []} value={value} onChange={set} />
+  // A data key's name: the "{}" menu sets it (the bare key, not a placeholder).
+  if (f.type === 'var') return <Autocomplete {...props} data={vars ?? []} value={value} onChange={set} rightSection={<VarMenu vars={vars} onPick={set} />} />
   if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} maxRows={8} />
   if (f.type === 'code') {
     return <Textarea {...props} value={value} onChange={(e) => set(e.target.value)} autosize minRows={4} maxRows={12} spellCheck={false} styles={{ input: { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 } }} />
