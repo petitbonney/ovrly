@@ -7,7 +7,7 @@ engine.pauseOnDocumentHidden = false
 
 // build(stage, board, config, res) makes the layout: canvases in the stage, HTML pieces on the board, drawn at res
 // (device pixels per design px). It returns { play(winner, ms) → anime timeline that ends on the winner, stop(),
-// destroy() }. It is rebuilt when its config (configure(state, runtime), the state by default) changes, or the page is resized.
+// destroy() }. A layout may size the board to the page's shape (the slot). It is rebuilt when its config (configure(state, runtime), the state by default) changes, or the page is resized.
 // The page shows no result text: the winner is in the workflow's data ({{winner}}), for an alert or a chat message to
 // announce it.
 export function mount(build, { playMs, configure = (state) => state }) {
@@ -20,6 +20,7 @@ export function mount(build, { playMs, configure = (state) => state }) {
     layout?.destroy()
     stage.replaceChildren()
     board.replaceChildren()
+    board.removeAttribute('style') // back to 440px square
     layout = build(stage, board, config, k * devicePixelRatio)
     stage.append(board) // over the canvases
     shown = config

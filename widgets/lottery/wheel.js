@@ -16,6 +16,43 @@ function sections(options) {
   })
 }
 
+const OUT = 320, IN = 40 // a label's room along the radius (units): from clear of the hub to clear of the pin's tip
+const MAX = 44, MIN = 18 // font sizes (units)
+
+// A label's lines and font size in a section seg radians wide: as big as it fits, on one line or on two even ones,
+// whichever is bigger; when it doesn't fit even at MIN, cut short with "…".
+function fit(ctx, label, seg) {
+  const width = (lines, size) => {
+    ctx.font = `800 ${size}px system-ui`
+    return Math.max(...lines.map((l) => ctx.measureText(l).width))
+  }
+  // Along the radius, and across the wedge where it is narrowest: where the text starts.
+  const fits = (lines, size) => {
+    const w = width(lines, size)
+    return w <= OUT - IN && lines.length * size * 1.1 <= 1.6 * (OUT - w) * Math.tan(Math.min(seg, Math.PI / 2) / 2)
+  }
+  const words = label.split(/\s+/)
+  const tries = [[label]]
+  for (let i = 1; i < words.length; i++) { // the two lines whose longest is the shortest
+    const lines = [words.slice(0, i).join(' '), words.slice(i).join(' ')]
+    if (tries.length < 2 || width(lines, 1) < width(tries[1], 1)) tries[1] = lines
+  }
+  for (let size = MAX; size >= MIN; size -= 2) {
+    const lines = tries.find((t) => fits(t, size))
+    if (lines) return { lines, size }
+  }
+  // Too long: the words that fit on a first line and the rest cut short on a second, or all on one line cut short
+  // when the section has no room for two.
+  const cut = (text, head = []) => {
+    while (text && !fits([...head, `${text}…`], MIN)) text = text.slice(0, -1)
+    return [...head, `${text.trimEnd()}…`]
+  }
+  let i = 1
+  while (i < words.length - 1 && fits([words.slice(0, i + 1).join(' ')], MIN)) i++
+  const two = words.length > 1 && cut(words.slice(i).join(' '), [words.slice(0, i).join(' ')])
+  return { lines: two && fits(two, MIN) ? two : cut(label), size: MIN }
+}
+
 export default function wheel(stage, board, { options, text }, res) {
   const parts = sections(options)
   // A dark halo around light labels, a light one around dark labels.
@@ -26,6 +63,7 @@ export default function wheel(stage, board, { options, text }, res) {
   disc.width = innerWidth * devicePixelRatio
   disc.height = innerHeight * devicePixelRatio
   disc.getContext('2d').setTransform(res / 2, 0, 0, res / 2, (disc.width - 440 * res) / 2, (disc.height - 440 * res) / 2)
+  const labels = options.map((o, i) => fit(disc.getContext('2d'), o.label, parts[i].size * 2 * Math.PI))
   // A stubby map pin: a round head (with a white hole) and its tip 32px to the left; a white edge keeps it visible over a
   // red section.
   const pin = el('div', 'wheel-pin')
@@ -58,8 +96,9 @@ export default function wheel(stage, board, { options, text }, res) {
       ctx.strokeStyle = '#fff6'; ctx.lineWidth = 4; ctx.stroke()
       ctx.save(); ctx.translate(c, c); ctx.rotate(a + seg / 2)
       ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = text; ctx.shadowColor = halo; ctx.shadowBlur = 8
-      ctx.font = `800 ${Math.min(44, seg * R * 0.4)}px system-ui`
-      ctx.fillText(options[i].label, R - 60, 0) // clear of the pin's tip
+      const { lines, size: font } = labels[i]
+      ctx.font = `800 ${font}px system-ui`
+      lines.forEach((line, j) => ctx.fillText(line, OUT, (j - (lines.length - 1) / 2) * font * 1.1))
       ctx.restore()
       if (dim && i !== winner) { ctx.fillStyle = `rgba(0, 0, 0, ${dim * 0.6})`; ctx.fill() }
     }
