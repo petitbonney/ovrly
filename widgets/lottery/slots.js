@@ -152,8 +152,9 @@ export default function slots(stage, board, { options, text }, res) {
         .add(knob, { translateY: [{ to: 176, duration: kick * 0.8, ease: 'inQuad' }, { to: 0, duration: 600 * k, ease: 'outElastic(1, .5)' }] }, 0)
         .add(r, { pos: from + 0.25, duration: kick, ease: 'inOutQuad' }, 0) // kicks up before rolling down
         .add(r, { pos: from + 0.25 - (SPEED * accel) / 2000, duration: accel, ease: 'inQuad' }, t1)
-        .add(r, { pos: target - 0.3 + (SPEED * decel) / 3000, duration: cruise, ease: 'linear' }, t2)
-        .add(r, { pos: target - 0.3, duration: decel, ease: 'outCubic' }, t3) // a bit past the winner…
+      // A short draw has no time at full speed: it slows down right from there (an empty move would break the reel).
+      if (cruise >= 1) tl.add(r, { pos: target - 0.3 + (SPEED * decel) / 3000, duration: cruise, ease: 'linear' }, t2)
+      tl.add(r, { pos: target - 0.3, duration: decel, ease: 'outCubic' }, t3) // a bit past the winner…
         .add(r, { pos: target, duration: clunk, ease: 'outBack(2)' }, t3 + decel) // …and clunks back onto it
         // The blur follows the speed: up while accelerating, gone as it slows down.
         .add(r, { blur: MAX_BLUR, duration: accel, ease: 'linear' }, t1)
