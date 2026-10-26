@@ -60,13 +60,15 @@ export default function FlowNode({ id, data, selected }) {
   const isWidget = data.type === 'widget'
   const Icon = (isWidget ? type : def)?.Icon ?? IconBox
   const trigger = def?.category === 'trigger'
-  // The bolt runs a Manual Trigger, or sends a chat trigger a test message (server: /api/workflows/:id/run).
-  const testable = data.type === 'manual' || [def?.event].flat().includes('chat')
+  // The bolt runs a Manual Trigger, or sends a chat trigger a test message (server: /api/workflows/:id/run). Chat
+  // !command has none: its settings have a test Run with args, user and role (ChatTest.jsx).
+  const testable = data.type === 'manual' || (data.type !== 'chat-command' && [def?.event].flat().includes('chat'))
   // Subtitle like n8n's "mode: Rules": the node's first setting (not JSON, code or a secret). A widget node shows the
   // action a signal runs unless it is its start action (TwitchPlays: "push"), a Widget Action node its widget and action.
   const [key, value] = Object.entries({ ...def?.config, ...data.config })
     .find(([k]) => !def?.fields?.[k]?.hidden && !unshown.includes(def?.fields?.[k]?.type)) ?? []
-  const shown = Array.isArray(value) ? value.map((v) => v?.name ?? v).join(', ') : value
+  const shown = Array.isArray(value) ? value.map((v) => v?.name ?? v).join(', ')
+    : def?.fields?.[key]?.type === 'tags' ? value.split('+').join(', ') : value
   const sub = isWidget ? type?.onSignal !== type?.onStart && type?.onSignal
     : data.type === 'merge' ? null // its only setting is the placement
     : data.type === 'widget-action' ? [widget?.state.name ?? 'no widget', widget && (data.config.action || type?.onStop)].filter(Boolean).join(': ')

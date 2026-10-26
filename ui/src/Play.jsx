@@ -61,7 +61,7 @@ export default function Play({ workflow, node, type, config, disabled, running }
         {routine && running && !playing ? 'The routine is playing.' : 'Runs this node once now, with no data: placeholders other than {{ $vars }} are empty.'}
       </Text>
       {result && (
-        <Stack gap={6} maw={420}>
+        <Stack gap={6}>
           <Text size="xs" fw={500}>Result <Text span inherit c="dimmed" fw={400}>· {result.at.toLocaleTimeString()}</Text></Text>
           {result.error ? <Text size="xs" c="red">{result.error}</Text>
             : !result.out ? <Text size="xs" c="dimmed">Stopped</Text>

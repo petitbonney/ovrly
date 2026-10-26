@@ -685,7 +685,7 @@ export default function Fields({ defaults, values, onChange, fields = {}, contex
   const keys = show.filter((key) => !fields[key]?.hidden && applies(fields[key], values, defaults))
   if (keys.length === 0) return <Text size="sm" c="dimmed">No settings</Text>
   return (
-    <Stack gap="sm" maw={420}>
+    <Stack gap="sm">
       {keys.map((key, i) => {
         const f = fields[key] ?? {}
         // Shown only while a switch is on: indented under it.

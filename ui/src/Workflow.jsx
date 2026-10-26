@@ -14,7 +14,7 @@ import { animate } from 'animejs'
 import TimerBar from './TimerBar.jsx'
 import '@xyflow/react/dist/style.css'
 import {
-  ActionIcon, AppShell, Button, Center, CloseButton, Divider, Group, Modal, Notification, Stack, Text, TextInput, Tooltip,
+  ActionIcon, AppShell, Button, Center, CloseButton, Divider, Group, Modal, Notification, SimpleGrid, Stack, Text, TextInput, Tooltip,
   useComputedColorScheme,
 } from '@mantine/core'
 import {
@@ -29,6 +29,8 @@ import QueueLine from './QueueLine.jsx'
 import JoinLinks from './JoinLinks.jsx'
 import Play from './Play.jsx'
 import LogResult from './LogResult.jsx'
+import NodeLive from './NodeLive.jsx'
+import ChatTest from './ChatTest.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
 import FlowNode, { colors, outputsOf } from './FlowNode.jsx'
@@ -135,9 +137,9 @@ function boundsOf(list) {
 // widget's actions, close), the description, notices (needs not met, a widget to link or deleted, the last run's
 // error), then the settings column, with a live column on its right when the node has something to watch or press: a
 // widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, a Wait For All's links with
-// Force and Cancel, an action's Play and result
-// (Play.jsx), a Log's last data (LogResult.jsx). A Merge Widgets node shows its canvas instead (with the widgets linked into it,
-// context.inputs). context.widget is the widget the node points to; off: the requirements not met (Settings.jsx).
+// Force and Cancel, an action's Play and result (Play.jsx), a Log's last data (LogResult.jsx), a Cooldown's, Delay's
+// or Fan In's state (NodeLive.jsx), a Chat !command's test Run (ChatTest.jsx). A Merge Widgets node shows its
+// canvas instead (with the widgets linked into it, context.inputs). context.widget is the widget the node points to; off: the requirements not met (Settings.jsx).
 function Config({ workflow, node, def, context, off, running, error, onChange, onWidgetChange, onCopy, onClose, onError }) {
   if (!node || !def) return null
   const isWidget = def.type === 'widget'
@@ -153,6 +155,8 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
     : def.queue ? <QueueLine workflow={workflow} node={node.id} />
     : def.join ? <JoinLinks workflow={workflow} node={node.id} links={context.links} />
     : def.type === 'log' ? <LogResult key={node.id} workflow={workflow} node={node.id} />
+    : def.type === 'chat-command' ? <ChatTest key={node.id} workflow={workflow} node={node.id} config={config} />
+    : def.live ? <NodeLive key={node.id} workflow={workflow} node={node.id} type={def.type} config={config} />
     : def.play && applies(def.play, config) && (
       <Play key={node.id} workflow={workflow} node={node.id} type={def.type} config={config} disabled={missing.length > 0} running={running} />
     )
@@ -164,7 +168,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
   ].filter(Boolean)
   return (
     <AppShell.Footer>
-      <div className={live || isMerge || (isWidget && type) ? 'pane split' : 'pane'}>
+      <div className={isWidget && !type ? 'pane' : 'pane split'}>
         <Group gap="xs" mb={4} wrap="nowrap">
           <Icon size={20} color={colors[def.category]} style={{ flexShrink: 0 }} />
           <Text fw={600} truncate>{isWidget ? widget?.state.name ?? 'Missing widget' : def.label}</Text>
@@ -180,12 +184,13 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
           <Merge workflow={workflow} node={node.id} config={config} widgets={context.inputs} types={context.types} onChange={onChange} />
         ) : isWidget ? (
           type && <WidgetPane key={widget.id} widget={widget} type={type} context={context} off={off} onChange={onWidgetChange} onCopy={onCopy} onError={onError} />
-        ) : live ? (
-          <Group className="widget-split" align="stretch" gap="xl" wrap="nowrap">
-            <Stack className="settings" flex="1 1 280px" maw={420}>{settings}</Stack>
-            <Stack className="live" gap={0} flex="1 1 320px" miw={0}>{live}</Stack>
-          </Group>
-        ) : settings}
+        ) : (
+          // Two equal halves, the right one empty when there's nothing live.
+          <SimpleGrid className="widget-split" cols={2} spacing="xl">
+            <Stack className="settings">{settings}</Stack>
+            <Stack className="live" gap={0}>{live}</Stack>
+          </SimpleGrid>
+        )}
       </div>
     </AppShell.Footer>
   )

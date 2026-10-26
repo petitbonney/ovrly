@@ -4,9 +4,7 @@ import { useEffect, useState } from 'react'
 import { ActionIcon, Group, Stack, Text, Tooltip } from '@mantine/core'
 import { IconX } from '@tabler/icons-react'
 import { get } from './api.js'
-
-// What a firing carries, in short: "bob: !spin" for chat, else its data as JSON.
-const summary = (data) => (data.user && data.message ? `${data.user}: ${data.message}` : JSON.stringify(data))
+import { summary } from './NodeLive.jsx'
 
 export default function QueueLine({ workflow, node }) {
   const path = `/api/queues/${workflow}/${node}`
@@ -19,7 +17,7 @@ export default function QueueLine({ workflow, node }) {
   }, [path])
   const remove = (id) => fetch(`${path}/${id}`, { method: 'DELETE' }).then(load)
   return (
-    <Stack gap={4} maw={420} mt="sm">
+    <Stack gap={4} mt="sm">
       <Text size="xs" fw={500}>Waiting in line</Text>
       {line.length === 0 && <Text size="xs" c="dimmed">Nobody: the next firing goes straight through</Text>}
       {line.map((entry, i) => (
