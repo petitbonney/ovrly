@@ -183,7 +183,8 @@ function Library({ defs, types, off }) {
 // A choice in the "New workflow" modal: a title and, for a template, a one-line description.
 function Choice({ title, description, icon: Icon, onClick }) {
   return (
-    <Button variant="default" justify="start" h="auto" py="xs" onClick={onClick} leftSection={Icon && <Icon size={20} />}>
+    <Button variant="default" justify="start" h="auto" py="xs" onClick={onClick} leftSection={Icon && <Icon size={20} />}
+      styles={{ label: { alignItems: 'flex-start' } }}>
       <div style={{ textAlign: 'left', whiteSpace: 'normal' }}>
         <Text fw={700} size="sm">{title}</Text>
         {description && <Text size="xs" c="dimmed">{description}</Text>}
@@ -192,12 +193,12 @@ function Choice({ title, description, icon: Icon, onClick }) {
   )
 }
 
-// "New workflow" modal: blank or imported from a JSON file side by side, then the templates (if any). Calls onDone
+// "New workflow" modal: blank or imported from a JSON file side by side, then the templates (if any) in two columns. Calls onDone
 // with { kind, id }.
 function NewWorkflow({ opened, onDone, onClose }) {
   const blank = { workflows: [{ name: 'New workflow', nodes: [], edges: [] }] }
   return (
-    <Modal opened={opened} onClose={onClose} title="New workflow" size="md">
+    <Modal opened={opened} onClose={onClose} title="New workflow" size="xl">
       <Stack gap="xs">
         <SimpleGrid cols={2} spacing="xs">
           <Choice title="Blank" icon={IconFile} onClick={() => importBundle(blank).then(onDone)} />
@@ -209,11 +210,11 @@ function NewWorkflow({ opened, onDone, onClose }) {
             <Divider my="xs" />
             <Heading title="Templates" />
             <ScrollArea.Autosize mah="calc(100dvh - 20rem)" offsetScrollbars>
-              <Stack gap="xs">
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
                 {templates.map((t) => (
                   <Choice key={t.name} title={t.name} description={t.description} onClick={() => importBundle(t).then(onDone)} />
                 ))}
-              </Stack>
+              </SimpleGrid>
             </ScrollArea.Autosize>
           </>
         )}
