@@ -11,7 +11,7 @@ const order = [
   'manual', 'chat-command', 'chat-message',
   'redeem', 'follow', 'subscription', 'raid', 'cheer', 'gift-subs', 'hype-train', 'stream-status',
   'schedule', 'webhook', 'deck', 'workflow-call', 'error-trigger',
-  'if-else', 'filter', 'switch', 'fan-out', 'fan-in', 'wait-all', 'execute-workflow',
+  'if-else', 'filter', 'switch', 'fan-out', 'fan-in', 'wait-all', 'execute-workflow', 'pipe',
   'delay', 'cooldown', 'queue',
   'edit-variable', 'code', 'edit-data',
   'twitch-chat', 'twitch-announce', 'twitch-shoutout', 'twitch-ban', 'twitch-delete-message', 'twitch-clip', 'twitch-user', 'twitch-channel-info',
