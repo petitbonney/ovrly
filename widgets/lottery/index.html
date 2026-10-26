@@ -26,21 +26,28 @@
     box-shadow: inset 0 -1.5px 2px #0006, inset 0 1.5px 1.5px #fffa; }
 
   /* Slot */
-  .slots-cabinet { left: 20px; top: 10px; width: 340px; height: 420px; border-radius: 30px; background: linear-gradient(160deg, #b51d4a, #5c0c3a);
+  /* The board takes the page's shape (slots.js): the cabinet fills it, leaving room for the lever on the right; the
+     window, the payline and the lever stay at its middle. */
+  .slots-cabinet { left: 20px; top: 10px; right: 80px; bottom: 10px; border-radius: 30px; background: linear-gradient(160deg, #b51d4a, #5c0c3a);
     box-shadow: 0 12px 30px #000a, inset 0 0 0 4px #ffb400, inset 0 -10px 30px #0006; }
-  .slots-window { position: absolute; left: 40px; top: 60px; width: 260px; height: 300px; overflow: hidden; border-radius: 16px; background: #0f0f14;
+  .slots-window { position: absolute; inset: 60px 40px; overflow: hidden; border-radius: 16px; background: #0f0f14;
     box-shadow: inset 0 0 0 3px #000; }
   .slots-window::after { content: ''; position: absolute; inset: 0; pointer-events: none;
     background: linear-gradient(#000d, #0000 30%, #0000 70%, #000d); }
-  .slots-strip { position: absolute; left: 0; top: 6px; width: 100%; display: flex; flex-direction: column; gap: 12px; }
-  .slots-tile { flex: none; height: 88px; margin: 0 12px; border-radius: 14px; display: grid; place-items: center; font-size: 30px;
+  .slots-strip { position: absolute; left: 0; top: calc(50% - 44px); width: 100%; display: flex; flex-direction: column; gap: 12px; }
+  .slots-tile { flex: none; height: 88px; margin: 0 12px; border-radius: 14px; display: grid; place-items: center;
     box-shadow: inset 0 -8px 0 #0004, inset 0 4px 0 #fff4; }
-  .slots-payline { position: absolute; top: 196px; width: 0; height: 0; border: 14px solid transparent; filter: drop-shadow(0 0 6px #ffb400); }
+  /* Its label: centered, on two even lines at most, cut short with "…" (slots.js sizes it to fit). The probe measures
+     labels at a tile's width, without cutting or breaking words. */
+  .slots-label { box-sizing: border-box; max-width: 100%; padding: 0 14px; line-height: 1.15; text-align: center; text-wrap: balance;
+    overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .slots-label.probe { position: absolute; visibility: hidden; display: block; overflow-wrap: normal; overflow: visible; }
+  .slots-payline { position: absolute; top: calc(50% - 14px); width: 0; height: 0; border: 14px solid transparent; filter: drop-shadow(0 0 6px #ffb400); }
   .slots-payline.left { left: 16px; border-left: 20px solid #ffb400; }
   .slots-payline.right { right: 16px; border-right: 20px solid #ffb400; }
-  .slots-stick { left: 374px; top: 90px; width: 12px; height: 110px; border-radius: 6px; transform-origin: 50% 100%; background: linear-gradient(90deg, #888, #eee, #888); }
-  .slots-knob { left: 362px; top: 66px; width: 36px; height: 36px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff9db8, #e0144f 55%, #6e0022); box-shadow: 0 3px 8px #0009; }
-  .slots-base { left: 360px; top: 196px; width: 40px; height: 30px; border-radius: 8px; background: #2a2a30; }
+  .slots-stick { right: 54px; top: calc(50% - 130px); width: 12px; height: 110px; border-radius: 6px; transform-origin: 50% 100%; background: linear-gradient(90deg, #888, #eee, #888); }
+  .slots-knob { right: 42px; top: calc(50% - 154px); width: 36px; height: 36px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff9db8, #e0144f 55%, #6e0022); box-shadow: 0 3px 8px #0009; }
+  .slots-base { right: 40px; top: calc(50% - 24px); width: 40px; height: 30px; border-radius: 8px; background: #2a2a30; }
 </style>
 <div id="stage"></div>
 <script type="module">
