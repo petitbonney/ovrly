@@ -10,8 +10,9 @@ const ID = /^[\w-]+$/
 const bad = new Set() // files list() reported unreadable, so the schedule tick doesn't log them every second
 
 function file(kind, id) {
-  if (!KINDS.includes(kind)) throw new Error(`Unknown kind: ${kind}`)
-  if (id !== undefined && !ID.test(id)) throw new Error(`Invalid id: ${id}`)
+  // status 400: the request named them (the API answers other errors with 500).
+  if (!KINDS.includes(kind)) throw Object.assign(new Error(`Unknown kind: ${kind}`), { status: 400 })
+  if (id !== undefined && !ID.test(id)) throw Object.assign(new Error(`Invalid id: ${id}`), { status: 400 })
   return id === undefined ? path.join(root, kind) : path.join(root, kind, `${id}.json`)
 }
 

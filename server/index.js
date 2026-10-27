@@ -390,8 +390,12 @@ app.delete('/api/:kind/:id', async (req, res) => {
   if (old) await dropUnusedWidgets(widgetRefs(old))
   res.sendStatus(204)
 })
-// Store errors are bad kinds/ids; Express 5 forwards rejected promises here.
-app.use('/api', (err, req, res, next) => res.status(400).json({ error: err.message }))
+// Errors with a status are the request's (a bad kind or id for the store, malformed JSON); the others are the server's
+// (e.g. a disk error), logged. Express 5 forwards rejected promises here.
+app.use('/api', (err, req, res, next) => {
+  if (!err.status) console.error('[api]', err)
+  res.status(err.status ?? 500).json({ error: err.message })
+})
 
 // Widget pages for OBS browser sources: /w/<id> serves its type's page, /w/<id>/events streams its state. An unknown
 // page (a deleted widget, Merge Widgets node) is an empty one, so a browser source left with it shows nothing on stream.
