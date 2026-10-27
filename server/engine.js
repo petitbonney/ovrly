@@ -232,9 +232,18 @@ export function cancel(workflowId) {
 
 // Fires the event on every workflow that is on, as last saved (edits apply without a restart); switched-off ones are
 // skipped (the Run button still fires a switched-off workflow's manual triggers, through fire()).
-// Errors are logged: this runs from the bus and a timer, where a rejection would crash the server.
+// Errors are logged: this runs from the bus and a timer, where a rejection would crash the server. A workflow that
+// can't fire (e.g. a file edited by hand, without nodes) is skipped on its own, logged once, so the others still fire.
+const broken = new Set()
 const fireAll = (event, data) => store.list('workflows')
-  .then((list) => list.filter((w) => w.enabled !== false).forEach((w) => fire(w, event, data)))
+  .then((list) => list.filter((w) => w.enabled !== false).forEach((w) => {
+    try {
+      fire(w, event, data)
+    } catch (err) {
+      if (!broken.has(w.id)) console.error(`[engine] Skipping workflow ${w.id}:`, err)
+      broken.add(w.id)
+    }
+  }))
   .catch((err) => console.error('[engine]', err))
 for (const event of new Set(Object.values(nodes).flatMap((d) => [d.event ?? []].flat()))) bus.on(event, (data) => fireAll(event, data))
 
