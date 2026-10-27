@@ -1,7 +1,7 @@
 // App shell: left workflow list, integration statuses and settings button, center workflow editor. While editing a
 // workflow: right library (node and widget types to drag onto the graph) and bottom settings of the selected node;
 // both toggle and resize.
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Component, Fragment, useEffect, useRef, useState } from 'react'
 import {
   ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, Notification, ScrollArea, SimpleGrid, Stack, Switch, Text,
   TextInput, Tooltip, UnstyledButton, useAppShellResize,
@@ -220,6 +220,28 @@ function NewWorkflow({ opened, onDone, onClose }) {
   )
 }
 
+// Keeps a crash in the workflow editor (e.g. a workflow file edited by hand into something it can't draw) to the
+// editor: it says what broke while the rest of the app keeps working. Keyed by workflow, so picking another starts over.
+class EditorBoundary extends Component {
+  state = { error: null }
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <AppShell.Main className="editor">
+        <Center flex={1}>
+          <Stack align="center" gap="sm">
+            <Text c="dimmed">This workflow can't be shown: {this.state.error.message}</Text>
+            <Button variant="default" size="xs" onClick={() => this.setState({ error: null })}>Try again</Button>
+          </Stack>
+        </Center>
+      </AppShell.Main>
+    )
+  }
+}
+
 // theme, onTheme: the editor theme's name and its setter (main.jsx).
 export default function App({ theme, onTheme }) {
   const [selected, setSelected] = useState(null)
@@ -366,20 +388,21 @@ export default function App({ theme, onTheme }) {
         </AppShell.Section>
       </AppShell.Navbar>
       {editing ? (
-        <Workflow
-          key={selected.id}
-          id={selected.id}
-          defs={defs}
-          widgets={widgets}
-          types={types}
-          off={off}
-          onChange={onItemChange}
-          onWidgetChange={refresh}
-          panels={panels}
-          onToggle={togglePanel}
-          openNode={openNodes[selected.id]}
-          onNodeSelect={(nodeId) => setOpenNodes((o) => ({ ...o, [selected.id]: nodeId }))}
-        />
+        <EditorBoundary key={selected.id}>
+          <Workflow
+            id={selected.id}
+            defs={defs}
+            widgets={widgets}
+            types={types}
+            off={off}
+            onChange={onItemChange}
+            onWidgetChange={refresh}
+            panels={panels}
+            onToggle={togglePanel}
+            openNode={openNodes[selected.id]}
+            onNodeSelect={(nodeId) => setOpenNodes((o) => ({ ...o, [selected.id]: nodeId }))}
+          />
+        </EditorBoundary>
       ) : (
         <AppShell.Main className="editor">
           <Center flex={1}>
