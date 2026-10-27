@@ -243,8 +243,12 @@ export default function App({ theme, onTheme }) {
     get('/api/widget-types').then((list) => setTypes(list.map(withIcon)))
   }, [])
   useEffect(() => {
-    get('/api/widgets').then(setWidgets)
-    get('/api/workflows').then(setWorkflows)
+    let stale = false // a newer refetch started: these answers may be older than its, so they're dropped
+    get('/api/widgets').then((list) => stale || setWidgets(list))
+    get('/api/workflows').then((list) => stale || setWorkflows(list))
+    return () => {
+      stale = true
+    }
   }, [version])
 
   // Integration statuses, and the requirements (`needs`) they leave unmet, for the library, the graph and settings.

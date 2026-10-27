@@ -11,10 +11,13 @@ export default function MyinstantsPicker({ opened, onClose, onPick }) {
   const [playing, setPlaying] = useState('') // url of the preview playing
   const audio = useRef(null)
   const page = useRef(1) // the last page loaded
+  const latest = useRef(0) // the last load asked: an earlier one answering after it is dropped
 
   const load = async (query, n) => {
+    const call = ++latest.current
     const res = await fetch(`/api/myinstants/search?q=${encodeURIComponent(query)}&page=${n}`)
     const body = await res.json()
+    if (call !== latest.current) return
     if (!res.ok) return setError(body.error)
     setError('')
     page.current = n
