@@ -7,6 +7,7 @@ const root = path.resolve('data')
 // Restrict kinds and ids so a request can't escape ./data.
 const KINDS = ['workflows', 'widgets', 'settings']
 const ID = /^[\w-]+$/
+const bad = new Set() // files list() reported unreadable, so the schedule tick doesn't log them every second
 
 function file(kind, id) {
   if (!KINDS.includes(kind)) throw new Error(`Unknown kind: ${kind}`)
@@ -17,7 +18,12 @@ function file(kind, id) {
 export async function list(kind) {
   const names = await fs.readdir(file(kind)).catch(() => [])
   const ids = names.filter((n) => n.endsWith('.json')).map((n) => n.slice(0, -5))
-  return Promise.all(ids.map((id) => get(kind, id)))
+  // A file that can't be read or parsed (e.g. edited by hand) is skipped, so it can't take the others down with it.
+  const items = await Promise.all(ids.map((id) => get(kind, id).catch((err) => {
+    if (!bad.has(`${kind}/${id}`)) console.error(`[store] Skipping data/${kind}/${id}.json: ${err.message}`)
+    bad.add(`${kind}/${id}`)
+  })))
+  return items.filter(Boolean)
 }
 
 export async function get(kind, id) {

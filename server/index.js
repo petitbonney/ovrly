@@ -441,7 +441,7 @@ async function pushMerge(workflow, client) {
   }
 }
 function pushMerges(workflow) {
-  for (const client of mergeClients[workflow.id] ?? []) pushMerge(workflow, client)
+  for (const client of mergeClients[workflow.id] ?? []) pushMerge(workflow, client).catch((err) => console.error('[merge]', err))
 }
 app.get('/m/:workflow/:node{/:events}', async (req, res) => {
   const workflow = await store.get('workflows', req.params.workflow).catch(() => null)

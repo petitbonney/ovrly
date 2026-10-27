@@ -230,19 +230,13 @@ export function cancel(workflowId) {
   for (const key in joins) if (key.startsWith(`${workflowId}/`)) unjoin(workflowId, key.slice(workflowId.length + 1), false)
 }
 
-// Workflows are re-read on each event so edits apply without a restart. Workflows switched off are skipped
-// (the Run button still fires a switched-off workflow's manual triggers, through fire()).
-for (const event of new Set(Object.values(nodes).flatMap((d) => [d.event ?? []].flat()))) {
-  bus.on(event, async (data) => {
-    for (const workflow of await store.list('workflows')) {
-      if (workflow.enabled !== false) fire(workflow, event, data)
-    }
-  })
-}
+// Fires the event on every workflow that is on. Workflows are re-read each time so edits apply without a restart;
+// switched-off ones are skipped (the Run button still fires a switched-off workflow's manual triggers, through fire()).
+// Errors are logged: this runs from the bus and a timer, where a rejection would crash the server.
+const fireAll = (event, data) => store.list('workflows')
+  .then((list) => list.filter((w) => w.enabled !== false).forEach((w) => fire(w, event, data)))
+  .catch((err) => console.error('[engine]', err))
+for (const event of new Set(Object.values(nodes).flatMap((d) => [d.event ?? []].flat()))) bus.on(event, (data) => fireAll(event, data))
 
 // Schedule triggers decide themselves if they are due: once a second, every workflow that is on is asked.
-setInterval(async () => {
-  for (const workflow of await store.list('workflows')) {
-    if (workflow.enabled !== false) fire(workflow, 'schedule', {})
-  }
-}, 1000)
+setInterval(() => fireAll('schedule', {}), 1000)

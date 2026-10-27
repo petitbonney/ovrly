@@ -258,17 +258,20 @@ export async function play(id, action, input, data, signal) {
 for (const def of Object.values(types)) {
   for (const [event, handle] of Object.entries(def.on ?? {})) {
     bus.on(event, async (data) => {
-      for (const { id } of (await store.list('widgets')).filter((w) => w.type === def.type)) {
-        const widget = await get(id)
-        if (!widget) continue
-        const snap = snapshot(widget)
-        const next = merge(snap, handle(snap, data))
-        if (!next) continue
-        const saved = commit(widget, next)
-        if (def.over?.(next)) settleAll(id, true)
-        await saved
-        push(widget)
-      }
+      // Errors are logged: a rejection here would crash the server.
+      try {
+        for (const { id } of (await store.list('widgets')).filter((w) => w.type === def.type)) {
+          const widget = await get(id)
+          if (!widget) continue
+          const snap = snapshot(widget)
+          const next = merge(snap, handle(snap, data))
+          if (!next) continue
+          const saved = commit(widget, next)
+          if (def.over?.(next)) settleAll(id, true)
+          await saved
+          push(widget)
+        }
+      } catch (err) { console.error(`[${def.type}]`, err) }
     })
   }
 }
