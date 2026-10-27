@@ -1,6 +1,7 @@
 // Stream Deck integration: the Ovrly plugin (streamdeck/) gets the buttons of every Control Pad node set to the
 // Stream Deck controller, drawn as key images, says which keys show which button (pairing), and sends presses, which
 // fire that node alone.
+import { Router } from 'express'
 import { record } from './bus.js'
 import { fire } from './engine.js'
 import * as store from './store.js'
@@ -87,3 +88,17 @@ export async function press({ workflow: id, node: nodeId, button }) {
   fire(workflow, 'streamdeck', { button }, {}, nodeId)
   return { ok: true }
 }
+
+// Routes (Settings → Stream Deck): its status (plugin connected, devices, paired keys), and the plugin's link: the decks
+// stream, its paired keys, and key presses.
+export const routes = Router()
+routes.get('/api/streamdeck', (req, res) => res.json(status))
+routes.get('/api/streamdeck/events', listen)
+routes.post('/api/streamdeck/keys', (req, res) => {
+  report(req.body)
+  res.sendStatus(204)
+})
+routes.post('/api/streamdeck/press', async (req, res) => res.json(await press(req.body)))
+// The packed plugin to install (made by pnpm streamdeck:pack; release zips have it).
+routes.get('/streamdeck/com.ovrly.deck.streamDeckPlugin', (req, res) => res.download('streamdeck/com.ovrly.deck.streamDeckPlugin', (err) =>
+  err && !res.headersSent && res.status(404).send('Not packed yet: run pnpm streamdeck:pack')))

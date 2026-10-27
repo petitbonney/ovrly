@@ -6,7 +6,6 @@ import bus, { recent, record } from './bus.js'
 import { nodes, fire, cancel, running, activity, history, line, drop, arrived, unjoin } from './engine.js'
 import * as twitch from './sources/twitch.js'
 import * as twitchAuth from './sources/twitch-auth.js'
-import * as eventsub from './sources/twitch-eventsub.js'
 import * as obs from './obs.js'
 import * as giphy from './giphy.js'
 import * as hue from './hue.js'
@@ -143,36 +142,6 @@ app.all('/hooks/:path{/:button}', (req, res) => {
   res.sendStatus(204)
 })
 
-// Twitch: the mode (guest or streamer) and guest channel settings, saving them reconnects; and the streamer sign-in.
-const twitchStatus = () => ({ ...twitch.status, streamer: twitch.streamer(), account: twitchAuth.status, eventsub: eventsub.status })
-app.get('/api/twitch', (req, res) => res.json(twitchStatus()))
-app.put('/api/twitch', async (req, res) => {
-  const settings = { mode: req.body.mode === 'streamer' ? 'streamer' : 'guest', channel: String(req.body.channel || '').trim().toLowerCase().replace(/^#/, '') }
-  await store.save('settings', { id: 'twitch', ...settings })
-  await twitch.apply(settings)
-  res.json(twitchStatus())
-})
-// The channel's reward titles, for the Channel Points trigger's picker.
-app.get('/api/twitch/rewards', async (req, res) => {
-  try {
-    twitch.needStreamer('Channel points rewards')
-    const rewards = await twitchAuth.helix('GET', 'channel_points/custom_rewards', undefined, { broadcaster_id: twitchAuth.status.userId })
-    res.json(rewards.map((r) => r.title).sort())
-  } catch (err) { res.status(503).json({ error: err.message }) }
-})
-// Starts a sign-in (the dialog then shows the code to approve), cancels a pending one, or signs out.
-app.post('/api/twitch/login', (req, res) =>
-  twitchAuth.start(() => twitch.apply()).then(() => res.json(twitchStatus()), (err) => res.status(502).json({ error: err.message })))
-app.post('/api/twitch/login/cancel', (req, res) => {
-  twitchAuth.cancel()
-  res.json(twitchStatus())
-})
-app.delete('/api/twitch/login', async (req, res) => {
-  await twitchAuth.logout()
-  await twitch.apply()
-  res.json(twitchStatus())
-})
-
 // Settings → Network (server/access.js): LAN on or off, its key and this computer's addresses.
 app.get('/api/network', (req, res) => res.json({ ...network(), port: PORT }))
 app.put('/api/network', async (req, res) => {
@@ -192,77 +161,12 @@ app.delete('/api/vars/:name', async (req, res) => {
   await saveVars()
   res.json(vars)
 })
-// OBS integration: its settings and status (saving reconnects), and the scene and source lists for node settings.
-app.get('/api/obs', (req, res) => res.json(obs.status))
-app.put('/api/obs', async (req, res) => {
-  const settings = { url: String(req.body.url ?? '').trim(), password: String(req.body.password ?? '') }
-  await store.save('settings', { id: 'obs', ...settings })
-  obs.connect(settings)
-  res.json(obs.status)
-})
-app.get('/api/obs/scenes', (req, res) => obs.scenes().then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
-app.get('/api/obs/sources', (req, res) =>
-  obs.sources(String(req.query.scene ?? '')).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
-
-// Giphy integration: its API key and status (saving re-checks the key).
-app.get('/api/giphy', (req, res) => res.json(giphy.status))
-app.put('/api/giphy', async (req, res) => {
-  const settings = { key: String(req.body.key ?? '').trim() }
-  await store.save('settings', { id: 'giphy', ...settings })
-  await giphy.connect(settings)
-  res.json(giphy.status)
-})
-// Hue integration: its status, pairing with the bridge at an IP (its link button pressed first), the devices for the
-// node's picker, and Stop or Cancel on a Hue node's routine.
-app.get('/api/hue', (req, res) => res.json(hue.status))
-app.post('/api/hue/pair', async (req, res) => {
-  const ip = String(req.body.ip ?? '').trim()
-  try {
-    const settings = await hue.pair(ip)
-    await store.save('settings', { id: 'hue', ...settings })
-    await hue.connect(settings)
-  } catch (err) {
-    Object.assign(hue.status, { ip, error: err.message })
-  }
-  res.json(hue.status)
-})
-app.get('/api/hue/devices', (req, res) => hue.devices().then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
-app.post('/api/hue/routines/:workflow/:node/:how', (req, res) => {
-  if (!['stop', 'cancel'].includes(req.params.how)) return res.sendStatus(400)
-  res.sendStatus(hue.end(`${req.params.workflow}/${req.params.node}`, req.params.how) ? 204 : 404)
-})
-// Stream Deck integration: its status (plugin connected, devices, paired keys), and the plugin's link: the decks
-// stream, its paired keys, and key presses.
-app.get('/api/streamdeck', (req, res) => res.json(streamdeck.status))
-app.get('/api/streamdeck/events', streamdeck.listen)
-app.post('/api/streamdeck/keys', (req, res) => {
-  streamdeck.report(req.body)
-  res.sendStatus(204)
-})
-app.post('/api/streamdeck/press', async (req, res) => res.json(await streamdeck.press(req.body)))
-// The packed plugin to install (made by pnpm streamdeck:pack; release zips have it).
-app.get('/streamdeck/com.ovrly.deck.streamDeckPlugin', (req, res) => res.download('streamdeck/com.ovrly.deck.streamDeckPlugin', (err) =>
-  err && !res.headersSent && res.status(404).send('Not packed yet: run pnpm streamdeck:pack')))
-
-// GIPHY node's picker: trending GIFs (or ?kind=sticker, clip) or search results, 24 at a time.
-app.get('/api/giphy/search', (req, res) =>
-  giphy.search(String(req.query.q ?? ''), Number(req.query.offset) || 0, req.query.kind, req.query.rating).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
-// MyInstants node's picker: search results, one page (36) at a time.
-app.get('/api/myinstants/search', (req, res) =>
-  myinstants.search(String(req.query.q ?? '').trim(), Number(req.query.page) || 1).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
-// Font fields' suggestions: every Google Fonts family.
-app.get('/api/fonts', (req, res) => fonts.list().then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
-
 // Image, sound and video files on disk (server/files.js): the OS file dialog, and serving a path set on a node.
 app.post('/api/browse-:kind', files.browse)
 app.get('/file', files.serve)
 
-// The open windows, for Key Press's "Only when focused" picker, with a hint when macOS gave app names alone.
-app.get('/api/windows', (req, res) => windows.list().then((list) => {
-  const names = [...new Set(list.filter(Boolean))]
-  const titles = process.platform !== 'darwin' || !names.length || names.some((n) => n.includes(' — '))
-  res.json({ windows: names, hint: titles ? '' : 'Window titles need the Accessibility permission' })
-}, (err) => res.status(503).json({ error: err.message })))
+// Each integration's routes (Settings panes, node pickers), in its own module.
+app.use(twitch.routes, obs.routes, giphy.routes, hue.routes, streamdeck.routes, myinstants.routes, fonts.routes, windows.routes)
 
 // Widget types for the UI: metadata, and each action's description, inputs and only (no functions).
 app.get('/api/widget-types', (req, res) => res.json(Object.values(widgets.types).map(({ actions, output, playTime, stopTime, on, queues, over, ...meta }) => ({

@@ -3,7 +3,9 @@
 // the settings pane lists scenes and sources from it. Connecting, disconnecting and each request are recorded as
 // `obs` events (GET /api/events).
 import crypto from 'node:crypto'
+import { Router } from 'express'
 import { record } from './bus.js'
+import * as store from './store.js'
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('base64')
 export const status = { url: '', password: '', connected: false, error: '' }
@@ -65,3 +67,16 @@ export async function request(requestType, requestData = {}) {
 // Scene names, and the source names in a scene, top to bottom as in OBS (which lists them bottom-up).
 export const scenes = async () => (await request('GetSceneList')).scenes.map((s) => s.sceneName).reverse()
 export const sources = async (sceneName) => (await request('GetSceneItemList', { sceneName })).sceneItems.map((i) => i.sourceName).reverse()
+
+// Routes (Settings → OBS): its settings and status (saving reconnects), and the scene and source lists for node settings.
+export const routes = Router()
+routes.get('/api/obs', (req, res) => res.json(status))
+routes.put('/api/obs', async (req, res) => {
+  const settings = { url: String(req.body.url ?? '').trim(), password: String(req.body.password ?? '') }
+  await store.save('settings', { id: 'obs', ...settings })
+  connect(settings)
+  res.json(status)
+})
+routes.get('/api/obs/scenes', (req, res) => scenes().then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+routes.get('/api/obs/sources', (req, res) =>
+  sources(String(req.query.scene ?? '')).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))

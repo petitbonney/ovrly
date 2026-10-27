@@ -1,5 +1,7 @@
 // Myinstants search for the MyInstants node and its picker: there is no API, so this reads the search page's HTML. If the site
 // changes its markup, only the regex below breaks.
+import { Router } from 'express'
+
 const HOST = 'https://www.myinstants.com'
 const decode = (s) => s.replace(/&(#x?[0-9a-f]+|amp|lt|gt|quot);/gi, (m, e) =>
   ({ amp: '&', lt: '<', gt: '>', quot: '"' })[e] ?? String.fromCodePoint(e[1] === 'x' ? parseInt(e.slice(2), 16) : Number(e.slice(1))))
@@ -13,3 +15,8 @@ export async function search(q, page) {
   const found = html.matchAll(/play\('(\/media\/sounds\/[^']+)', '[^']*', '([^']+)'\)[\s\S]*?class="instant-link[^>]*>([^<]+)</g)
   return [...found].map(([, path, id, title]) => ({ id, title: decode(title.trim()), url: HOST + path }))
 }
+
+// Route: the MyInstants node's picker, one page (36) at a time.
+export const routes = Router()
+routes.get('/api/myinstants/search', (req, res) =>
+  search(String(req.query.q ?? '').trim(), Number(req.query.page) || 1).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))

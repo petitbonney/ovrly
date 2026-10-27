@@ -3,6 +3,7 @@
 // need Screen Recording); without Accessibility, app names alone. Windows lists the titles of visible windows through
 // PowerShell (nut.js lists hidden ones too, hundreds of them); other systems use nut.js window titles.
 import { execFile } from 'node:child_process'
+import { Router } from 'express'
 import { getWindows, getActiveWindow } from '@nut-tree-fork/nut-js'
 
 // -1743: the app running Ovrly may not control System Events (denied once, macOS doesn't ask again).
@@ -52,3 +53,11 @@ export async function focused() {
   const [app, front] = names(await osa(lines('every application process whose frontmost is true')))
   return front ?? app ?? ''
 }
+
+// Route: the open windows, for Key Press's "Only when focused" picker, with a hint when macOS gave app names alone.
+export const routes = Router()
+routes.get('/api/windows', (req, res) => list().then((all) => {
+  const found = [...new Set(all.filter(Boolean))]
+  const titles = process.platform !== 'darwin' || !found.length || found.some((n) => n.includes(' — '))
+  res.json({ windows: found, hint: titles ? '' : 'Window titles need the Accessibility permission' })
+}, (err) => res.status(503).json({ error: err.message })))

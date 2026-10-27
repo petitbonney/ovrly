@@ -3,7 +3,9 @@
 // bridge takes, and the routines playing live here, one per device, so Stop and Cancel can reach them.
 import https from 'node:https'
 import tls from 'node:tls'
+import { Router } from 'express'
 import { record } from './bus.js'
+import * as store from './store.js'
 
 export const status = { ip: '', connected: false, error: '' }
 let settings = {} // { ip, key, cert }
@@ -188,3 +190,24 @@ export function end(node, how) {
   routine?.finish(how)
   return !!routine
 }
+
+// Routes (Settings → Philips Hue): its status, pairing with the bridge at an IP (its link button pressed first), the
+// devices for the node's picker, and Stop or Cancel on a Hue node's routine.
+export const routes = Router()
+routes.get('/api/hue', (req, res) => res.json(status))
+routes.post('/api/hue/pair', async (req, res) => {
+  const ip = String(req.body.ip ?? '').trim()
+  try {
+    const settings = await pair(ip)
+    await store.save('settings', { id: 'hue', ...settings })
+    await connect(settings)
+  } catch (err) {
+    Object.assign(status, { ip, error: err.message })
+  }
+  res.json(status)
+})
+routes.get('/api/hue/devices', (req, res) => devices().then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+routes.post('/api/hue/routines/:workflow/:node/:how', (req, res) => {
+  if (!['stop', 'cancel'].includes(req.params.how)) return res.sendStatus(400)
+  res.sendStatus(end(`${req.params.workflow}/${req.params.node}`, req.params.how) ? 204 : 404)
+})

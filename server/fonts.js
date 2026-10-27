@@ -1,5 +1,7 @@
 // Google Fonts families for the font field's suggestions, most popular first. Read from the list fonts.google.com
 // itself uses (no API key, but unofficial), once per server run; a failed fetch is tried again next time.
+import { Router } from 'express'
+
 let families
 export function list() {
   families ??= fetch('https://fonts.google.com/metadata/fonts').then(async (res) => {
@@ -12,3 +14,7 @@ export function list() {
     throw err
   })
 }
+
+// Route: font fields' suggestions, every Google Fonts family.
+export const routes = Router()
+routes.get('/api/fonts', (req, res) => list().then((names) => res.json(names), (err) => res.status(503).json({ error: err.message })))
