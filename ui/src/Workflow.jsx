@@ -799,8 +799,13 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
 
 export default function Workflow({ id, onChange, ...props }) {
   const [workflow, setWorkflow] = useState(null)
+  // Why it can't be opened, e.g. deleted in another tab; the list is fetched again, so a deleted one leaves it.
+  const [failed, setFailed] = useState('')
   useEffect(() => {
-    get(`/api/workflows/${id}`).then(setWorkflow)
+    get(`/api/workflows/${id}`).then(setWorkflow, (err) => {
+      setFailed(err.message)
+      onChange(id)
+    })
   }, [id])
 
   const onDelete = async () => {
@@ -808,6 +813,13 @@ export default function Workflow({ id, onChange, ...props }) {
     onChange(null)
   }
 
+  if (failed) {
+    return (
+      <AppShell.Main className="editor">
+        <Center flex={1}><Text c="dimmed">Can't open this workflow ({failed}).</Text></Center>
+      </AppShell.Main>
+    )
+  }
   if (!workflow) return null
   return (
     <ReactFlowProvider>
