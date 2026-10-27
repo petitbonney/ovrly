@@ -2,6 +2,7 @@
 // GIPHY node and its picker run.
 import { Router } from 'express'
 import * as store from '../store.js'
+import { unavailable } from '../errors.js'
 
 export const status = { key: '', connected: false, error: '' }
 
@@ -46,5 +47,5 @@ routes.put('/api/giphy', async (req, res) => {
   await connect(settings)
   res.json(status)
 })
-routes.get('/api/giphy/search', (req, res) =>
-  search(String(req.query.q ?? ''), Number(req.query.offset) || 0, req.query.kind, req.query.rating).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+routes.get('/api/giphy/search', async (req, res) =>
+  res.json(await search(String(req.query.q ?? ''), Number(req.query.offset) || 0, req.query.kind, req.query.rating).catch(unavailable)))

@@ -8,6 +8,7 @@ import bus, { record } from './bus.js'
 import * as store from './store.js'
 import { fill, list } from './template.js'
 import { iconNode } from './icons.js'
+import { httpError } from './errors.js'
 
 // Load every widget type from ../widgets/<type>/widget.js, keyed by type. Each action is { description, inputs, only,
 // run({ state, runtime, input }) → { state?, runtime? } }: inputs says what it asks for, as node fields ({ option: {
@@ -114,7 +115,7 @@ export async function read(id) {
 // Creates or replaces a widget (the editor saves its settings): written, and shown on its pages at once.
 export async function save({ id, type, state }) {
   const widget = filled({ id, type, state })
-  if (!widget) throw new Error(`Unknown widget type: ${type}`)
+  if (!widget) throw httpError(400, `Unknown widget type: ${type}`)
   removed.delete(id)
   cache[id] = Object.assign(cache[id] ?? {}, widget)
   await persist(id)
@@ -149,10 +150,11 @@ function push(widget, run, end) {
 // when what plays is over before its time (e.g. a vote closed on Twitch): those runs stop there, as finished. An action
 // that returns nothing new did nothing (e.g. an invalid vote): it replaces nothing and its own run stops.
 // playTime(action, snap) may depend on the new state and runtime. onStop and onCancel end what plays instead (end()).
-// An action may be async (e.g. it starts a Twitch poll); if it throws, nothing changes and update rejects.
+// An action may be async (e.g. it starts a Twitch poll); if it throws, nothing changes and update rejects: with the
+// error's status if it has one (e.g. Twitch's), else 400, the action having refused its inputs.
 export async function update(id, request) {
   const widget = await get(id)
-  if (!widget) throw new Error(`Widget not found: ${id}`)
+  if (!widget) throw httpError(404, `Widget not found: ${id}`)
   return apply(widget, request)
 }
 
@@ -160,13 +162,18 @@ async function apply(widget, { action, input = {} }) {
   const def = types[widget.type]
   const name = roles.includes(action) ? def[action] : action
   const act = def.actions[name]
-  if (!act) throw new Error(`${def.label}: unknown action "${action}"`)
+  if (!act) throw httpError(400, `${def.label}: unknown action "${action}"`)
   input = Object.fromEntries(Object.keys(act.inputs ?? {}).map((key) => [key, typeof input[key] === 'object' ? input[key] : String(input[key] ?? '').trim()]))
   if (name === def.onStop || name === def.onCancel) return { ...await end(widget, name === def.onStop ? 'stop' : 'cancel', input), done: Promise.resolve(true) }
   const snap = snapshot(widget)
   // A sync action is put in place in the same tick, so two quick ones build on each other.
-  let result = act.run({ ...snap, input })
-  if (result instanceof Promise) result = await result
+  let result
+  try {
+    result = act.run({ ...snap, input })
+    if (result instanceof Promise) result = await result
+  } catch (err) {
+    throw Object.assign(err, { status: err.status ?? 400 })
+  }
   const next = merge(snap, result)
   if (!next || cache[widget.id] !== widget) return { ...snap, done: Promise.resolve(false) } // did nothing, or removed
   if (!def.queues?.(name, snap)) settleAll(widget.id, false)

@@ -5,6 +5,7 @@
 import { execFile } from 'node:child_process'
 import { Router } from 'express'
 import { getWindows, getActiveWindow } from '@nut-tree-fork/nut-js'
+import { unavailable } from './errors.js'
 
 // -1743: the app running Ovrly may not control System Events (denied once, macOS doesn't ask again).
 const osa = (script) => new Promise((resolve, reject) =>
@@ -56,8 +57,8 @@ export async function focused() {
 
 // Route: the open windows, for Key Press's "Only when focused" picker, with a hint when macOS gave app names alone.
 export const routes = Router()
-routes.get('/api/windows', (req, res) => list().then((all) => {
-  const found = [...new Set(all.filter(Boolean))]
+routes.get('/api/windows', async (req, res) => {
+  const found = [...new Set((await list().catch(unavailable)).filter(Boolean))]
   const titles = process.platform !== 'darwin' || !found.length || found.some((n) => n.includes(' — '))
   res.json({ windows: found, hint: titles ? '' : 'Window titles need the Accessibility permission' })
-}, (err) => res.status(503).json({ error: err.message })))
+})

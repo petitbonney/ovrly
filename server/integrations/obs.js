@@ -6,6 +6,7 @@ import crypto from 'node:crypto'
 import { Router } from 'express'
 import { record } from '../bus.js'
 import * as store from '../store.js'
+import { unavailable } from '../errors.js'
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('base64')
 export const status = { url: '', password: '', connected: false, error: '' }
@@ -77,6 +78,5 @@ routes.put('/api/obs', async (req, res) => {
   connect(settings)
   res.json(status)
 })
-routes.get('/api/obs/scenes', (req, res) => scenes().then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
-routes.get('/api/obs/sources', (req, res) =>
-  sources(String(req.query.scene ?? '')).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+routes.get('/api/obs/scenes', async (req, res) => res.json(await scenes().catch(unavailable)))
+routes.get('/api/obs/sources', async (req, res) => res.json(await sources(String(req.query.scene ?? '')).catch(unavailable)))

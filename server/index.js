@@ -177,12 +177,16 @@ app.get('/api/widget-types', (req, res) => res.json(Object.values(widgets.types)
 // state }), saved by the editor (PUT, also to put one back on undo), and run by hand, e.g. POST /api/widgets/<id>/action
 // { action: 'vote', input: { option: '1', user } }, with the inputs as typed (templates aren't filled outside a run).
 // Reads go through the generic routes below: a widget's file is written before the editor hears of a change.
-const fail = (res) => (err) => res.status(400).json({ error: err.message })
-app.post('/api/widgets', (req, res) => widgets.create(req.body.type, req.body.state).then((w) => res.json(w), fail(res)))
-app.put('/api/widgets/:id', (req, res) => widgets.save({ ...req.body, id: req.params.id }).then((w) => res.json(w), fail(res)))
-app.delete('/api/widgets/:id', (req, res) => widgets.remove(req.params.id).then(() => res.sendStatus(204), fail(res)))
-app.post('/api/widgets/:id/action', (req, res) => {
-  widgets.update(req.params.id, req.body).then(({ state, runtime }) => res.json({ state, runtime }), fail(res))
+// Errors go to the /api error handler: 400 for a bad type or action or inputs an action refuses, 404 for no such widget.
+app.post('/api/widgets', async (req, res) => res.json(await widgets.create(req.body.type, req.body.state)))
+app.put('/api/widgets/:id', async (req, res) => res.json(await widgets.save({ ...req.body, id: req.params.id })))
+app.delete('/api/widgets/:id', async (req, res) => {
+  await widgets.remove(req.params.id)
+  res.sendStatus(204)
+})
+app.post('/api/widgets/:id/action', async (req, res) => {
+  const { state, runtime } = await widgets.update(req.params.id, req.body)
+  res.json({ state, runtime })
 })
 // An action that changed a widget's state (e.g. TwitchPlays' mode) shows in the editor's settings: see /api/activity.
 widgets.changes.on('state', (widget) => activity.emit('activity', { widget: widget.id }))
@@ -210,8 +214,9 @@ app.delete('/api/:kind/:id', async (req, res) => {
   await store.remove(req.params.kind, req.params.id)
   res.sendStatus(204)
 })
-// Errors with a status are the request's (a bad kind or id for the store, malformed JSON); the others are the server's
-// (e.g. a disk error), logged. Express 5 forwards rejected promises here.
+// Errors with a status (server/errors.js) are the request's (4xx: a bad kind or id for the store, malformed JSON, a
+// widget refusing an action) or an outside service's (502, 503: OBS not connected, Twitch refusing); the others are
+// the server's (e.g. a disk error), logged. Express 5 forwards rejected promises here.
 app.use('/api', (err, req, res, next) => {
   if (!err.status) console.error('[api]', err)
   res.status(err.status ?? 500).json({ error: err.message })

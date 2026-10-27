@@ -1,6 +1,7 @@
 // Myinstants search for the MyInstants node and its picker: there is no API, so this reads the search page's HTML. If the site
 // changes its markup, only the regex below breaks.
 import { Router } from 'express'
+import { unavailable } from '../errors.js'
 
 const HOST = 'https://www.myinstants.com'
 const decode = (s) => s.replace(/&(#x?[0-9a-f]+|amp|lt|gt|quot);/gi, (m, e) =>
@@ -18,5 +19,5 @@ export async function search(q, page) {
 
 // Route: the MyInstants node's picker, one page (36) at a time.
 export const routes = Router()
-routes.get('/api/myinstants/search', (req, res) =>
-  search(String(req.query.q ?? '').trim(), Number(req.query.page) || 1).then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+routes.get('/api/myinstants/search', async (req, res) =>
+  res.json(await search(String(req.query.q ?? '').trim(), Number(req.query.page) || 1).catch(unavailable)))

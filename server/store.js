@@ -2,6 +2,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { httpError } from './errors.js'
 
 const root = path.resolve('data')
 // Restrict kinds and ids so a request can't escape ./data.
@@ -10,9 +11,9 @@ const ID = /^[\w-]+$/
 const bad = new Set() // files list() reported unreadable, so the schedule tick doesn't log them every second
 
 function file(kind, id) {
-  // status 400: the request named them (the API answers other errors with 500).
-  if (!KINDS.includes(kind)) throw Object.assign(new Error(`Unknown kind: ${kind}`), { status: 400 })
-  if (id !== undefined && !ID.test(id)) throw Object.assign(new Error(`Invalid id: ${id}`), { status: 400 })
+  // 400: the request named them (the API answers other errors with 500).
+  if (!KINDS.includes(kind)) throw httpError(400, `Unknown kind: ${kind}`)
+  if (id !== undefined && !ID.test(id)) throw httpError(400, `Invalid id: ${id}`)
   return id === undefined ? path.join(root, kind) : path.join(root, kind, `${id}.json`)
 }
 

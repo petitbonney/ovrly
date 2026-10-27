@@ -7,6 +7,7 @@
 // in, with who received them.
 import { Router } from 'express'
 import * as store from '../store.js'
+import { httpError, unavailable } from '../errors.js'
 import tmi from 'tmi.js'
 import bus, { record } from '../bus.js'
 import * as auth from './twitch-auth.js'
@@ -26,7 +27,7 @@ export const status = { mode: 'guest', guestChannel: '', channel: '', connected:
 export const streamer = () => status.mode === 'streamer' && !!auth.status.login && auth.status.scopesOk
 // For nodes and widgets: throws unless Streamer features can run. what: the feature, e.g. 'Twitch polls'.
 export function needStreamer(what) {
-  if (!streamer()) throw new Error(`${what} need Twitch in Streamer mode, signed in (Settings → Twitch)`)
+  if (!streamer()) throw httpError(503, `${what} need Twitch in Streamer mode, signed in (Settings → Twitch)`)
 }
 
 // Applies the settings ({ mode, channel }), or the current ones again after signing in or out. Streamer mode reads the
@@ -152,11 +153,9 @@ routes.put('/api/twitch', async (req, res) => {
 })
 // The channel's reward titles, for the Channel Points trigger's picker.
 routes.get('/api/twitch/rewards', async (req, res) => {
-  try {
-    needStreamer('Channel points rewards')
-    const rewards = await auth.helix('GET', 'channel_points/custom_rewards', undefined, { broadcaster_id: auth.status.userId })
-    res.json(rewards.map((r) => r.title).sort())
-  } catch (err) { res.status(503).json({ error: err.message }) }
+  needStreamer('Channel points rewards')
+  const rewards = await auth.helix('GET', 'channel_points/custom_rewards', undefined, { broadcaster_id: auth.status.userId }).catch(unavailable)
+  res.json(rewards.map((r) => r.title).sort())
 })
 // Starts a sign-in (the dialog then shows the code to approve), cancels a pending one, or signs out.
 routes.post('/api/twitch/login', (req, res) =>

@@ -6,6 +6,7 @@ import tls from 'node:tls'
 import { Router } from 'express'
 import { record } from '../bus.js'
 import * as store from '../store.js'
+import { unavailable } from '../errors.js'
 
 export const status = { ip: '', connected: false, error: '' }
 let settings = {} // { ip, key, cert }
@@ -206,7 +207,7 @@ routes.post('/api/hue/pair', async (req, res) => {
   }
   res.json(status)
 })
-routes.get('/api/hue/devices', (req, res) => devices().then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
+routes.get('/api/hue/devices', async (req, res) => res.json(await devices().catch(unavailable)))
 routes.post('/api/hue/routines/:workflow/:node/:how', (req, res) => {
   if (!['stop', 'cancel'].includes(req.params.how)) return res.sendStatus(400)
   res.sendStatus(end(`${req.params.workflow}/${req.params.node}`, req.params.how) ? 204 : 404)

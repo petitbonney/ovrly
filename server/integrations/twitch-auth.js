@@ -4,6 +4,7 @@
 import * as store from '../store.js'
 import { record } from '../bus.js'
 import { vars, saveVars } from '../vars.js'
+import { httpError } from '../errors.js'
 
 export const CLIENT_ID = '6vu8lgkxb5ljuijesmm2rlirke32ns'
 // Polls and predictions (Voting widget), what the EventSub triggers need, then the Twitch action nodes.
@@ -105,7 +106,7 @@ export async function helixJson(method, path, body, query) {
   })
   const json = await res.json().catch(() => ({}))
   record('http', 'twitch-api', { method, path, ...(!res.ok && { error: json.message }) })
-  if (!res.ok) throw new Error(`Twitch ${path}: ${json.message || res.status}`)
+  if (!res.ok) throw httpError(502, `Twitch ${path}: ${json.message || res.status}`) // Twitch refused
   return json
 }
 
