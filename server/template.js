@@ -20,6 +20,24 @@ const text = (v) => (v == null ? '' : typeof v === 'object' ? JSON.stringify(v) 
 
 export const fill = (t, data) => String(t).replace(/\{\{(.+?)\}\}/gs, (m, expr) => text(evaluate(expr.trim(), data)))
 
+// Like fill, but each value goes through escape(value, before), before being the template's own text up to it
+// (placeholders blanked), so data (e.g. a chat message) can't change what the text around it means.
+const fillWith = (t, data, escape) => String(t).replace(/\{\{(.+?)\}\}/gs, (m, expr, at, s) =>
+  escape(evaluate(expr.trim(), data), s.slice(0, at).replace(/\{\{.+?\}\}/gs, '')))
+
+// For JSON (a request body): inside a string, a value is escaped; outside, it becomes a JSON value (a string quoted,
+// unless it reads as a number, true, false or null).
+const LITERAL = /^(-?\d+(\.\d+)?([eE][+-]?\d+)?|true|false|null)$/
+export const fillJson = (t, data) => fillWith(t, data, (v, before) => {
+  if (before.replace(/\\./g, '').split('"').length % 2 === 0) return JSON.stringify(text(v)).slice(1, -1)
+  return typeof v === 'string' && LITERAL.test(v.trim()) ? v.trim() : JSON.stringify(v ?? null)
+})
+
+// For URLs: a value in the path or query is encoded (no "../", "&" or "?" from data); one in the scheme, host or port,
+// or at the start (a whole URL, e.g. {{ $vars.api }}), is kept as is.
+export const fillUrl = (t, data) => fillWith(t, data, (v, before) =>
+  /[/?#]/.test(before.replace(/^[a-z][\w+.-]*:\/\//i, '')) ? encodeURIComponent(text(v)) : text(v))
+
 // Like fill, but a text that is one placeholder keeps the value's type (number, object…).
 export function value(t, data) {
   const one = /^\{\{(.+?)\}\}$/s.exec(String(t).trim())

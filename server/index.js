@@ -1,6 +1,8 @@
 // Server entry: REST API over the store, widget pages, plus the UI (Vite in dev, ./dist in production).
 import path from 'node:path'
 import { execFile } from 'node:child_process'
+import { randomBytes, timingSafeEqual } from 'node:crypto'
+import net from 'node:net'
 import os from 'node:os'
 import express from 'express'
 import * as store from './store.js'
@@ -22,9 +24,45 @@ import { fill } from './template.js'
 
 const PORT = process.env.PORT || 6875 // OVRL on a phone keypad
 const app = express()
-// Only this computer reaches Ovrly unless "Open to LAN" is on (Settings → Network).
-let lan = !!(await store.get('settings', 'network'))?.lan
-app.use((req, res, next) => /^(::1|(::ffff:)?127\.0\.0\.1)$/.test(req.socket.remoteAddress) || lan ? next() : res.sendStatus(403))
+// Who reaches Ovrly: this computer; with "Open to LAN" on (Settings → Network), other devices too, for widget pages and
+// API calls, and for the editor and its API with the LAN key (its link there sets it as a cookie). Turning LAN on makes
+// a new key, which signs the other devices out.
+const newKey = () => randomBytes(18).toString('base64url')
+let { lan = false, key = '' } = (await store.get('settings', 'network')) ?? {}
+if (lan && !key) await store.save('settings', { id: 'network', lan, key: (key = newKey()) })
+const OPEN = /^\/(w|m|widgets|vendor|hooks|file|streamdeck)(\/|$)/ // widget pages and what they load, API calls
+const local = (req) => /^(::1|(::ffff:)?127\.0\.0\.1)$/.test(req.socket.remoteAddress)
+const same = (a = '', b = '') => {
+  const [x, y] = [Buffer.from(a), Buffer.from(b)]
+  return x.length === y.length && timingSafeEqual(x, y)
+}
+const cookieKey = (req) => /(?:^|;\s*)ovrly-key=([^;]*)/.exec(req.get('cookie') ?? '')?.[1]
+// Browsers send requests on other websites' behalf, so they must name Ovrly by an address or this computer's name (a
+// website could point its own domain at this computer: DNS rebinding) and come from Ovrly's own pages, but for a link
+// opening one of them (CSRF). Sec-Fetch-Site says where a request comes from; older browsers only send Origin.
+const name = os.hostname().toLowerCase()
+const knownHost = (req) => net.isIP((req.hostname ?? '').replace(/^\[(.*)\]$/, '$1'))
+  || ['localhost', name, `${name}.local`].includes(req.hostname?.toLowerCase())
+function foreign(req) {
+  const site = req.get('sec-fetch-site')
+  if (site) return site !== 'same-origin' && site !== 'none'
+  return !!req.get('origin') && req.get('origin') !== `http://${req.get('host')}`
+}
+const link = (req) => req.method === 'GET' && req.get('sec-fetch-mode') === 'navigate' && !/^\/(api|hooks)(\/|$)/.test(req.path)
+app.use((req, res, next) => {
+  if (!knownHost(req) || (foreign(req) && !link(req))) return res.sendStatus(403)
+  if (local(req) || (lan && OPEN.test(req.path))) return next()
+  if (!lan) return res.sendStatus(403)
+  if (same(String(req.query.key ?? ''), key)) {
+    res.cookie('ovrly-key', key, { httpOnly: true, sameSite: 'strict', maxAge: 365 * 864e5 })
+    const url = new URL(req.originalUrl, 'http://ovrly')
+    url.searchParams.delete('key')
+    return res.redirect(url.pathname + url.search)
+  }
+  if (same(cookieKey(req), key)) return next()
+  const error = 'Open Ovrly from the editor link in Settings → Network, on the computer running it'
+  req.path.startsWith('/api/') ? res.status(401).json({ error }) : res.status(401).type('text').send(error)
+})
 app.use(express.json())
 
 // Node types for the UI library (metadata only, no run function).
@@ -177,13 +215,14 @@ app.delete('/api/twitch/login', async (req, res) => {
 
 // OBS integration: its settings and status (saving reconnects), and the scene and source lists for node settings.
 const network = () => ({
-  lan, port: PORT,
+  lan, port: PORT, key: lan ? key : '',
   addresses: Object.values(os.networkInterfaces()).flat().filter((i) => i.family === 'IPv4' && !i.internal).map((i) => i.address),
 })
 app.get('/api/network', (req, res) => res.json(network()))
 app.put('/api/network', async (req, res) => {
+  if (req.body.lan && !lan) key = newKey()
   lan = !!req.body.lan
-  await store.save('settings', { id: 'network', lan })
+  await store.save('settings', { id: 'network', lan, key })
   res.json(network())
 })
 // Workflow variables (Settings → Variables): the list, and set or delete one by name.
@@ -327,6 +366,9 @@ async function dropUnusedWidgets(refs) {
   for (const id of refs.filter((id) => id && !used.has(id))) await widgets.remove(id)
 }
 
+// Settings hold secrets (Twitch tokens, the OBS password…): each integration has its own routes above, the generic ones
+// below don't serve them.
+app.use('/api/settings', (req, res) => res.sendStatus(404))
 app.get('/api/:kind', async (req, res) => res.json(await store.list(req.params.kind)))
 app.get('/api/:kind/:id', async (req, res) => {
   const item = await store.get(req.params.kind, req.params.id)
