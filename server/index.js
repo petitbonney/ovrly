@@ -17,6 +17,7 @@ import * as files from './files.js'
 import * as merge from './merge.js'
 import * as widgets from './widgets.js'
 import * as windows from './windows.js'
+import * as workflows from './workflows.js'
 import { vars, saveVars } from './vars.js'
 import { fill } from './template.js'
 
@@ -128,10 +129,9 @@ app.post('/api/stop', async (req, res) => {
   const off = []
   for (const workflow of await store.list('workflows')) {
     if (workflow.enabled !== false) {
-      await store.save('workflows', { ...workflow, enabled: false })
+      await workflows.save({ id: workflow.id, enabled: false }) // cancels what it runs
       off.push(workflow.id)
-    }
-    cancel(workflow.id)
+    } else cancel(workflow.id) // already off: its manual runs
   }
   record('http', 'stop-all', {})
   res.json({ off })
@@ -283,13 +283,14 @@ app.post('/api/widgets/:id/action', (req, res) => {
 // An action that changed a widget's state (e.g. TwitchPlays' mode) shows in the editor's settings: see /api/activity.
 widgets.changes.on('state', (widget) => activity.emit('activity', { widget: widget.id }))
 
-// A widget instance lives as long as its workflow node. After a workflow is saved or deleted, the widgets it referred
-// to and no workflow uses anymore are deleted.
-const widgetRefs = (workflow) => workflow?.nodes.filter((n) => n.data.type === 'widget').map((n) => n.data.config.widget) ?? []
-async function dropUnusedWidgets(refs) {
-  const used = new Set((await store.list('workflows')).flatMap(widgetRefs))
-  for (const id of refs.filter((id) => id && !used.has(id))) await widgets.remove(id)
-}
+// Workflow writes (server/workflows.js): saving one stops it if switched off, moves Merge Widgets and deletes widgets
+// no workflow uses anymore. Reads go through the generic routes below.
+app.post('/api/workflows', async (req, res) => res.json(await workflows.save(req.body)))
+app.put('/api/workflows/:id', async (req, res) => res.json(await workflows.save({ ...req.body, id: req.params.id })))
+app.delete('/api/workflows/:id', async (req, res) => {
+  await workflows.remove(req.params.id)
+  res.sendStatus(204)
+})
 
 // Settings hold secrets (Twitch tokens, the OBS password…): each integration has its own routes above, the generic ones
 // below don't serve them.
@@ -300,19 +301,9 @@ app.get('/api/:kind/:id', async (req, res) => {
   item ? res.json(item) : res.sendStatus(404)
 })
 app.post('/api/:kind', async (req, res) => res.json(await store.save(req.params.kind, req.body)))
-app.put('/api/:kind/:id', async (req, res) => {
-  // Workflow updates are merged, so the editor's autosave keeps fields it doesn't send (e.g. enabled).
-  const old = req.params.kind === 'workflows' && await store.get('workflows', req.params.id)
-  const item = await store.save(req.params.kind, { ...old, ...req.body, id: req.params.id })
-  if (old && req.body.enabled === false) cancel(item.id) // switched off: stop what is running
-  if (old) merge.push(item) // widgets moved on a Merge Widgets canvas
-  if (old) await dropUnusedWidgets(widgetRefs(old))
-  res.json(item)
-})
+app.put('/api/:kind/:id', async (req, res) => res.json(await store.save(req.params.kind, { ...req.body, id: req.params.id })))
 app.delete('/api/:kind/:id', async (req, res) => {
-  const old = req.params.kind === 'workflows' && await store.get('workflows', req.params.id)
   await store.remove(req.params.kind, req.params.id)
-  if (old) await dropUnusedWidgets(widgetRefs(old))
   res.sendStatus(204)
 })
 // Errors with a status are the request's (a bad kind or id for the store, malformed JSON); the others are the server's
