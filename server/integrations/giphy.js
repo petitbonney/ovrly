@@ -1,5 +1,9 @@
 // Giphy integration: the API key and whether Giphy accepts it (checked on startup and on save), and the search the
 // GIPHY node and its picker run.
+import { Router } from 'express'
+import * as store from '../store.js'
+import { unavailable } from '../errors.js'
+
 export const status = { key: '', connected: false, error: '' }
 
 export async function connect({ key = '' } = {}) {
@@ -32,3 +36,16 @@ export async function search(q, offset, kind = 'gif', rating = 'pg') {
   const { data } = await res.json()
   return data.map((g) => ({ id: g.id, title: g.title, url: clips ? clipVideo(g) : g.images.original.url, preview: g.images.fixed_width.url }))
 }
+
+// Routes (Settings → Giphy): its API key and status (saving re-checks the key); and the GIPHY node's picker: trending
+// GIFs (or ?kind=sticker, clip) or search results, 24 at a time.
+export const routes = Router()
+routes.get('/api/giphy', (req, res) => res.json(status))
+routes.put('/api/giphy', async (req, res) => {
+  const settings = { key: String(req.body.key ?? '').trim() }
+  await store.save('settings', { id: 'giphy', ...settings })
+  await connect(settings)
+  res.json(status)
+})
+routes.get('/api/giphy/search', async (req, res) =>
+  res.json(await search(String(req.query.q ?? ''), Number(req.query.offset) || 0, req.query.kind, req.query.rating).catch(unavailable)))

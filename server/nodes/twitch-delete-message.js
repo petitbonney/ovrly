@@ -1,6 +1,6 @@
 // Action: deletes a chat message, e.g. the one that fired a chat trigger ({{messageId}}).
-import { helix, channel } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { helix, channel } from '../integrations/twitch-auth.js'
+import { needStreamer } from '../integrations/twitch.js'
 import { fill } from '../template.js'
 
 export default {

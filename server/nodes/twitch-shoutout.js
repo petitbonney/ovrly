@@ -1,7 +1,7 @@
 // Action: gives another channel a Twitch shoutout, e.g. after a Raid trigger. Twitch only allows it while live, one
 // every 2 minutes and one per channel per hour.
-import { helix, status, user } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { helix, status, user } from '../integrations/twitch-auth.js'
+import { needStreamer } from '../integrations/twitch.js'
 import { fill } from '../template.js'
 
 export default {

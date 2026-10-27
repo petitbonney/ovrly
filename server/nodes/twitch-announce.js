@@ -1,6 +1,6 @@
 // Action: posts a chat announcement: a message highlighted in a color, as the streamer.
-import { helix, channel } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { helix, channel } from '../integrations/twitch-auth.js'
+import { needStreamer } from '../integrations/twitch.js'
 import { fill } from '../template.js'
 
 const colors = [

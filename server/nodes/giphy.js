@@ -2,7 +2,7 @@
 // one found by a search run each time (empty: trending), e.g. for an Image/GIF widget's {{gif}} an Image/GIF widget's {{sticker}} or a Video widget's {{clip}}.
 // Uses the Giphy API key (Settings → Giphy).
 import { fill } from '../template.js'
-import * as giphy from '../giphy.js'
+import * as giphy from '../integrations/giphy.js'
 
 export default {
   type: 'giphy',

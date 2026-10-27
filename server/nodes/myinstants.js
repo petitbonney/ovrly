@@ -1,7 +1,7 @@
 // Action: adds { sound, title }: the URL of a sound picked in the editor, or a random one found by a search run each time,
 // e.g. for a Sound widget's {{sound}}.
 import { fill } from '../template.js'
-import * as myinstants from '../myinstants.js'
+import * as myinstants from '../integrations/myinstants.js'
 
 export default {
   type: 'myinstants',

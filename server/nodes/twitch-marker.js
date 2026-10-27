@@ -1,6 +1,6 @@
 // Action: adds a stream marker (while live), to find the moment again in the VOD.
-import { helix, status } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { helix, status } from '../integrations/twitch-auth.js'
+import { needStreamer } from '../integrations/twitch.js'
 import { fill } from '../template.js'
 
 export default {

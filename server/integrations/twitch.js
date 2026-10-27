@@ -5,6 +5,9 @@
 // is connected, the subs, cheers and raids chat announces are published as EventSub events, so the triggers that
 // follow them also work in Guest mode. Either way, each gift is published again as `twitch.gift` once its subs are
 // in, with who received them.
+import { Router } from 'express'
+import * as store from '../store.js'
+import { httpError, unavailable } from '../errors.js'
 import tmi from 'tmi.js'
 import bus, { record } from '../bus.js'
 import * as auth from './twitch-auth.js'
@@ -24,7 +27,7 @@ export const status = { mode: 'guest', guestChannel: '', channel: '', connected:
 export const streamer = () => status.mode === 'streamer' && !!auth.status.login && auth.status.scopesOk
 // For nodes and widgets: throws unless Streamer features can run. what: the feature, e.g. 'Twitch polls'.
 export function needStreamer(what) {
-  if (!streamer()) throw new Error(`${what} need Twitch in Streamer mode, signed in (Settings → Twitch)`)
+  if (!streamer()) throw httpError(503, `${what} need Twitch in Streamer mode, signed in (Settings → Twitch)`)
 }
 
 // Applies the settings ({ mode, channel }), or the current ones again after signing in or out. Streamer mode reads the
@@ -135,4 +138,34 @@ bus.on('channel.subscribe', (event) => {
   if (!gift) return loose.push({ event, at: Date.now() })
   gift.recipients.push(event.user_name)
   if (gift.recipients.length >= gift.event.total) done(gift)
+})
+
+// Routes (Settings → Twitch): the mode (guest or streamer) and guest channel settings, saving them reconnects; and the
+// streamer sign-in.
+export const routes = Router()
+const fullStatus = () => ({ ...status, streamer: streamer(), account: auth.status, eventsub: eventsub.status })
+routes.get('/api/twitch', (req, res) => res.json(fullStatus()))
+routes.put('/api/twitch', async (req, res) => {
+  const settings = { mode: req.body.mode === 'streamer' ? 'streamer' : 'guest', channel: String(req.body.channel || '').trim().toLowerCase().replace(/^#/, '') }
+  await store.save('settings', { id: 'twitch', ...settings })
+  await apply(settings)
+  res.json(fullStatus())
+})
+// The channel's reward titles, for the Channel Points trigger's picker.
+routes.get('/api/twitch/rewards', async (req, res) => {
+  needStreamer('Channel points rewards')
+  const rewards = await auth.helix('GET', 'channel_points/custom_rewards', undefined, { broadcaster_id: auth.status.userId }).catch(unavailable)
+  res.json(rewards.map((r) => r.title).sort())
+})
+// Starts a sign-in (the dialog then shows the code to approve), cancels a pending one, or signs out.
+routes.post('/api/twitch/login', (req, res) =>
+  auth.start(() => apply()).then(() => res.json(fullStatus()), (err) => res.status(502).json({ error: err.message })))
+routes.post('/api/twitch/login/cancel', (req, res) => {
+  auth.cancel()
+  res.json(fullStatus())
+})
+routes.delete('/api/twitch/login', async (req, res) => {
+  await auth.logout()
+  await apply()
+  res.json(fullStatus())
 })

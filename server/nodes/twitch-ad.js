@@ -1,7 +1,7 @@
 // Action: starts an ad break, or snoozes the next scheduled one by 5 minutes. Adds { length } (the ad break's, in
 // seconds) or { snoozes } (snoozes left).
-import { helix, status } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { helix, status } from '../integrations/twitch-auth.js'
+import { needStreamer } from '../integrations/twitch.js'
 
 export default {
   type: 'twitch-ad',

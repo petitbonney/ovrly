@@ -2,7 +2,7 @@
 // a list of steps and runs until it ends: Stop (settings pane) ends it with a fade and the workflow goes on, Cancel (or
 // the workflow's cancel) ends it at once and the workflow stops there; both put the lights back as they were. Firing it
 // again on the same device replaces what plays there.
-import * as hue from '../hue.js'
+import * as hue from '../integrations/hue.js'
 
 export default {
   type: 'hue',

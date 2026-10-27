@@ -1,7 +1,7 @@
 // Action: clips the last moments of the stream (while live). Adds { clipId, clipUrl }; Twitch takes a few seconds to
 // make the clip, so the URL may not open right away.
-import { helix, status } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { helix, status } from '../integrations/twitch-auth.js'
+import { needStreamer } from '../integrations/twitch.js'
 
 export default {
   type: 'twitch-clip',

@@ -1,7 +1,7 @@
 // Action: toggles a chat mode, or turns it on or off: emote-only, followers-only, subscribers-only, slow or unique chat. Adds
 // { on }: whether the mode is on now.
-import { helix, channel } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { helix, channel } from '../integrations/twitch-auth.js'
+import { needStreamer } from '../integrations/twitch.js'
 
 const modes = [
   { value: 'emote', label: 'Emote-only' },

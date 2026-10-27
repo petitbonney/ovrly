@@ -1,5 +1,5 @@
 // Trigger: a deck of buttons, each continuing on its own output. Its mode picks how they fire: Stream Deck keys
-// paired with the Ovrly plugin (server/streamdeck.js fires this node alone), or Companion: a request to
+// paired with the Ovrly plugin (server/integrations/streamdeck.js fires this node alone), or Companion: a request to
 // /hooks/deck/<slug>-<id>, from Companion or anything that sends HTTP (only the id counts, so renaming keeps old URLs working).
 export default {
   type: 'deck',
