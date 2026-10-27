@@ -1,7 +1,7 @@
 // Action: sends an HTTP request ({{key}} placeholders filled from data). Adds { status, response, json } (json: the
 // response parsed, if it is JSON, e.g. {{json.items.0.name}}). Each request is
 // recorded as an `http-request` event (GET /api/events).
-import { fill } from '../template.js'
+import { fill, fillJson, fillUrl } from '../template.js'
 import { record } from '../bus.js'
 
 export default {
@@ -23,14 +23,15 @@ export default {
   async run({ config, data, signal }) {
     const method = config.method.toUpperCase()
     const hasBody = !['GET', 'HEAD'].includes(method)
-    const url = fill(config.url, data)
-    const body = hasBody ? fill(config.body, data) : undefined
+    const url = fillUrl(config.url, data)
     const headers = new Headers(hasBody ? { 'Content-Type': 'application/json' } : {})
     try {
-      for (const [name, v] of Object.entries(JSON.parse(fill(config.headers || '{}', data)))) headers.set(name, v)
+      for (const [name, v] of Object.entries(JSON.parse(fillJson(config.headers || '{}', data)))) headers.set(name, v)
     } catch {
       throw new Error('HTTP Request: the headers are not valid JSON')
     }
+    // A JSON body gets its values escaped; another type (set in the headers) takes them as they are.
+    const body = hasBody ? (/json/i.test(headers.get('Content-Type')) ? fillJson : fill)(config.body, data) : undefined
     const res = await fetch(url, { method, headers, body, signal }).catch((err) => {
       record('http', 'http-request', { method, url, error: err.message })
       throw err

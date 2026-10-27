@@ -285,13 +285,15 @@ function Network({ status, setStatus }) {
     <Stack gap="sm">
       <Switch
         label="Open to LAN"
-        description="Lets other devices on your network open Ovrly, including its widget links in OBS on another computer. Anyone on that network can then use it and edit your workflows."
+        description="Lets other devices on your network open widget links (OBS on another computer) and send API calls. The editor needs its own link, with a key: turning this off and on makes a new one."
         checked={status.lan} onChange={(e) => toggle(e.currentTarget.checked)}
       />
       {status.lan && (
         <Stack gap={4}>
-          <Text size="xs" c="dimmed">Reachable at:</Text>
+          <Text size="xs" c="dimmed">Widgets and API calls at:</Text>
           {status.addresses.length ? status.addresses.map((a) => <Code key={a}>{`http://${a}:${status.port}`}</Code>) : <Text size="xs" c="dimmed">No network found</Text>}
+          {!!status.addresses.length && <Text size="xs" c="dimmed" mt="xs">The editor, from another device (keep it private: it gives full control):</Text>}
+          {status.addresses.map((a) => <Code key={`editor ${a}`}>{`http://${a}:${status.port}/?key=${status.key}`}</Code>)}
         </Stack>
       )}
     </Stack>

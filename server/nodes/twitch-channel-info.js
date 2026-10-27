@@ -5,7 +5,7 @@
 // whole response of any Helix call { response }. Always adds channelId.
 import { helix, helixJson, status, user } from '../sources/twitch-auth.js'
 import { needStreamer } from '../sources/twitch.js'
-import { fill } from '../template.js'
+import { fill, fillJson, fillUrl } from '../template.js'
 
 const minutes = (ms) => Math.round(ms / 60_000)
 
@@ -82,10 +82,10 @@ export default {
     const name = fill(config.channel, data).trim().replace(/^@/, '').toLowerCase()
     const channelId = name && name !== status.login ? (await user(name)).id : status.userId
     if (config.what !== 'custom') return { ...data, channelId, ...(await get[config.what](channelId)) }
-    const path = fill(config.path, { ...data, channelId }).trim().replace(/^(https:\/\/api\.twitch\.tv)?\/?(helix\/)?/, '')
+    const path = fillUrl(config.path, { ...data, channelId }).trim().replace(/^(https:\/\/api\.twitch\.tv)?\/?(helix\/)?/, '')
     let body
     if (['POST', 'PATCH', 'PUT'].includes(config.method)) {
-      try { body = JSON.parse(fill(config.body || '{}', data)) } catch { throw new Error('Channel info: the body is not valid JSON') }
+      try { body = JSON.parse(fillJson(config.body || '{}', data)) } catch { throw new Error('Channel info: the body is not valid JSON') }
     }
     return { ...data, channelId, response: await helixJson(config.method, path, body, {}) }
   },
