@@ -29,13 +29,14 @@ test('sound and video start set the url', () => {
   assert.equal(start('video', { video: 'https://x/a.mp4' }).runtime.url, 'https://x/a.mp4')
 })
 
-test('lottery load adds to state.loaded', async () => {
+test('lottery load and loadAll add to state.options', async () => {
   const { choices, PALETTES } = await import('../widgets/lottery/widget.js')
-  const state = { ...types.lottery.state, layout: 'wheel', source: 'data' }
-  const out = run('lottery', 'load', { list: ['A', { label: 'B', weight: 2 }] }, state)
-  assert.equal(out.state.loaded.length, 2)
-  assert.equal(out.runtime.winner, -1)
-  assert.equal(choices(out.state)[0].color, PALETTES.ovrly[0])
+  const one = run('lottery', 'load', { label: ' A ', weight: '' }, { options: [] })
+  assert.deepEqual(one.state.options, [{ label: 'A', weight: 1 }])
+  const all = run('lottery', 'loadAll', { options: [{ label: 'B', weight: 2 }, { label: 'C' }] }, one.state)
+  assert.deepEqual(all.state.options.map((o) => o.weight), [1, 2, 1])
+  assert.equal(choices(all.state)[0].color, PALETTES.ovrly.colors[0])
+  assert.throws(() => run('lottery', 'load', { label: '' }), /needs a label/)
 })
 
 test('roulette and dice draw a winner among their choices', () => {
