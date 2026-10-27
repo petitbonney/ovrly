@@ -1,10 +1,6 @@
 // Server entry: REST API over the store, widget pages, plus the UI (Vite in dev, ./dist in production).
-import path from 'node:path'
-import { execFile } from 'node:child_process'
-import { randomBytes, timingSafeEqual } from 'node:crypto'
-import net from 'node:net'
-import os from 'node:os'
 import express from 'express'
+import { access, network, setLan } from './access.js'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
 import { nodes, fire, cancel, running, activity, history, line, drop, arrived, unjoin } from './engine.js'
@@ -17,6 +13,8 @@ import * as hue from './hue.js'
 import * as streamdeck from './streamdeck.js'
 import * as myinstants from './myinstants.js'
 import * as fonts from './fonts.js'
+import * as files from './files.js'
+import * as merge from './merge.js'
 import * as widgets from './widgets.js'
 import * as windows from './windows.js'
 import { vars, saveVars } from './vars.js'
@@ -24,45 +22,7 @@ import { fill } from './template.js'
 
 const PORT = process.env.PORT || 6875 // OVRL on a phone keypad
 const app = express()
-// Who reaches Ovrly: this computer; with "Open to LAN" on (Settings → Network), other devices too, for widget pages and
-// API calls, and for the editor and its API with the LAN key (its link there sets it as a cookie). Turning LAN on makes
-// a new key, which signs the other devices out.
-const newKey = () => randomBytes(18).toString('base64url')
-let { lan = false, key = '' } = (await store.get('settings', 'network')) ?? {}
-if (lan && !key) await store.save('settings', { id: 'network', lan, key: (key = newKey()) })
-const OPEN = /^\/(w|m|widgets|vendor|hooks|file|streamdeck)(\/|$)/ // widget pages and what they load, API calls
-const local = (req) => /^(::1|(::ffff:)?127\.0\.0\.1)$/.test(req.socket.remoteAddress)
-const same = (a = '', b = '') => {
-  const [x, y] = [Buffer.from(a), Buffer.from(b)]
-  return x.length === y.length && timingSafeEqual(x, y)
-}
-const cookieKey = (req) => /(?:^|;\s*)ovrly-key=([^;]*)/.exec(req.get('cookie') ?? '')?.[1]
-// Browsers send requests on other websites' behalf, so they must name Ovrly by an address or this computer's name (a
-// website could point its own domain at this computer: DNS rebinding) and come from Ovrly's own pages, but for a link
-// opening one of them (CSRF). Sec-Fetch-Site says where a request comes from; older browsers only send Origin.
-const name = os.hostname().toLowerCase()
-const knownHost = (req) => net.isIP((req.hostname ?? '').replace(/^\[(.*)\]$/, '$1'))
-  || ['localhost', name, `${name}.local`].includes(req.hostname?.toLowerCase())
-function foreign(req) {
-  const site = req.get('sec-fetch-site')
-  if (site) return site !== 'same-origin' && site !== 'none'
-  return !!req.get('origin') && req.get('origin') !== `http://${req.get('host')}`
-}
-const link = (req) => req.method === 'GET' && req.get('sec-fetch-mode') === 'navigate' && !/^\/(api|hooks)(\/|$)/.test(req.path)
-app.use((req, res, next) => {
-  if (!knownHost(req) || (foreign(req) && !link(req))) return res.sendStatus(403)
-  if (local(req) || (lan && OPEN.test(req.path))) return next()
-  if (!lan) return res.sendStatus(403)
-  if (same(String(req.query.key ?? ''), key)) {
-    res.cookie('ovrly-key', key, { httpOnly: true, sameSite: 'strict', maxAge: 365 * 864e5 })
-    const url = new URL(req.originalUrl, 'http://ovrly')
-    url.searchParams.delete('key')
-    return res.redirect(url.pathname + url.search)
-  }
-  if (same(cookieKey(req), key)) return next()
-  const error = 'Open Ovrly from the editor link in Settings → Network, on the computer running it'
-  req.path.startsWith('/api/') ? res.status(401).json({ error }) : res.status(401).type('text').send(error)
-})
+app.use(access)
 app.use(express.json())
 
 // Node types for the UI library (metadata only, no run function).
@@ -213,17 +173,11 @@ app.delete('/api/twitch/login', async (req, res) => {
   res.json(twitchStatus())
 })
 
-// OBS integration: its settings and status (saving reconnects), and the scene and source lists for node settings.
-const network = () => ({
-  lan, port: PORT, key: lan ? key : '',
-  addresses: Object.values(os.networkInterfaces()).flat().filter((i) => i.family === 'IPv4' && !i.internal).map((i) => i.address),
-})
-app.get('/api/network', (req, res) => res.json(network()))
+// Settings → Network (server/access.js): LAN on or off, its key and this computer's addresses.
+app.get('/api/network', (req, res) => res.json({ ...network(), port: PORT }))
 app.put('/api/network', async (req, res) => {
-  if (req.body.lan && !lan) key = newKey()
-  lan = !!req.body.lan
-  await store.save('settings', { id: 'network', lan, key })
-  res.json(network())
+  await setLan(req.body.lan)
+  res.json({ ...network(), port: PORT })
 })
 // Workflow variables (Settings → Variables): the list, and set or delete one by name.
 app.get('/api/vars', (req, res) => res.json(vars))
@@ -238,6 +192,7 @@ app.delete('/api/vars/:name', async (req, res) => {
   await saveVars()
   res.json(vars)
 })
+// OBS integration: its settings and status (saving reconnects), and the scene and source lists for node settings.
 app.get('/api/obs', (req, res) => res.json(obs.status))
 app.put('/api/obs', async (req, res) => {
   const settings = { url: String(req.body.url ?? '').trim(), password: String(req.body.password ?? '') }
@@ -298,39 +253,9 @@ app.get('/api/myinstants/search', (req, res) =>
 // Font fields' suggestions: every Google Fonts family.
 app.get('/api/fonts', (req, res) => fonts.list().then((list) => res.json(list), (err) => res.status(503).json({ error: err.message })))
 
-// Images and sounds for the Image and Sound widgets are files on disk, used where they are: "Browse files" opens the OS
-// file dialog here (a browser page can't see file paths) and /file serves a path set on a node. Only image, sound and video types,
-// so this can't leak other files; no SVG: opened directly, it could run scripts on Ovrly's origin.
-const MEDIA_EXT = /\.(png|jpe?g|gif|webp|avif|apng|mp3|wav|ogg|m4a|aac|flac|mp4|webm|mov|m4v|ogv)$/i
-// "Browse files" per kind: the dialog's prompt, the macOS file types and the extensions (Windows) it allows.
-const BROWSE = {
-  image: ['Pick an image or GIF', ['public.png', 'public.jpeg', 'com.compuserve.gif', 'org.webmproject.webp', 'public.avif'], ['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'apng']],
-  sound: ['Pick a sound', ['public.mp3', 'com.microsoft.waveform-audio', 'org.xiph.ogg-audio', 'public.mpeg-4-audio', 'public.aac-audio', 'org.xiph.flac'], ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac']],
-  video: ['Pick a video', ['public.mpeg-4', 'com.apple.quicktime-movie', 'org.webmproject.webm'], ['mp4', 'webm', 'mov', 'm4v', 'ogv']],
-}
-// The OS's own file dialog, as a command that prints the picked path (nothing if cancelled).
-const dialog = (prompt, types, exts) => process.platform === 'darwin'
-  ? ['osascript', ['-e', `POSIX path of (choose file with prompt "${prompt}" of type {${types.map((t) => `"${t}"`).join(', ')}})`]]
-  : ['powershell', ['-NoProfile', '-STA', '-Command', `
-    [Console]::OutputEncoding = [Text.Encoding]::UTF8
-    Add-Type -AssemblyName System.Windows.Forms
-    $d = New-Object Windows.Forms.OpenFileDialog
-    $d.Title = '${prompt}'
-    $d.Filter = '${prompt}|${exts.map((e) => `*.${e}`).join(';')}'
-    $owner = New-Object Windows.Forms.Form -Property @{ TopMost = $true } # keeps the dialog in front of the browser
-    if ($d.ShowDialog($owner) -eq 'OK') { $d.FileName }`]]
-app.post('/api/browse-:kind', (req, res) => {
-  const [prompt, types, exts] = BROWSE[req.params.kind] ?? []
-  if (!prompt) return res.sendStatus(404)
-  if (process.platform !== 'darwin' && process.platform !== 'win32') return res.status(501).json({ error: `Browse files only works on macOS and Windows for now: paste the file path or a URL` })
-  const [cmd, args] = dialog(prompt, types, exts)
-  execFile(cmd, args, (err, out) => res.json(err || !out.trim() ? {} : { path: out.trim() })) // an error is a cancel on macOS
-})
-app.get('/file', (req, res) => {
-  const file = String(req.query.path ?? '')
-  if (!path.isAbsolute(file) || !MEDIA_EXT.test(file)) return res.status(400).end()
-  res.sendFile(file, { dotfiles: 'allow' }, (err) => err && !res.headersSent && res.status(404).end())
-})
+// Image, sound and video files on disk (server/files.js): the OS file dialog, and serving a path set on a node.
+app.post('/api/browse-:kind', files.browse)
+app.get('/file', files.serve)
 
 // The open windows, for Key Press's "Only when focused" picker, with a hint when macOS gave app names alone.
 app.get('/api/windows', (req, res) => windows.list().then((list) => {
@@ -380,7 +305,7 @@ app.put('/api/:kind/:id', async (req, res) => {
   const old = req.params.kind === 'workflows' && await store.get('workflows', req.params.id)
   const item = await store.save(req.params.kind, { ...old, ...req.body, id: req.params.id })
   if (old && req.body.enabled === false) cancel(item.id) // switched off: stop what is running
-  if (old) pushMerges(item) // widgets moved on a Merge Widgets canvas
+  if (old) merge.push(item) // widgets moved on a Merge Widgets canvas
   if (old) await dropUnusedWidgets(widgetRefs(old))
   res.json(item)
 })
@@ -417,49 +342,12 @@ app.get('/w/:id{/:events}', async (req, res) => {
   res.sendFile(`widgets/${widget.type}/index.html`, { root: '.' })
 })
 
-// Merge Widgets pages: /m/<workflow>/<node> shows the widget nodes linked into that node, each in an iframe placed
-// on its canvas; /m/<workflow>/<node>/events streams the placement (null while there is no such node), again whenever
-// the workflow is saved. It also carries the merged widgets' own snapshots, as SSE events named by widget id, so the
-// page holds one connection instead of one per widget (browsers allow only 6 per server).
-// A widget not placed yet gets the same default box as in the editor (Merge.jsx): half the canvas, cascading.
-function mergeView(workflow, id) {
-  const node = workflow?.nodes.find((n) => n.id === id && n.data.type === 'merge')
-  if (!node) return null
-  const { layout = {}, order = [] } = node.data.config
-  const ids = [...new Set(workflow.edges.filter((e) => e.target === id).map((e) => workflow.nodes.find((n) => n.id === e.source))
-    .filter((n) => n?.data.type === 'widget').map((n) => n.data.config.widget))]
-  // Items from the bottom layer up (the page stacks them in that order): see the node's order setting.
-  const top = [...ids.filter((w) => !order.includes(w)).reverse(), ...order.filter((w) => ids.includes(w))]
-  const items = ids.map((w, i) => ({ id: w, ...(layout[w] ?? { x: 0.03 * i, y: 0.03 * i, w: 0.5, h: 0.5 }) }))
-  return { items: items.sort((a, b) => top.indexOf(b.id) - top.indexOf(a.id)) }
-}
-const mergeClients = {} // workflow id -> Set of { node, res, widgets: widget id -> detach }
-async function pushMerge(workflow, client) {
-  const view = mergeView(workflow, client.node)
-  client.res.write(`data: ${JSON.stringify(view)}\n\n`)
-  const ids = view?.items.map((i) => i.id) ?? []
-  for (const [id, detach] of client.widgets) if (!ids.includes(id)) detach(), client.widgets.delete(id)
-  for (const id of ids.filter((id) => !client.widgets.has(id))) {
-    const widget = await widgets.get(id).catch(() => null)
-    if (widget) client.widgets.set(id, await widgets.attach(id, { write: (msg) => client.res.write(`event: ${id}\n${msg}`) }))
-  }
-}
-function pushMerges(workflow) {
-  for (const client of mergeClients[workflow.id] ?? []) pushMerge(workflow, client).catch((err) => console.error('[merge]', err))
-}
+// Merge Widgets pages (server/merge.js): /m/<workflow>/<node> shows the widget nodes linked into that node, on its
+// canvas; /m/<workflow>/<node>/events streams their placement and snapshots.
 app.get('/m/:workflow/:node{/:events}', async (req, res) => {
   const workflow = await store.get('workflows', req.params.workflow).catch(() => null)
-  if (req.params.events === 'events') {
-    res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }).flushHeaders()
-    const client = { node: req.params.node, res, widgets: new Map() }
-    const set = (mergeClients[req.params.workflow] ??= new Set()).add(client)
-    req.on('close', () => {
-      set.delete(client)
-      for (const detach of client.widgets.values()) detach()
-    })
-    return pushMerge(workflow, client)
-  }
-  if (!mergeView(workflow, req.params.node)) return blank(res)
+  if (req.params.events === 'events') return merge.stream(workflow, req, res)
+  if (!merge.view(workflow, req.params.node)) return blank(res)
   res.sendFile('server/merge.html', { root: '.' })
 })
 
