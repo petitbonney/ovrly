@@ -145,10 +145,10 @@ async function step(workflow, node, data, run, { def, config, id, status, from }
   }
   const began = Date.now()
   const log = (extra) => run.record.nodes.push({ node: node.id, type: def.type, input: data, ...extra, ms: Date.now() - began })
-  // A failure stops the firing there.
+  // A failure stops the firing there. fire is passed in (Execute Workflow): nodes can't import the engine that loads them.
   let out
   try {
-    out = await def.run({ config, data, id, from, signal: run.signal, depth: run.depth, origins: run.origins, event: run.event })
+    out = await def.run({ config, data, id, from, signal: run.signal, depth: run.depth, origins: run.origins, event: run.event, fire })
   } catch (err) {
     if (run.signal.aborted) return end('stopped') // e.g. an HTTP request cut short by cancel()
     log({ error: err.message })
