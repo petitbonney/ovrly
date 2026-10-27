@@ -384,8 +384,12 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   // Debounced autosave. When Ovrly can't be reached, it says so and tries again every few seconds until it works.
   const [retry, setRetry] = useState(0)
   const unsaved = useRef(false)
+  // The save waiting for its debounce: sent at once if the editor closes first (another workflow picked, the page left).
+  const pending = useRef(null)
   useEffect(() => {
+    pending.current = { name, ...graph }
     const timer = setTimeout(() => {
+      pending.current = null
       fetch(`/api/workflows/${workflow.id}`, json('PUT', { name, ...graph })).then((res) => {
         if (!res.ok) throw new Error(res.statusText)
         if (unsaved.current) notify('Saved.')
@@ -399,6 +403,20 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     }, 500)
     return () => clearTimeout(timer)
   }, [name, graphKey, retry])
+  useEffect(() => {
+    // keepalive lets a save outlive the page, for a body up to 64 KB: only when the page goes.
+    const flush = (keepalive) => {
+      if (!pending.current) return
+      fetch(`/api/workflows/${workflow.id}`, { ...json('PUT', pending.current), keepalive }).then(onRename, () => {})
+      pending.current = null
+    }
+    const onHide = () => flush(true)
+    addEventListener('pagehide', onHide)
+    return () => {
+      removeEventListener('pagehide', onHide)
+      flush(false)
+    }
+  }, [])
 
   useEffect(() => {
     for (const w of widgets) knownWidgets[w.id] = w
@@ -684,7 +702,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
           </Text>
           <Group justify="end" gap="xs">
             <Button variant="default" onClick={() => setConfirmDelete(false)} data-autofocus>Cancel</Button>
-            <Button color="red" onClick={onDelete}>Delete</Button>
+            {/* No save on the way out: it would bring the workflow back. */}
+            <Button color="red" onClick={() => { pending.current = null; onDelete() }}>Delete</Button>
           </Group>
         </Modal>
         {toast && (

@@ -94,6 +94,24 @@ export default function WidgetPane({ widget, type, context, off, onChange, onCop
     }, 500)
     return () => clearTimeout(timer)
   }, [state, retry])
+  // What the debounce hasn't saved yet is sent at once when the pane closes (another node picked, Escape) or the page
+  // goes; keepalive lets it outlive the page, for a body up to 64 KB: only then.
+  const latest = useRef(state)
+  latest.current = state
+  useEffect(() => {
+    const flush = (keepalive) => {
+      const text = JSON.stringify(latest.current)
+      if (text === known.current) return
+      known.current = text
+      fetch(`/api/widgets/${widget.id}`, { ...json('PUT', { type: widget.type, state: latest.current }), keepalive }).then(onChange, () => {})
+    }
+    const onHide = () => flush(true)
+    addEventListener('pagehide', onHide)
+    return () => {
+      removeEventListener('pagehide', onHide)
+      flush(false)
+    }
+  }, [])
   // Saves at once: an action's inputs, before it runs with them.
   const save = (next) => {
     setState(next)
