@@ -81,7 +81,8 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
       seen.add(e.source)
       queue.push(e.source)
       const node = nodes.find((n) => n.id === e.source)
-      const def = defs.find((d) => d.type === node?.data.type)
+      if (!node) continue // a link from a node that isn't there (a workflow file edited by hand) adds nothing
+      const def = defs.find((d) => d.type === node.data.type)
       const widget = node.data.config.widget && findWidget(widgets, node.data.config.widget)
       const adds = types.find((t) => t.type === widget?.type)?.adds ?? []
       for (const k of [...(def?.adds ?? []), ...adds]) keys.add(k)
