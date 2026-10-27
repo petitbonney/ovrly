@@ -81,7 +81,8 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
       seen.add(e.source)
       queue.push(e.source)
       const node = nodes.find((n) => n.id === e.source)
-      const def = defs.find((d) => d.type === node?.data.type)
+      if (!node) continue // a link from a node that isn't there (a workflow file edited by hand) adds nothing
+      const def = defs.find((d) => d.type === node.data.type)
       const widget = node.data.config.widget && findWidget(widgets, node.data.config.widget)
       const adds = types.find((t) => t.type === widget?.type)?.adds ?? []
       for (const k of [...(def?.adds ?? []), ...adds]) keys.add(k)
@@ -254,9 +255,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
         return { ...l, edges }
       }), 1500))
     }
-    const source = new EventSource('/api/activity')
-    source.onmessage = (e) => {
-      const a = JSON.parse(e.data)
+    // The shared activity stream (App.jsx).
+    const onActivity = ({ detail: a }) => {
       if (a.widget) return onWidgetChange() // an action changed a widget's state: its settings show it
       if (a.workflow !== workflow.id) return
       if ('running' in a) return setFirings(a.running)
@@ -267,11 +267,12 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
         if (a.state === 'running') delete errors[a.node]
         return { ...l, nodes: { ...l.nodes, [a.node]: a.state }, errors }
       })
-      if (a.state === 'error') notify(`${nodeName(nodes.find((n) => n.id === a.node) ?? { data: { label: 'A node' } })} failed: ${a.error}`, 'red')
+      if (a.state === 'error') notify(`${nameRef.current(a.node)} failed: ${a.error}`, 'red')
       if (!['running', 'waiting', 'error'].includes(a.state)) fade(a.node, a.state, 1500)
     }
+    window.addEventListener('ovrly-activity', onActivity)
     return () => {
-      source.close()
+      window.removeEventListener('ovrly-activity', onActivity)
       timers.forEach(clearTimeout)
     }
   }, [])
@@ -384,8 +385,12 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   // Debounced autosave. When Ovrly can't be reached, it says so and tries again every few seconds until it works.
   const [retry, setRetry] = useState(0)
   const unsaved = useRef(false)
+  // The save waiting for its debounce: sent at once if the editor closes first (another workflow picked, the page left).
+  const pending = useRef(null)
   useEffect(() => {
+    pending.current = { name, ...graph }
     const timer = setTimeout(() => {
+      pending.current = null
       fetch(`/api/workflows/${workflow.id}`, json('PUT', { name, ...graph })).then((res) => {
         if (!res.ok) throw new Error(res.statusText)
         if (unsaved.current) notify('Saved.')
@@ -399,6 +404,20 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     }, 500)
     return () => clearTimeout(timer)
   }, [name, graphKey, retry])
+  useEffect(() => {
+    // keepalive lets a save outlive the page, for a body up to 64 KB: only when the page goes.
+    const flush = (keepalive) => {
+      if (!pending.current) return
+      fetch(`/api/workflows/${workflow.id}`, { ...json('PUT', pending.current), keepalive }).then(onRename, () => {})
+      pending.current = null
+    }
+    const onHide = () => flush(true)
+    addEventListener('pagehide', onHide)
+    return () => {
+      removeEventListener('pagehide', onHide)
+      flush(false)
+    }
+  }, [])
 
   useEffect(() => {
     for (const w of widgets) knownWidgets[w.id] = w
@@ -531,6 +550,12 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   }, [])
 
   const nodeName = (n) => (n.data.type === 'widget' ? findWidget(widgets, n.data.config.widget)?.state.name : defOf(n)?.label) ?? n.data.label
+  // A node's name from the graph as it is now, for the activity stream (set up once, on opening).
+  const nameRef = useRef()
+  nameRef.current = (id) => {
+    const n = nodes.find((n) => n.id === id)
+    return n ? nodeName(n) : 'A node'
+  }
   const copy = (picked) => {
     const ids = picked.map((n) => n.id)
     clipboard = { nodes: picked, edges: edges.filter((ed) => ids.includes(ed.source) && ids.includes(ed.target)) }
@@ -684,7 +709,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
           </Text>
           <Group justify="end" gap="xs">
             <Button variant="default" onClick={() => setConfirmDelete(false)} data-autofocus>Cancel</Button>
-            <Button color="red" onClick={onDelete}>Delete</Button>
+            {/* No save on the way out: it would bring the workflow back. */}
+            <Button color="red" onClick={() => { pending.current = null; onDelete() }}>Delete</Button>
           </Group>
         </Modal>
         {toast && (
@@ -774,8 +800,13 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
 
 export default function Workflow({ id, onChange, ...props }) {
   const [workflow, setWorkflow] = useState(null)
+  // Why it can't be opened, e.g. deleted in another tab; the list is fetched again, so a deleted one leaves it.
+  const [failed, setFailed] = useState('')
   useEffect(() => {
-    get(`/api/workflows/${id}`).then(setWorkflow)
+    get(`/api/workflows/${id}`).then(setWorkflow, (err) => {
+      setFailed(err.message)
+      onChange(id)
+    })
   }, [id])
 
   const onDelete = async () => {
@@ -783,6 +814,13 @@ export default function Workflow({ id, onChange, ...props }) {
     onChange(null)
   }
 
+  if (failed) {
+    return (
+      <AppShell.Main className="editor">
+        <Center flex={1}><Text c="dimmed">Can't open this workflow ({failed}).</Text></Center>
+      </AppShell.Main>
+    )
+  }
   if (!workflow) return null
   return (
     <ReactFlowProvider>

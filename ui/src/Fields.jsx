@@ -94,11 +94,16 @@ function ObsInput({ list, scene, ...props }) {
   const skip = list === 'sources' && (!scene || scene.includes('{{'))
   useEffect(() => {
     if (skip) return setNames([])
+    let stale = false // the scene changed since (typed): an answer for the old one is dropped
     fetch(path).then(async (r) => {
       const body = await r.json()
+      if (stale) return
       setNames(r.ok ? body : [])
       setError(r.ok ? '' : 'OBS is not connected: names can still be typed')
-    }, () => setError('OBS is not reachable'))
+    }, () => stale || setError('OBS is not reachable'))
+    return () => {
+      stale = true
+    }
   }, [path, skip])
   return <VarInput {...props} data={names} description={error || props.description} placeholder={names.length ? 'Pick or type a name' : undefined} />
 }

@@ -344,11 +344,15 @@ export const requirements = [
 export const unmet = (statuses) => requirements.filter((r) => statuses[r.path] && !r.ready(statuses[r.path])).map((r) => r.key)
 
 // Every integration's status and the network's, by API path, polled so they follow connects and disconnects.
-// set(path, status or (old) => status) applies a pane's own update at once.
+// set(path, status or (old) => status) applies a pane's own update at once. A status as it was changes nothing, so
+// polls don't re-render the whole app (graph included) every few seconds.
 const PATHS = [...integrations.map((i) => i.path), '/api/network']
 export function useStatuses() {
   const [statuses, setStatuses] = useState({})
-  const set = (path, s) => setStatuses((all) => ({ ...all, [path]: typeof s === 'function' ? s(all[path]) : s }))
+  const set = (path, s) => setStatuses((all) => {
+    const next = typeof s === 'function' ? s(all[path]) : s
+    return JSON.stringify(next) === JSON.stringify(all[path]) ? all : { ...all, [path]: next }
+  })
   useEffect(() => {
     const load = () => PATHS.forEach((path) => get(path).then((s) => set(path, s), () => {}))
     load()

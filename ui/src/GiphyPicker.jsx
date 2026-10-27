@@ -1,5 +1,5 @@
 // Giphy picker dialog: trending GIFs, or the results of a search, loaded through the server (the API key stays there).
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, Image, Modal, SimpleGrid, Text, TextInput, UnstyledButton } from '@mantine/core'
 
 export default function GiphyPicker({ opened, onClose, onPick, media = 'gif', rating }) {
@@ -7,10 +7,13 @@ export default function GiphyPicker({ opened, onClose, onPick, media = 'gif', ra
   const [gifs, setGifs] = useState([])
   const [more, setMore] = useState(false)
   const [error, setError] = useState('')
+  const latest = useRef(0) // the last load asked: an earlier one answering after it is dropped
 
   const load = async (query, offset) => {
+    const call = ++latest.current
     const res = await fetch(`/api/giphy/search?q=${encodeURIComponent(query)}&offset=${offset}&kind=${media}&rating=${rating ?? 'pg'}`)
     const body = await res.json()
+    if (call !== latest.current) return
     if (!res.ok) return setError(body.error)
     setError('')
     setGifs((old) => (offset ? [...old, ...body] : body))

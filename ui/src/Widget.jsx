@@ -94,6 +94,24 @@ export default function WidgetPane({ widget, type, context, off, onChange, onCop
     }, 500)
     return () => clearTimeout(timer)
   }, [state, retry])
+  // What the debounce hasn't saved yet is sent at once when the pane closes (another node picked, Escape) or the page
+  // goes; keepalive lets it outlive the page, for a body up to 64 KB: only then.
+  const latest = useRef(state)
+  latest.current = state
+  useEffect(() => {
+    const flush = (keepalive) => {
+      const text = JSON.stringify(latest.current)
+      if (text === known.current) return
+      known.current = text
+      fetch(`/api/widgets/${widget.id}`, { ...json('PUT', { type: widget.type, state: latest.current }), keepalive }).then(onChange, () => {})
+    }
+    const onHide = () => flush(true)
+    addEventListener('pagehide', onHide)
+    return () => {
+      removeEventListener('pagehide', onHide)
+      flush(false)
+    }
+  }, [])
   // Saves at once: an action's inputs, before it runs with them.
   const save = (next) => {
     setState(next)
@@ -172,8 +190,11 @@ function WidgetPreview({ widget, type, state, save }) {
   const [open, setOpen] = useState(null)
   const [draft, setDraft] = useState({})
   const [error, setError] = useState('')
+  // An action run from the buttons (or the menu, with no inputs) that failed says why under them, until one works.
+  const [failed, setFailed] = useState('')
+  const press = (action, input) => act(action, input).then(() => setFailed(''), (err) => setFailed(`${humanize(action)} failed: ${err.message}`))
   const pick = (name) => {
-    if (!Object.keys(type.actions[name].inputs ?? {}).length) return act(name).catch(() => {})
+    if (!Object.keys(type.actions[name].inputs ?? {}).length) return press(name)
     setDraft(state.input?.[name] ?? {})
     setError('')
     setOpen(name)
@@ -188,7 +209,7 @@ function WidgetPreview({ widget, type, state, save }) {
       setError(err.message)
     }
   }
-  const startButton = <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => act(type.onStart, sent(type.actions[type.onStart]?.inputs, start)).catch(() => {})}>{humanize(type.onStart)}</Button>
+  const startButton = <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => press(type.onStart, sent(type.actions[type.onStart]?.inputs, start))}>{humanize(type.onStart)}</Button>
   return (
     <>
       <Group gap={6} mb="xs" wrap="nowrap">
@@ -224,9 +245,10 @@ function WidgetPreview({ widget, type, state, save }) {
             </Menu>
           </Button.Group>
         )}
-        <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} onClick={() => act(type.onStop).catch(() => {})}>Stop</Button>
-        <Button size="xs" variant="default" leftSection={<IconX size={14} />} onClick={() => act(type.onCancel).catch(() => {})}>Cancel</Button>
+        <Button size="xs" variant="default" leftSection={<IconPlayerStop size={14} />} onClick={() => press(type.onStop)}>Stop</Button>
+        <Button size="xs" variant="default" leftSection={<IconX size={14} />} onClick={() => press(type.onCancel)}>Cancel</Button>
       </Group>
+      {failed && <Text size="xs" c="red" mt="xs">{failed}</Text>}
       <Modal opened={!!open} onClose={() => setOpen(null)} title={open && humanize(open)} size="sm">
         {open && (
           <Stack gap="sm">

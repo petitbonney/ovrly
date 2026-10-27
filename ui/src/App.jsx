@@ -1,7 +1,7 @@
 // App shell: left workflow list, integration statuses and settings button, center workflow editor. While editing a
 // workflow: right library (node and widget types to drag onto the graph) and bottom settings of the selected node;
 // both toggle and resize.
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Component, Fragment, useEffect, useRef, useState } from 'react'
 import {
   ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, Notification, ScrollArea, SimpleGrid, Stack, Switch, Text,
   TextInput, Tooltip, UnstyledButton, useAppShellResize,
@@ -21,12 +21,9 @@ function List({ items, selected, onSelect, onAdd, onToggle }) {
   // Workflow id -> firings in progress, from the engine's live activity: a loader shows next to running workflows.
   const [running, setRunning] = useState({})
   useEffect(() => {
-    const source = new EventSource('/api/activity')
-    source.onmessage = (e) => {
-      const a = JSON.parse(e.data)
-      if ('running' in a) setRunning((r) => ({ ...r, [a.workflow]: a.running }))
-    }
-    return () => source.close()
+    const onActivity = ({ detail: a }) => 'running' in a && setRunning((r) => ({ ...r, [a.workflow]: a.running }))
+    window.addEventListener('ovrly-activity', onActivity)
+    return () => window.removeEventListener('ovrly-activity', onActivity)
   }, [])
 
   return (
@@ -223,6 +220,28 @@ function NewWorkflow({ opened, onDone, onClose }) {
   )
 }
 
+// Keeps a crash in the workflow editor (e.g. a workflow file edited by hand into something it can't draw) to the
+// editor: it says what broke while the rest of the app keeps working. Keyed by workflow, so picking another starts over.
+class EditorBoundary extends Component {
+  state = { error: null }
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <AppShell.Main className="editor">
+        <Center flex={1}>
+          <Stack align="center" gap="sm">
+            <Text c="dimmed">This workflow can't be shown: {this.state.error.message}</Text>
+            <Button variant="default" size="xs" onClick={() => this.setState({ error: null })}>Try again</Button>
+          </Stack>
+        </Center>
+      </AppShell.Main>
+    )
+  }
+}
+
 // theme, onTheme: the editor theme's name and its setter (main.jsx).
 export default function App({ theme, onTheme }) {
   const [selected, setSelected] = useState(null)
@@ -234,13 +253,24 @@ export default function App({ theme, onTheme }) {
   const [version, setVersion] = useState(0)
   const refresh = () => setVersion((v) => v + 1)
 
+  // The engine's live activity, one stream for the whole UI (browsers allow 6 connections per server, shared by every
+  // tab): each message goes out as an 'ovrly-activity' window event, for the workflow list, the editor and Log results.
+  useEffect(() => {
+    const source = new EventSource('/api/activity')
+    source.onmessage = (e) => window.dispatchEvent(new CustomEvent('ovrly-activity', { detail: JSON.parse(e.data) }))
+    return () => source.close()
+  }, [])
   useEffect(() => {
     get('/api/nodes').then((list) => setDefs(list.map(withIcon)))
     get('/api/widget-types').then((list) => setTypes(list.map(withIcon)))
   }, [])
   useEffect(() => {
-    get('/api/widgets').then(setWidgets)
-    get('/api/workflows').then(setWorkflows)
+    let stale = false // a newer refetch started: these answers may be older than its, so they're dropped
+    get('/api/widgets').then((list) => stale || setWidgets(list))
+    get('/api/workflows').then((list) => stale || setWorkflows(list))
+    return () => {
+      stale = true
+    }
   }, [version])
 
   // Integration statuses, and the requirements (`needs`) they leave unmet, for the library, the graph and settings.
@@ -358,20 +388,21 @@ export default function App({ theme, onTheme }) {
         </AppShell.Section>
       </AppShell.Navbar>
       {editing ? (
-        <Workflow
-          key={selected.id}
-          id={selected.id}
-          defs={defs}
-          widgets={widgets}
-          types={types}
-          off={off}
-          onChange={onItemChange}
-          onWidgetChange={refresh}
-          panels={panels}
-          onToggle={togglePanel}
-          openNode={openNodes[selected.id]}
-          onNodeSelect={(nodeId) => setOpenNodes((o) => ({ ...o, [selected.id]: nodeId }))}
-        />
+        <EditorBoundary key={selected.id}>
+          <Workflow
+            id={selected.id}
+            defs={defs}
+            widgets={widgets}
+            types={types}
+            off={off}
+            onChange={onItemChange}
+            onWidgetChange={refresh}
+            panels={panels}
+            onToggle={togglePanel}
+            openNode={openNodes[selected.id]}
+            onNodeSelect={(nodeId) => setOpenNodes((o) => ({ ...o, [selected.id]: nodeId }))}
+          />
+        </EditorBoundary>
       ) : (
         <AppShell.Main className="editor">
           <Center flex={1}>
