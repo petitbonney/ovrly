@@ -255,19 +255,19 @@ export async function play(id, action, input, data, signal) {
 
 // Bus events a widget type follows: its on: { event: (snap, data) => ({ state?, runtime? }) } handlers run for each of
 // its widgets, e.g. a Twitch poll's progress updating the Voting widget that started it. Returning nothing skips it.
+// Only widgets loaded since the server started get them: the others' runtime is the type's default, so none of them
+// has started anything to follow.
 for (const def of Object.values(types)) {
   for (const [event, handle] of Object.entries(def.on ?? {})) {
     bus.on(event, async (data) => {
       // Errors are logged: a rejection here would crash the server.
       try {
-        for (const { id } of (await store.list('widgets')).filter((w) => w.type === def.type)) {
-          const widget = await get(id)
-          if (!widget) continue
+        for (const widget of Object.values(cache).filter((w) => w.type === def.type)) {
           const snap = snapshot(widget)
           const next = merge(snap, handle(snap, data))
           if (!next) continue
           const saved = commit(widget, next)
-          if (def.over?.(next)) settleAll(id, true)
+          if (def.over?.(next)) settleAll(widget.id, true)
           await saved
           push(widget)
         }
