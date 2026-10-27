@@ -267,7 +267,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
         if (a.state === 'running') delete errors[a.node]
         return { ...l, nodes: { ...l.nodes, [a.node]: a.state }, errors }
       })
-      if (a.state === 'error') notify(`${nodeName(nodes.find((n) => n.id === a.node) ?? { data: { label: 'A node' } })} failed: ${a.error}`, 'red')
+      if (a.state === 'error') notify(`${nameRef.current(a.node)} failed: ${a.error}`, 'red')
       if (!['running', 'waiting', 'error'].includes(a.state)) fade(a.node, a.state, 1500)
     }
     return () => {
@@ -549,6 +549,12 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   }, [])
 
   const nodeName = (n) => (n.data.type === 'widget' ? findWidget(widgets, n.data.config.widget)?.state.name : defOf(n)?.label) ?? n.data.label
+  // A node's name from the graph as it is now, for the activity stream (set up once, on opening).
+  const nameRef = useRef()
+  nameRef.current = (id) => {
+    const n = nodes.find((n) => n.id === id)
+    return n ? nodeName(n) : 'A node'
+  }
   const copy = (picked) => {
     const ids = picked.map((n) => n.id)
     clipboard = { nodes: picked, edges: edges.filter((ed) => ids.includes(ed.source) && ids.includes(ed.target)) }
