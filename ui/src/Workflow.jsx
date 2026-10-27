@@ -254,9 +254,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
         return { ...l, edges }
       }), 1500))
     }
-    const source = new EventSource('/api/activity')
-    source.onmessage = (e) => {
-      const a = JSON.parse(e.data)
+    // The shared activity stream (App.jsx).
+    const onActivity = ({ detail: a }) => {
       if (a.widget) return onWidgetChange() // an action changed a widget's state: its settings show it
       if (a.workflow !== workflow.id) return
       if ('running' in a) return setFirings(a.running)
@@ -270,8 +269,9 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
       if (a.state === 'error') notify(`${nameRef.current(a.node)} failed: ${a.error}`, 'red')
       if (!['running', 'waiting', 'error'].includes(a.state)) fade(a.node, a.state, 1500)
     }
+    window.addEventListener('ovrly-activity', onActivity)
     return () => {
-      source.close()
+      window.removeEventListener('ovrly-activity', onActivity)
       timers.forEach(clearTimeout)
     }
   }, [])

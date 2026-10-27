@@ -15,12 +15,10 @@ export default function LogResult({ workflow, node }) {
       }
     }, () => {})
     load()
-    const source = new EventSource('/api/activity')
-    source.onmessage = (e) => {
-      const a = JSON.parse(e.data)
-      if (a.workflow === workflow && a.node === node && a.state === 'done') load()
-    }
-    return () => source.close()
+    // The shared activity stream (App.jsx).
+    const onActivity = ({ detail: a }) => a.workflow === workflow && a.node === node && a.state === 'done' && load()
+    window.addEventListener('ovrly-activity', onActivity)
+    return () => window.removeEventListener('ovrly-activity', onActivity)
   }, [workflow, node])
   return (
     <Stack gap={6}>

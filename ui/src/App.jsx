@@ -21,12 +21,9 @@ function List({ items, selected, onSelect, onAdd, onToggle }) {
   // Workflow id -> firings in progress, from the engine's live activity: a loader shows next to running workflows.
   const [running, setRunning] = useState({})
   useEffect(() => {
-    const source = new EventSource('/api/activity')
-    source.onmessage = (e) => {
-      const a = JSON.parse(e.data)
-      if ('running' in a) setRunning((r) => ({ ...r, [a.workflow]: a.running }))
-    }
-    return () => source.close()
+    const onActivity = ({ detail: a }) => 'running' in a && setRunning((r) => ({ ...r, [a.workflow]: a.running }))
+    window.addEventListener('ovrly-activity', onActivity)
+    return () => window.removeEventListener('ovrly-activity', onActivity)
   }, [])
 
   return (
@@ -234,6 +231,13 @@ export default function App({ theme, onTheme }) {
   const [version, setVersion] = useState(0)
   const refresh = () => setVersion((v) => v + 1)
 
+  // The engine's live activity, one stream for the whole UI (browsers allow 6 connections per server, shared by every
+  // tab): each message goes out as an 'ovrly-activity' window event, for the workflow list, the editor and Log results.
+  useEffect(() => {
+    const source = new EventSource('/api/activity')
+    source.onmessage = (e) => window.dispatchEvent(new CustomEvent('ovrly-activity', { detail: JSON.parse(e.data) }))
+    return () => source.close()
+  }, [])
   useEffect(() => {
     get('/api/nodes').then((list) => setDefs(list.map(withIcon)))
     get('/api/widget-types').then((list) => setTypes(list.map(withIcon)))
