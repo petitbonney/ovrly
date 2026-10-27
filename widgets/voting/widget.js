@@ -6,8 +6,8 @@
 // Outputs { winner } (the poll's leader or the prediction's outcome), { votes } (how many voted) and { winners } (who
 // bet on the outcome; for a Twitch prediction, its top predictors).
 import { pick } from '../lib.js'
-import { helix } from '../../server/sources/twitch-auth.js'
-import { needStreamer } from '../../server/sources/twitch.js'
+import { helix } from '../../server/integrations/twitch-auth.js'
+import { needStreamer } from '../../server/integrations/twitch.js'
 
 const poll = (state) => state.kind !== 'prediction'
 const leader = (counts) => (Math.max(0, ...counts) ? counts.indexOf(Math.max(...counts)) : -1)

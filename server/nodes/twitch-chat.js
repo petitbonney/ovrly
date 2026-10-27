@@ -1,6 +1,6 @@
 // Action: sends a chat message as the streamer, or a reply to one (e.g. to {{messageId}} from a chat trigger).
-import { helix, status } from '../sources/twitch-auth.js'
-import { needStreamer, sentBy } from '../sources/twitch.js'
+import { helix, status } from '../integrations/twitch-auth.js'
+import { needStreamer, sentBy } from '../integrations/twitch.js'
 import { fill } from '../template.js'
 
 export default {

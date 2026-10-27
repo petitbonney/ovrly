@@ -1,7 +1,7 @@
 // Trigger: fires every so often while its workflow is on, the first time one interval after it was turned on. The
 // engine asks every second; the interval is kept in memory, so a restart starts it over. "While live" only counts
 // while the stream is on: going live starts it over.
-import { status as eventsub } from '../sources/twitch-eventsub.js'
+import { status as eventsub } from '../integrations/twitch-eventsub.js'
 
 const state = {} // node id -> { due: when it fires next, tick: when it was last asked }
 

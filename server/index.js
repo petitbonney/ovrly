@@ -4,14 +4,14 @@ import { access, network, setLan } from './access.js'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
 import { nodes, fire, cancel, running, activity, history, line, drop, arrived, unjoin } from './engine.js'
-import * as twitch from './sources/twitch.js'
-import * as twitchAuth from './sources/twitch-auth.js'
-import * as obs from './obs.js'
-import * as giphy from './giphy.js'
-import * as hue from './hue.js'
-import * as streamdeck from './streamdeck.js'
-import * as myinstants from './myinstants.js'
-import * as fonts from './fonts.js'
+import * as twitch from './integrations/twitch.js'
+import * as twitchAuth from './integrations/twitch-auth.js'
+import * as obs from './integrations/obs.js'
+import * as giphy from './integrations/giphy.js'
+import * as hue from './integrations/hue.js'
+import * as streamdeck from './integrations/streamdeck.js'
+import * as myinstants from './integrations/myinstants.js'
+import * as fonts from './integrations/fonts.js'
 import * as files from './files.js'
 import * as merge from './merge.js'
 import * as widgets from './widgets.js'
@@ -165,7 +165,7 @@ app.delete('/api/vars/:name', async (req, res) => {
 app.post('/api/browse-:kind', files.browse)
 app.get('/file', files.serve)
 
-// Each integration's routes (Settings panes, node pickers), in its own module.
+// Each integration's routes (Settings panes, node pickers), in its module (server/integrations/).
 app.use(twitch.routes, obs.routes, giphy.routes, hue.routes, streamdeck.routes, myinstants.routes, fonts.routes, windows.routes)
 
 // Widget types for the UI: metadata, and each action's description, inputs and only (no functions).

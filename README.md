@@ -167,19 +167,34 @@ Stream Deck ──► Event bus ──► Workflow engine ──► Actions
 
 ```
 server/
-  index.js        Express, WebSocket and startup
-  bus.js          event bus
+  index.js        Express routes and startup
+  access.js       who reaches Ovrly: this computer, LAN with its key, Host and cross-site checks
+  bus.js          event bus, and the recent events (GET /api/events)
   engine.js       runs workflows
+  workflows.js    saving and deleting workflows, with what follows (cancel, Merge Widgets, Stream Deck, unused widgets)
   widgets.js      widget state and SSE push
+  merge.js        Merge Widgets pages: placement and streams
   store.js        reads/writes ./data
+  vars.js         workflow variables
+  template.js     {{ }} expressions
+  files.js        the OS file dialog, and media files on disk
+  windows.js      open windows, for Key Press
+  icons.js        Tabler icons for node types and Stream Deck keys
   nodes/          one file per node type
-  sources/        twitch.js, …
-  streamdeck.js   Stream Deck plugin link: decks with key images, pairing, presses
-  hue.js          Philips Hue bridge: pairing, paced commands, routines playing
-ui/               React app (Vite)
+  integrations/   one module per outside service, with its routes:
+    twitch.js       chat (tmi.js), Guest and Streamer modes
+    twitch-auth.js  streamer sign-in, Helix API
+    twitch-eventsub.js  EventSub events
+    obs.js          obs-websocket connection
+    streamdeck.js   Stream Deck plugin link: decks with key images, pairing, presses
+    hue.js          Philips Hue bridge: pairing, paced commands, routines playing
+    giphy.js        Giphy search
+    myinstants.js   Myinstants search
+    fonts.js        Google Fonts families
+ui/               React app (Vite); starter workflows in ui/src/templates.js
 widgets/          one folder per widget type (index.html + widget.js)
-templates/        starter workflows
 streamdeck/       the Ovrly Stream Deck plugin (com.ovrly.deck.sdPlugin; pnpm streamdeck:pack, pnpm streamdeck:link to develop)
+test/             node --test (pnpm test)
 data/             your widgets and workflows (gitignored)
 ```
 

@@ -135,7 +135,7 @@ function RewardInput(props) {
 }
 
 // A Hue routine's steps, with a warning for each the limits change (limits: shortest step on a light and on a room or
-// zone, most steps; from server/hue.js, which applies them) and a note on restoring a room or zone.
+// zone, most steps; from server/integrations/hue.js, which applies them) and a note on restoring a room or zone.
 function HueSteps({ value, limits, device, transition, restore, ...props }) {
   const group = device.startsWith('grouped_light/')
   const min = group ? limits.group : limits.light

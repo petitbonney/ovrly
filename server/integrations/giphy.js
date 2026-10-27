@@ -1,7 +1,7 @@
 // Giphy integration: the API key and whether Giphy accepts it (checked on startup and on save), and the search the
 // GIPHY node and its picker run.
 import { Router } from 'express'
-import * as store from './store.js'
+import * as store from '../store.js'
 
 export const status = { key: '', connected: false, error: '' }
 

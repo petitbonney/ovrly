@@ -1,8 +1,8 @@
 // Action: enables, disables, pauses or resumes a channel points reward, and can set its cost. Twitch only lets an app
 // change rewards it made, so a reward is made here the first time (it can't be one made on the Twitch dashboard).
 // Adds { rewardId }.
-import { helix, status } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { helix, status } from '../integrations/twitch-auth.js'
+import { needStreamer } from '../integrations/twitch.js'
 import { fill } from '../template.js'
 
 const changes = { enable: { is_enabled: true }, disable: { is_enabled: false }, pause: { is_paused: true }, resume: { is_paused: false } }

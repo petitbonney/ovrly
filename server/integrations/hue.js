@@ -4,8 +4,8 @@
 import https from 'node:https'
 import tls from 'node:tls'
 import { Router } from 'express'
-import { record } from './bus.js'
-import * as store from './store.js'
+import { record } from '../bus.js'
+import * as store from '../store.js'
 
 export const status = { ip: '', connected: false, error: '' }
 let settings = {} // { ip, key, cert }

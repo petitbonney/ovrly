@@ -1,8 +1,8 @@
 // Action: raids another channel and waits until the raid goes out (after Twitch's countdown, or Raid Now on Twitch),
 // adding { viewers }; cancelling the workflow meanwhile cancels the raid. Or cancels the pending raid.
 import bus from '../bus.js'
-import { helix, status, user } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { helix, status, user } from '../integrations/twitch-auth.js'
+import { needStreamer } from '../integrations/twitch.js'
 import { fill } from '../template.js'
 
 const cancel = () => helix('DELETE', 'raids', undefined, { broadcaster_id: status.userId })

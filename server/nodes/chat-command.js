@@ -1,6 +1,6 @@
 // Trigger: fires on a chat message starting with one of its commands, e.g. "!spin red", from viewers of at least the
 // role set. Adds { command (as typed), args }.
-import { sentBy } from '../sources/twitch.js'
+import { sentBy } from '../integrations/twitch.js'
 
 // Each role includes those above it, as in chat bots: VIPs also lets mods and the streamer in.
 const roles = ['everyone', 'sub', 'vip', 'mod', 'broadcaster']

@@ -4,8 +4,8 @@
 // `obs` events (GET /api/events).
 import crypto from 'node:crypto'
 import { Router } from 'express'
-import { record } from './bus.js'
-import * as store from './store.js'
+import { record } from '../bus.js'
+import * as store from '../store.js'
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('base64')
 export const status = { url: '', password: '', connected: false, error: '' }

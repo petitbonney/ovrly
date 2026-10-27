@@ -2,11 +2,11 @@
 // Stream Deck controller, drawn as key images, says which keys show which button (pairing), and sends presses, which
 // fire that node alone.
 import { Router } from 'express'
-import { record } from './bus.js'
-import { fire } from './engine.js'
-import * as store from './store.js'
-import deck from './nodes/deck.js'
-import { iconNode } from './icons.js'
+import { record } from '../bus.js'
+import { fire } from '../engine.js'
+import * as store from '../store.js'
+import deck from '../nodes/deck.js'
+import { iconNode } from '../icons.js'
 
 // connected: the plugin is listening; devices: id -> { name, columns, rows }; keys: the paired keys,
 // [{ context, device, column, row, workflow, node, button }] (no column or row for a key in a multi action).

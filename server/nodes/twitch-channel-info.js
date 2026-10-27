@@ -3,8 +3,8 @@
 // subPoints } (last follower for yours or one you moderate, subs only for yours), its last clip { clipId, clipUrl,
 // clipTitle, clipViews, clipBy }, its next scheduled stream { nextTitle, nextGame, nextStart, nextIn (minutes) }, or the
 // whole response of any Helix call { response }. Always adds channelId.
-import { helix, helixJson, status, user } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { helix, helixJson, status, user } from '../integrations/twitch-auth.js'
+import { needStreamer } from '../integrations/twitch.js'
 import { fill, fillJson, fillUrl } from '../template.js'
 
 const minutes = (ms) => Math.round(ms / 60_000)

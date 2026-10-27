@@ -1,6 +1,6 @@
 // Action: times out, bans or unbans a viewer in the streamer's chat.
-import { helix, channel, user } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { helix, channel, user } from '../integrations/twitch-auth.js'
+import { needStreamer } from '../integrations/twitch.js'
 import { fill } from '../template.js'
 
 export default {

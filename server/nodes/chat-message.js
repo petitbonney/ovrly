@@ -1,6 +1,6 @@
 // Trigger: fires on every chat message, from viewers of at least the role set, except those of the users ignored (chat
 // bots by default). data = { user, message, channel, messageId, … } (messageId is for a reply or Delete Message).
-import { sentBy } from '../sources/twitch.js'
+import { sentBy } from '../integrations/twitch.js'
 
 // Each role includes those above it, as in chat bots: VIPs also lets mods and the streamer in.
 const roles = ['everyone', 'sub', 'vip', 'mod', 'broadcaster']

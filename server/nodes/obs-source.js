@@ -1,5 +1,5 @@
 // Action: shows, hides or toggles a source in an OBS scene, through the OBS integration (sidebar). Adds { visible }.
-import { request } from '../obs.js'
+import { request } from '../integrations/obs.js'
 import { fill } from '../template.js'
 
 export default {

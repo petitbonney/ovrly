@@ -1,7 +1,7 @@
 // Action: marks a channel points redemption as fulfilled, or refunds it (its points go back to the viewer). Twitch only
 // lets an app change the redemptions of rewards it made: those of Channel Points Reward nodes.
-import { helix, status } from '../sources/twitch-auth.js'
-import { needStreamer } from '../sources/twitch.js'
+import { helix, status } from '../integrations/twitch-auth.js'
+import { needStreamer } from '../integrations/twitch.js'
 import { fill } from '../template.js'
 
 export default {

@@ -1,6 +1,6 @@
 // Action: switches the OBS program scene, through the OBS integration (sidebar); optionally back to the one before
 // after a while (unless someone switched again meanwhile), the next nodes running once back.
-import { request } from '../obs.js'
+import { request } from '../integrations/obs.js'
 import { fill } from '../template.js'
 
 const current = async () => (await request('GetCurrentProgramScene')).currentProgramSceneName
