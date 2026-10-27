@@ -10,7 +10,7 @@ import { iconNode } from './icons.js'
 // connected: the plugin is listening; devices: id -> { name, columns, rows }; keys: the paired keys,
 // [{ context, device, column, row, workflow, node, button }] (no column or row for a key in a multi action).
 export const status = { connected: false, devices: {}, keys: [] }
-const clients = new Set()
+const clients = new Map() // the plugin's open streams -> the decks last sent on it, as JSON
 
 // Images go raw in a data URL, so no "#" (it would end the URL): named entities, and colors as rgb().
 const esc = (s) => String(s).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c])
@@ -48,21 +48,24 @@ async function decks() {
   return list
 }
 
-// The plugin's stream (SSE): the decks now, then again whenever they change (checked every second, like schedules).
+// Sends the decks to the plugin's streams that don't have them yet: when one connects, and after a workflow is saved or
+// deleted (server/workflows.js). One at a time, so an older list can't arrive after a newer one.
+let sending = Promise.resolve()
+export function push() {
+  sending = sending.then(async () => {
+    const data = JSON.stringify(await decks())
+    for (const [res, last] of clients) if (data !== last) clients.set(res, data), res.write(`data: ${data}\n\n`)
+  }).catch((err) => console.error('[streamdeck]', err)) // not awaited by callers: a rejection would crash the server
+}
+
+// The plugin's stream (SSE): the decks now, then again whenever they change.
 export function listen(req, res) {
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }).flushHeaders()
-  clients.add(res)
+  clients.set(res, '')
   status.connected = true
   record('sse', 'streamdeck-connected', {})
-  let last = ''
-  const push = () => decks().then((list) => {
-    const data = JSON.stringify(list)
-    if (data !== last) res.write(`data: ${(last = data)}\n\n`)
-  }, (err) => console.error('[streamdeck]', err)) // from a timer: a rejection would crash the server
   push()
-  const timer = setInterval(push, 1000)
   req.on('close', () => {
-    clearInterval(timer)
     clients.delete(res)
     if (!clients.size) Object.assign(status, { connected: false, devices: {}, keys: [] })
   })
