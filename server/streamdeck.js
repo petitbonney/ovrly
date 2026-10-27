@@ -55,10 +55,10 @@ export function listen(req, res) {
   status.connected = true
   record('sse', 'streamdeck-connected', {})
   let last = ''
-  const push = async () => {
-    const data = JSON.stringify(await decks())
+  const push = () => decks().then((list) => {
+    const data = JSON.stringify(list)
     if (data !== last) res.write(`data: ${(last = data)}\n\n`)
-  }
+  }, (err) => console.error('[streamdeck]', err)) // from a timer: a rejection would crash the server
   push()
   const timer = setInterval(push, 1000)
   req.on('close', () => {
