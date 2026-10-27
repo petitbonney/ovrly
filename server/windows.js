@@ -1,6 +1,7 @@
 // Open windows, as "App — Title" names, for Key Press's "Only when focused". macOS asks System Events, which needs
 // the Automation permission for it, then the Accessibility one Key Press already needs for titles (nut.js would also
-// need Screen Recording); without Accessibility, app names alone. Other systems use nut.js window titles.
+// need Screen Recording); without Accessibility, app names alone. Windows lists the titles of visible windows through
+// PowerShell (nut.js lists hidden ones too, hundreds of them); other systems use nut.js window titles.
 import { execFile } from 'node:child_process'
 import { getWindows, getActiveWindow } from '@nut-tree-fork/nut-js'
 
@@ -9,6 +10,11 @@ const osa = (script) => new Promise((resolve, reject) =>
   execFile('osascript', ['-e', script], (err, out) => (err ? reject(err.message.includes('-1743')
     ? new Error('Allow the app running Ovrly to control System Events: System Settings → Privacy & Security → Automation')
     : err) : resolve(out.trim()))))
+
+// Each process's main window title: visible windows only, UTF-8 for titles beyond ASCII.
+const ps = () => new Promise((resolve, reject) => execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command',
+  '[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-Process | Where-Object MainWindowTitle | ForEach-Object MainWindowTitle'],
+{ windowsHide: true }, (err, out) => (err ? reject(err) : resolve(out.split(/\r?\n/)))))
 
 // One "app<TAB>title" line per window (title empty if unreadable) of the given processes.
 const lines = (processes) => `
@@ -34,6 +40,7 @@ const names = (out) => out.split('\n').filter(Boolean).map((l) => {
 
 // Every open window, plus each app on its own (picking it matches any of its windows).
 export async function list() {
+  if (process.platform === 'win32') return ps()
   if (process.platform !== 'darwin') return Promise.all((await getWindows()).map((w) => w.title.catch(() => '')))
   return names(await osa(lines('every application process whose background only is false')))
 }
