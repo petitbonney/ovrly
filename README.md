@@ -258,29 +258,65 @@ red, and a firing that reaches it fails there.
 
 ## Writing a widget
 
-Each widget type is a folder in `widgets/`: `widget.js` holds the config defaults and the actions (pure functions that return the new state), and `index.html` renders it.
+Each widget type is a folder in `widgets/`: `widget.js` declares its settings and actions (run on the server), and
+`index.html` is the overlay page that shows it.
 
 ```js
 // widgets/counter/widget.js
 export default {
   type: 'counter',
   label: 'Counter',
-  config: { title: 'Count' },
-  state: { count: 0 },
+  icon: 'number',
+  description: 'Shows a count.',
+  state: { title: 'Count', count: 0 }, // saved in the widget's file: settings, and data kept across restarts
+  fields: { title: {}, count: { hidden: true } }, // the settings form, as for nodes
+  runtime: { shown: 0 }, // in memory only: what plays now, reset on restart
+  playTime: () => 0, // the workflow goes on at once
   actions: {
-    start: { description: 'Counts from zero.', run: () => ({ count: 0 }) },
+    start: { description: 'Shows the count.', run: ({ state, runtime }) => ({ runtime: { ...runtime, shown: state.count } }) },
     add: {
       description: 'Adds to the count.',
-      inputs: { value: { vars: true, hint: 'How much, e.g. {{args}}' } },
-      run: (state, { value }, config) => ({ ...state, count: state.count + Number(value || 1) }),
+      inputs: { value: { vars: true, default: '1', hint: 'How much, e.g. {{args}}' } },
+      run: ({ state, input }) => ({ state: { ...state, count: state.count + Number(input.value) } }),
     },
   },
 }
 ```
 
-Actions may be async (e.g. to call the Twitch API), and `on: { 'channel.follow': (state, data, config) => state }` updates a widget's state from bus events, such as Twitch EventSub notifications. `fields` gives settings hints, as for nodes (see `ui/src/Fields.jsx`); a duration lists its usual values, e.g. `duration: { unit: 's', presets: [3, 5, 10] }`, shown as buttons next to an input for any other value.
+**Actions.** Each is `{ description, inputs, only, run }`. `run({ state, runtime, input })` returns the parts it
+changes, `{ state?, runtime? }` (nothing: it did nothing); it may be async (e.g. a Twitch call), and throwing refuses
+the action. `inputs` says what it asks for on the node, as node fields, filled from the data when it runs: e.g.
+`{ option: { vars: true, hint }, user: { vars: true, default: '{{user}}' } }`, `{ image: { type: 'image' } }` for a
+file picker (`image`, `sound` or `video`), or `{ type: 'list' }` for a list (its own items, or a data key's). `only`
+shows an action only with some settings, as for fields (Voting's `vote`: `{ mode: 'chat' }`). `description` and
+`inputs` are listed in the node's ⓘ tooltip. A state also holds `name` (the widget's) and `input` (the inputs set on
+its node), filled in by Ovrly.
 
-The page calls `subscribe(({ config, state }) => …, { stop, cancel })` from `/widgets/lib.js`: when "stop" or "cancel" ends what plays, its handler runs instead of render (e.g. play an outro, or cut); a page without one renders the new state, marked `ended` so a reloaded page doesn't replay it. Each action is `{ description, inputs, only, run(state, input, config) }`; every type has `start`, plus `stop` and `cancel`, which keep the state unless the type gives its own `run` (Voting's closes the vote). A workflow runs `start` with the widget node (drag the widget type from the library), or the action named by `linked` (TwitchPlays: `'push'`), and the others with Widget Action nodes in front of it. `inputs` says what an action asks for on the node, as node fields: e.g. `{ option: { vars: true, hint }, user: { vars: true, default: '{{user}}' } }`, or `{ image: { type: 'image', hint } }` for a file picker (`image`, `sound` or `video`). The action gets them filled from the data, e.g. `run(state, { option, user }, config)`. `only` shows an action only with some settings, as for fields (Voting's `vote`: `{ mode: 'chat' }`); `description` and `inputs` are listed in the node's ⓘ tooltip. A widget type can also give data back to the workflow: `output(state, config)` returns e.g. `{ winner: 'Red' }`, merged into the data for the next nodes, and `adds: ['winner']` lists those keys for the `{ }` menu. The lottery, roulette and dice roll output `winner` (they share `widgets/draw.js`, and `draw-page.js` for their pages), voting `winner`, `votes` and `winners`. The widget node waits until the widget has stopped before the next nodes run. If the widget type knows how long an action plays, it says so with `playTime(action, config, state)` (ms) and the server waits that long, whether or not an overlay page is open (the draw widgets and alerts do). Otherwise the page reports the end: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays. After "stop", the workflow goes on once the outro has played: `stopTime(config)` (ms, 0 by default). An action arriving while another plays replaces it, unless `queues(config, action)` says the type queues them (alerts in some layouts, votes while a vote is open): then both play. `over(state, config)` ends what plays early, as stopped (a vote closed on Twitch).
+**Running in a workflow.** The widget node runs its `start` action, or the one named by `onSignal` (TwitchPlays:
+`'push'`); Widget Action nodes in front of it run the others. Every type has `stop` (ends what plays, the workflow goes
+on) and `cancel` (cuts it, the workflow stops there): give them a `run` to do more (Voting closes the vote), or bind
+other actions with `onStart`, `onStop` and `onCancel` (the lottery's `onCancel: 'reset'`). The node waits until what
+it started has stopped:
+
+- `playTime(action, { state, runtime })` (ms) says how long an action plays, and the server waits that long, page open
+  or not (alerts, the draw widgets); 0 goes on at once. Without it, the page reports the end: its render returns a
+  promise (e.g. `wait(ms)` from `lib.js`), and with no page open it goes on at once.
+- `stopTime({ state, runtime })` (ms, 0 by default): after "stop", the workflow goes on once the outro has played.
+- An action arriving while another plays replaces it (that run stops there), unless `queues(action, snap)` says so
+  (alerts in some layouts, votes while a vote is open): then both play. `over(snap)` ends what plays early, as stopped
+  (a vote closed on Twitch).
+- `output({ state, runtime })` gives data back to the workflow once it has stopped, e.g. `{ winner: 'Red' }`, and
+  `adds: ['winner']` lists those keys for the `{ }` menu. The lottery, roulette and dice roll output `winner` (they
+  share `widgets/draw.js`, and `draw-page.js` for their pages), Voting `winner`, `votes` and `winners`.
+- `on: { 'channel.poll.progress': (snap, data) => ({ runtime }) }` updates its widgets from bus events, such as Twitch
+  EventSub notifications.
+
+**The page.** It calls `subscribe(({ state, runtime }) => …, { stop, cancel })` from `/widgets/lib.js`, now and on
+every update. When "stop" or "cancel" ends what plays, its handler runs instead (play an outro, or cut); a page
+without one renders the new state. Once something has ended, `runtime.ended` is set, so a page opened later doesn't
+replay it; `runtime.firing` says whether a run still plays. Text from chat goes in with `el()` from `lib.js` or
+`textContent`, never as HTML. Shared code (e.g. a fade's duration) is imported from `/widgets/<type>/widget.js`, and
+the animation libraries from `/vendor/` (see `widgets/dice/index.html` for the import map).
 
 ### Custom widgets
 
