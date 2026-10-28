@@ -61,6 +61,8 @@ app.post('/api/nodes/:workflow/:node/stop', (req, res) => {
   plays[`${req.params.workflow}/${req.params.node}`]?.abort()
   res.sendStatus(204)
 })
+// Test in a Code node's settings: runs { code, data } once (see server/nodes/code.js).
+app.post('/api/code/test', async (req, res) => res.json(await nodes.code.test(req.body)))
 // Fire a fake event on the bus, e.g. POST /api/emit/chat { user, message }.
 app.post('/api/emit/:event', (req, res) => {
   bus.emit(req.params.event, req.body)

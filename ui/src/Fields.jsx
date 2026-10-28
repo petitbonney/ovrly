@@ -21,20 +21,22 @@
 // type: 'list' a list the workflow gives at run time: a switch picks Custom (its own items, shaped like f.row, a list
 // editor) or From data (a data key, e.g. items from a Fan In node); both are kept, as { from, key, items }. Without data
 // before it (a trigger, a manual run) only its items show.
+// type: 'code' a JavaScript editor (CodeEditor.jsx) filling the settings column.
 // type: 'palette' a grid of color squares ([{ color }]; text: the key of a text color, picked in a square before them), type: 'deck' a Control Pad node's buttons (with Companion, each with a button to copy its URL), type: 'hue-steps' a
 // Hue routine's steps (warned of what its limits change), { obs: 'scenes' | 'sources' } suggestions from OBS and
 // { hue: 'devices' } a Hue light, room or zone.
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
-  ActionIcon, Anchor, Autocomplete, Button, Chip, ColorInput, ColorPicker, CopyButton, Group, Image, JsonInput, Menu, NumberInput, PasswordInput, Popover, SegmentedControl,
+  ActionIcon, Anchor, Autocomplete, Button, Chip, ColorInput, ColorPicker, CopyButton, Group, Image, JsonInput, Menu, Modal, NumberInput, PasswordInput, Popover, SegmentedControl,
   Select, Slider, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip, UnstyledButton,
 } from '@mantine/core'
-import { IconBraces, IconCheck, IconCopy, IconGripVertical, IconInfoCircle, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX } from '@tabler/icons-react'
+import { IconArrowsMaximize, IconBraces, IconCheck, IconCopy, IconGripVertical, IconInfoCircle, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX } from '@tabler/icons-react'
 import { get } from './api.js'
 import { openSettings, requirements } from './Settings.jsx'
 import Heading from './Heading.jsx'
 import Notice from './Notice.jsx'
 import { IconPicker, buttonId, deckUrl } from './Deck.jsx'
+import CodeEditor from './CodeEditor.jsx'
 import GiphyPicker from './GiphyPicker.jsx'
 import MyinstantsPicker from './MyinstantsPicker.jsx'
 
@@ -567,6 +569,27 @@ function Label({ text, info }) {
   )
 }
 
+// A type: 'code' field: the editor fills the settings column (app.css); expanding it opens it full screen.
+function CodeField({ label, description, vars, value, onChange }) {
+  const [expanded, setExpanded] = useState(false)
+  const editor = (autoFocus) => <CodeEditor value={value} onChange={onChange} vars={vars} autoFocus={autoFocus} />
+  return (
+    <Stack gap={4} className="code-field">
+      <Group justify="space-between" wrap="nowrap">
+        <Text size="xs" fw={500}>{label}</Text>
+        <Tooltip label="Expand">
+          <ActionIcon size="sm" variant="subtle" color="gray" aria-label="Expand the editor" onClick={() => setExpanded(true)}><IconArrowsMaximize size={14} /></ActionIcon>
+        </Tooltip>
+      </Group>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
+      {!expanded && editor(false)}
+      <Modal opened={expanded} onClose={() => setExpanded(false)} title={label} fullScreen classNames={{ body: 'code-field code-modal' }}>
+        {editor(true)}
+      </Modal>
+    </Stack>
+  )
+}
+
 // One setting; context: { vars: data keys available here, trigger: whether the node is a trigger (no data comes
 // before it, so no "{}" menu), widget: the node's widget, types, off: the requirements not met } for the dynamic types.
 function Field({ name, f, fallback, value, set, change, values, context }) {
@@ -659,9 +682,7 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
   // A data key's name: the "{}" menu sets it (the bare key, not a placeholder).
   if (f.type === 'var') return <Autocomplete {...props} data={vars ?? []} value={value} onChange={set} rightSection={<VarMenu vars={vars} onPick={set} />} />
   if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} maxRows={8} />
-  if (f.type === 'code') {
-    return <Textarea {...props} value={value} onChange={(e) => set(e.target.value)} autosize minRows={4} maxRows={12} spellCheck={false} styles={{ input: { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 } }} />
-  }
+  if (f.type === 'code') return <CodeField {...props} vars={vars} value={value} onChange={set} />
   if (f.type === 'id') return <TextInput {...props} rightSection={<Copy text={value} />} value={value} onChange={(e) => set(e.target.value)} />
   if (f.type === 'workflow') return <WorkflowSelect {...props} value={value} onChange={set} />
   if (FILE_KINDS[f.type]) return <FileInput kind={f.type} {...props} vars={vars} value={value} onChange={set} />
