@@ -3,7 +3,8 @@ import express from 'express'
 import { access, network, setLan } from './access.js'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
-import { nodes, fire, cancel, running, activity, history, line, drop, arrived, unjoin } from './engine.js'
+import { nodes, problems, loadNodes, fire, cancel, running, activity, history, line, drop, arrived, unjoin } from './engine.js'
+import * as custom from './custom-nodes.js'
 import * as twitch from './integrations/twitch.js'
 import * as twitchAuth from './integrations/twitch-auth.js'
 import * as obs from './integrations/obs.js'
@@ -27,6 +28,29 @@ app.use(express.json())
 
 // Node types for the UI library (metadata only, no run function).
 app.get('/api/nodes', (req, res) => res.json(Object.values(nodes).map(({ run, live, control, ...meta }) => ({ ...meta, live: !!live }))))
+// Custom nodes (server/custom-nodes.js, Settings → Custom nodes): the files loaded and those that failed. Importing
+// (PUT { code }), removing or reloading them answers that again, once reloaded.
+const customNodes = () => ({ dir: custom.dir, errors: problems,
+  nodes: Object.values(nodes).filter((d) => d.custom).map(({ custom: file, type, label, category }) => ({ file, type, label, category })) })
+app.get('/api/custom-nodes', (req, res) => res.json(customNodes()))
+app.post('/api/custom-nodes/reload', async (req, res) => {
+  await loadNodes()
+  res.json(customNodes())
+})
+app.post('/api/custom-nodes/open', (req, res) => {
+  custom.open()
+  res.sendStatus(204)
+})
+app.put('/api/custom-nodes/:file', async (req, res) => {
+  await custom.save(req.params.file, req.body.code)
+  await loadNodes()
+  res.json(customNodes())
+})
+app.delete('/api/custom-nodes/:file', async (req, res) => {
+  await custom.remove(req.params.file)
+  await loadNodes()
+  res.json(customNodes())
+})
 // What a node holds now, shown in its settings (node types with `live`, e.g. a Cooldown's time left), for ?type=.
 app.get('/api/nodes/:workflow/:node/live', (req, res) => {
   const def = nodes[req.query.type]
@@ -49,7 +73,7 @@ app.post('/api/nodes/:workflow/:node/play', async (req, res) => {
   plays[id]?.abort()
   const controller = (plays[id] = new AbortController())
   try {
-    const out = await def.run({ config: { ...def.config, ...req.body.config }, data: {}, id, signal: controller.signal })
+    const out = await def.run({ config: { ...def.config, ...req.body.config }, data: {}, id, signal: controller.signal, ovrly: custom.ovrly })
     res.json({ out: controller.signal.aborted ? null : out ?? null })
   } catch (err) {
     res.json(controller.signal.aborted ? { out: null } : { error: err.message })

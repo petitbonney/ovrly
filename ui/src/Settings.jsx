@@ -1,14 +1,14 @@
-// Settings dialog: a left column of sections (Integrations, Variables, Network, Appearance) like the node library, and the pane of
+// Settings dialog: a left column of sections (Integrations, Workflows, Network, Appearance) like the node library, and the pane of
 // the clicked item on the right. Integrations show their status (StatusIcon); saving reconnects. The app polls the
 // statuses (useStatuses) and opens the dialog, also from anywhere with openSettings(item).
 import { useEffect, useState } from 'react'
 import { ActionIcon, Anchor, Button, Code, Group, Loader, Modal, NavLink, Paper, PasswordInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput, ThemeIcon, Tooltip, UnstyledButton } from '@mantine/core'
-import { IconAlertCircle, IconBrandTwitch, IconCircleCheck, IconCircleDashed, IconExternalLink, IconLogout, IconPlus, IconTrash } from '@tabler/icons-react'
+import { IconAlertCircle, IconBrandTwitch, IconCircleCheck, IconCircleDashed, IconExternalLink, IconFileImport, IconFolderOpen, IconLogout, IconPlus, IconRefresh, IconTrash } from '@tabler/icons-react'
 import Heading from './Heading.jsx'
 import themes from './themes.js'
 import { get, json } from './api.js'
 
-// Opens the Settings dialog on a pane: an integration key, 'variables', 'network' or 'appearance'.
+// Opens the Settings dialog on a pane: an integration key, 'variables', 'nodes', 'network' or 'appearance'.
 export const openSettings = (item) => window.dispatchEvent(new CustomEvent('ovrly-settings', { detail: item }))
 
 // An integration's status as an icon whose shape and color both say it: a check when connected, "!" when set up but
@@ -277,6 +277,65 @@ function Variables() {
   )
 }
 
+// Custom nodes: node types of the user's own, JavaScript files in data/nodes/ (server/custom-nodes.js). Lists those
+// loaded and those that failed, each with Remove; Import copies a file there, Reload and Open folder for editing them
+// in place. Follows the server's reloads (files changed on disk) through the activity stream.
+function CustomNodes() {
+  const [list, setList] = useState()
+  const [error, setError] = useState('')
+  const call = async (path, options) => {
+    const res = await fetch(`/api/custom-nodes${path}`, options)
+    const body = await res.json().catch(() => ({}))
+    res.ok ? (setList(body), setError('')) : setError(body.error ?? res.statusText)
+  }
+  useEffect(() => {
+    get('/api/custom-nodes').then(setList, (err) => setError(err.message))
+    const onActivity = (e) => e.detail.nodes && get('/api/custom-nodes').then(setList, () => {})
+    window.addEventListener('ovrly-activity', onActivity)
+    return () => window.removeEventListener('ovrly-activity', onActivity)
+  }, [])
+  const pick = () => {
+    const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.js,.mjs' })
+    input.onchange = async () => {
+      const file = input.files[0]
+      if (!file || !confirm(`A custom node runs with full access to this computer: only import files you trust.\n\nImport ${file.name}?`)) return
+      call(`/${encodeURIComponent(file.name)}`, json('PUT', { code: await file.text() }))
+    }
+    input.click()
+  }
+  const remove = (file) => confirm(`Delete ${file} from the custom nodes folder?`) && call(`/${encodeURIComponent(file)}`, { method: 'DELETE' })
+  const row = (file, text, color) => (
+    <Group key={file} gap="xs" wrap="nowrap">
+      <Text size="xs" ff="monospace" w={160} truncate title={file} style={{ flexShrink: 0 }}>{file}</Text>
+      <Text size="xs" c={color} flex={1} miw={0}>{text}</Text>
+      <Tooltip label="Delete the file">
+        <ActionIcon variant="subtle" color="red" aria-label={`Delete ${file}`} onClick={() => remove(file)}><IconTrash size={14} /></ActionIcon>
+      </Tooltip>
+    </Group>
+  )
+  if (!list) return error ? <Text size="xs" c="red">{error}</Text> : <Loader size="sm" />
+  return (
+    <Stack gap="sm">
+      <Text size="xs" c="dimmed">
+        Node types of your own: JavaScript files in <Code>{list.dir}</Code>, written like Ovrly's (<Code>server/nodes/</Code>).
+        They run with full access to this computer: only add files you trust.
+      </Text>
+      {list.nodes.length || list.errors.length ? (
+        <Stack gap={4}>
+          {list.nodes.map((n) => row(n.file, `${n.label} (${n.category})`))}
+          {list.errors.map((e) => row(e.file, e.error, 'red'))}
+        </Stack>
+      ) : <Text size="xs" c="dimmed">No custom nodes yet.</Text>}
+      {error && <Text size="xs" c="red">{error}</Text>}
+      <Group gap="xs" justify="end">
+        <Button size="xs" variant="default" leftSection={<IconFolderOpen size={14} />} onClick={() => fetch('/api/custom-nodes/open', { method: 'POST' })}>Open folder</Button>
+        <Button size="xs" variant="default" leftSection={<IconRefresh size={14} />} onClick={() => call('/reload', { method: 'POST' })}>Reload</Button>
+        <Button size="xs" leftSection={<IconFileImport size={14} />} onClick={pick}>Import…</Button>
+      </Group>
+    </Stack>
+  )
+}
+
 // Network: by default only this computer reaches Ovrly; "Open to LAN" lets other devices on the network (a second PC
 // running OBS, a phone) open the UI and the widget links.
 function Network({ status, setStatus }) {
@@ -376,6 +435,7 @@ export default function Settings({ opened, item, onItem, onClose, statuses, setS
           ))}
           <Heading title="Workflows" mt="sm" />
           <NavLink component="button" label="Variables" active={item === 'variables'} onClick={() => onItem('variables')} />
+          <NavLink component="button" label="Custom nodes" active={item === 'nodes'} onClick={() => onItem('nodes')} />
           <Heading title="Network" mt="sm" />
           <NavLink component="button" label="LAN" active={item === 'network'} onClick={() => onItem('network')} />
           <Heading title="Appearance" mt="sm" />
@@ -384,6 +444,7 @@ export default function Settings({ opened, item, onItem, onClose, statuses, setS
         <div style={{ flex: 1, minWidth: 0 }}>
           {item === 'appearance' ? <Appearance theme={theme} onTheme={onTheme} />
             : item === 'variables' ? <Variables />
+            : item === 'nodes' ? <CustomNodes />
             : !status ? <Loader size="sm" />
             : current ? <current.Pane key={current.key} status={status} info={current.info(status)} setStatus={(s) => setStatus(current.path, s)} />
             : <Network status={status} setStatus={(s) => setStatus('/api/network', s)} />}

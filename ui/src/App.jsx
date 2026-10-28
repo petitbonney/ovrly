@@ -125,8 +125,10 @@ function Item({ label, description, icon: Icon, color, needs = [], off, badge, d
     </Tooltip>
   )
 }
+// A custom node type (Settings → Custom nodes) is badged so.
 const nodeItem = (d, color, off) => (
   <Item key={d.type} label={d.label} description={d.description} icon={d.Icon} color={color} needs={d.needs} off={off}
+    badge={d.custom && <Badge size="xs" variant="light" color="gray">Custom</Badge>}
     data={['application/ovrly', d.type]} onAdd={() => addToWorkflow({ node: d.type })} />
 )
 
@@ -260,9 +262,14 @@ export default function App({ theme, onTheme }) {
     source.onmessage = (e) => window.dispatchEvent(new CustomEvent('ovrly-activity', { detail: JSON.parse(e.data) }))
     return () => source.close()
   }, [])
+  // Node types are fetched again when the server reloads them (custom nodes changed).
   useEffect(() => {
-    get('/api/nodes').then((list) => setDefs(list.map(withIcon)))
+    const loadDefs = () => get('/api/nodes').then((list) => setDefs(list.map(withIcon)))
+    const onActivity = (e) => e.detail.nodes && loadDefs()
+    loadDefs()
     get('/api/widget-types').then((list) => setTypes(list.map(withIcon)))
+    window.addEventListener('ovrly-activity', onActivity)
+    return () => window.removeEventListener('ovrly-activity', onActivity)
   }, [])
   useEffect(() => {
     let stale = false // a newer refetch started: these answers may be older than its, so they're dropped

@@ -50,6 +50,7 @@
 .flow-node .bolt:hover { transform: scale(1.2); }
 /* Needs an integration that isn't ready (FlowNode.jsx): a badge on the top right corner. */
 .flow-node .needs { position: absolute; top: -8px; right: -8px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--mantine-color-yellow-5); color: #000; }
+.flow-node .needs.unknown { background: var(--mantine-color-red-6); color: #fff; }
 .flow-node .caption { position: absolute; top: 100%; margin-top: 8px; width: 160px; text-align: center; pointer-events: none; }
 .flow-node .label { font-size: 13px; font-weight: 600; color: var(--ovrly-label); }
 .flow-node .sub { font-size: 11px; color: var(--ovrly-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

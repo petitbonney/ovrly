@@ -49,6 +49,9 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   Edit Data changes data, Map Value swaps a key's value through a "from" → "to" list; Edit Variable sets, adds to or deletes a variable.
 - **More nodes**: Code (JavaScript on the data), Schedule (a trigger every N minutes),
   Execute Workflow (runs another workflow from one of its Called By Workflow triggers, picked by its ID, and merges its result in).
+- **Custom nodes**: node types of your own, one JavaScript file each in `data/nodes/` (see [Custom nodes](#custom-nodes)).
+  Settings → Custom nodes lists them and their errors, imports a file, reloads and opens the folder; a changed file
+  reloads by itself. They run as Ovrly does, with full access to your computer: only add files you trust.
 - **Errors and history**: a node that fails stops the firing there. An Error Trigger workflow runs when a node fails
   in another one. `GET /api/runs` has the last 100 firings (in memory), with each node's input and output.
 - **Widget concurrency**: starting a widget that is still playing (e.g. a second `!spin`) replaces what plays; the
@@ -180,6 +183,7 @@ server/
   files.js        the OS file dialog, and media files on disk
   windows.js      open windows, for Key Press
   icons.js        Tabler icons for node types and Stream Deck keys
+  custom-nodes.js custom node types from ./data/nodes, and the helpers they get
   nodes/          one file per node type
   integrations/   one module per outside service, with its routes:
     twitch.js       chat (tmi.js), Guest and Streamer modes
@@ -195,7 +199,7 @@ ui/               React app (Vite); starter workflows in ui/src/templates.js
 widgets/          one folder per widget type (index.html + widget.js)
 streamdeck/       the Ovrly Stream Deck plugin (com.ovrly.deck.sdPlugin; pnpm streamdeck:pack, pnpm streamdeck:link to develop)
 test/             node --test (pnpm test)
-data/             your widgets and workflows (gitignored)
+data/             your widgets, workflows and custom nodes (gitignored)
 ```
 
 ## Writing a node
@@ -219,6 +223,36 @@ export default {
 Optional metadata makes the settings pane friendlier: `description`, `adds` (the data keys the node adds, offered as `{{key}}` in later nodes) and `fields` (per-setting hints such as `{ options: [...] }`, `{ vars: true }` for `{{key}}` placeholders, `{ type: 'json' }`, a short `hint` or a longer `info`, or a `section` heading; see `ui/src/Fields.jsx`, and AGENTS.md for how to lay them out).
 
 A node with several outputs declares them, e.g. `outputs: ['true', 'false']`, and returns `{ [output]: data }` to pick which ones continue. A trigger sets `event` to the bus event it listens to, or a list of them; `run` gets the one that fired as `event`.
+
+### Custom nodes
+
+A custom node is written the same way, in `data/nodes/<name>.js` (or imported from Settings → Custom nodes). It can't
+take a built-in type, goes to the library's **Custom** group unless it names its own `group`, and needs `type`,
+`label`, `category` (`trigger`, `logic` or `action`) and `run`. Instead of importing Ovrly's files, `run` gets
+`ovrly`: `fill(text, data)` (and `fillJson`, `fillUrl`, `value`, `list`, see `server/template.js`), `vars` and
+`saveVars()`, `log(event, data)` (the events view), `twitch.helix(method, path, body, query)`, `twitch.userId()`,
+`twitch.needStreamer(feature)` and `obs.request(type, data)`.
+
+```js
+// data/nodes/dice-total.js
+export default {
+  type: 'dice-total',
+  label: 'Dice Total',
+  icon: 'dice-5',
+  category: 'logic',
+  description: 'Rolls some dice and adds them up.',
+  config: { dice: 2, faces: 6 },
+  fields: { faces: { hint: 'Per die' } },
+  run({ config, data, ovrly }) {
+    const rolls = Array.from({ length: config.dice }, () => 1 + Math.floor(Math.random() * config.faces))
+    ovrly.log('dice-total', rolls)
+    return { ...data, rolls, total: rolls.reduce((a, b) => a + b, 0) }
+  },
+}
+```
+
+A workflow that uses a custom node that isn't loaded (removed, broken, or not yet copied to this computer) shows it in
+red, and a firing that reaches it fails there.
 
 ## Writing a widget
 

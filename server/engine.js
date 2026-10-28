@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events'
 import bus from './bus.js'
 import * as store from './store.js'
 import { iconNode } from './icons.js'
+import * as custom from './custom-nodes.js'
 
 // Load every node type from ./nodes, keyed by type, in the library's order: most used first, a group's nodes together.
 // Types not listed go last.
@@ -21,14 +22,30 @@ const order = [
 ]
 const rank = (type) => (order.includes(type) ? order.indexOf(type) : order.length)
 const dir = new URL('./nodes/', import.meta.url)
-const loaded = await Promise.all((await fs.readdir(dir)).map(async (name) => (await import(new URL(name, dir))).default))
+const builtIn = await Promise.all((await fs.readdir(dir)).map(async (name) => (await import(new URL(name, dir))).default))
 export const nodes = {}
-for (const def of loaded.sort((a, b) => rank(a.type) - rank(b.type))) nodes[def.type] = { ...def, iconNode: await iconNode(def.icon) }
+// Custom node files that couldn't be loaded, [{ file, error }] (Settings → Custom nodes).
+export const problems = []
 
 // Live run feedback for the editor (GET /api/activity): { workflow, node, state } where state is running, done,
 // stopped (returned nothing), error or waiting (a join waiting for its other links), { workflow, edge, target }
-// when data travels along a link, and { workflow, running } with the number of firings in progress.
+// when data travels along a link, { workflow, running } with the number of firings in progress, and { nodes: true }
+// when the node types were reloaded.
 export const activity = new EventEmitter()
+
+// (Re)loads the node types: the built-in ones, then the custom ones (server/custom-nodes.js), which can't take a
+// built-in type. `nodes` stays the same object, so the modules holding it see the change. Reloads run one at a time.
+let loading = Promise.resolve()
+export const loadNodes = () => (loading = loading.catch(() => {}).then(async () => {
+  const { defs, errors } = await custom.load(new Set(builtIn.map((d) => d.type)))
+  const next = {}
+  for (const def of [...builtIn, ...defs].sort((a, b) => rank(a.type) - rank(b.type))) next[def.type] = { ...def, iconNode: await iconNode(def.icon) }
+  for (const type in nodes) delete nodes[type]
+  Object.assign(nodes, next)
+  problems.splice(0, Infinity, ...errors)
+  for (const event of new Set(Object.values(nodes).flatMap((d) => [d.event ?? []].flat()))) listen(event)
+  activity.emit('activity', { nodes: true })
+}))
 
 // Queue nodes (`queue`): node key -> { busy: a firing is past the node, line: firings waiting, in order, as
 // { id, at, data, go } where go(true) lets one through and go(false) drops it }.
@@ -55,6 +72,14 @@ async function walk(workflow, node, data, run, from) {
   if (run.signal.aborted) return
   const def = nodes[node.data.type]
   const status = (state, extra) => activity.emit('activity', { workflow: workflow.id, node: node.id, state, ...extra })
+  // A type that isn't loaded (a custom node removed or broken) fails the firing there, like a node that fails.
+  if (!def) {
+    const error = `Unknown node type "${node.data.type}": add or fix its file in Settings → Custom nodes`
+    status('error', { error })
+    run.record.nodes.push({ node: node.id, type: node.data.type, input: data, error, ms: 0 })
+    run.failedNode = node.data.label ?? node.data.type
+    throw new Error(error)
+  }
   // `id` keys a node's memory across firings (cooldown).
   const id = `${workflow.id}/${node.id}`
   // A join holds each firing that arrives before every link has delivered; the last one to complete it continues, with
@@ -157,7 +182,7 @@ async function step(workflow, node, data, run, { def, config, id, status, from }
   // A failure stops the firing there. fire is passed in (Execute Workflow): nodes can't import the engine that loads them.
   let out
   try {
-    out = await def.run({ config, data, id, from, signal: run.signal, depth: run.depth, origins: run.origins, event: run.event, fire })
+    out = await def.run({ config, data, id, from, signal: run.signal, depth: run.depth, origins: run.origins, event: run.event, fire, ovrly: custom.ovrly })
   } catch (err) {
     if (run.signal.aborted) return end('stopped') // e.g. an HTTP request cut short by cancel()
     log({ error: err.message })
@@ -254,7 +279,16 @@ const fireAll = (event, data) => store.list('workflows')
     }
   }))
   .catch((err) => console.error('[engine]', err))
-for (const event of new Set(Object.values(nodes).flatMap((d) => [d.event ?? []].flat()))) bus.on(event, (data) => fireAll(event, data))
+// Each event the node types listen to is heard once, also one a reloaded custom trigger brings.
+const heard = new Set()
+function listen(event) {
+  if (heard.has(event)) return
+  heard.add(event)
+  bus.on(event, (data) => fireAll(event, data))
+}
+
+await loadNodes()
+custom.watch(() => loadNodes().catch((err) => console.error('[nodes]', err)))
 
 // Schedule triggers decide themselves if they are due: once a second, every workflow that is on is asked.
 // unref: the server keeps the process alive, not this (tests import the engine and must exit).

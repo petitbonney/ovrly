@@ -143,7 +143,10 @@ function boundsOf(list) {
 // or Fan In's state (NodeLive.jsx), a Chat !command's test Run (ChatTest.jsx), a Code node's Test (CodeTest.jsx). A Merge Widgets node shows its
 // canvas instead (with the widgets linked into it, context.inputs). context.widget is the widget the node points to; off: the requirements not met (Settings.jsx).
 function Config({ workflow, node, def, context, off, running, error, onChange, onWidgetChange, onCopy, onClose, onError }) {
-  if (!node || !def) return null
+  if (!node) return null
+  // A type that isn't loaded (a custom node removed or broken): its settings are kept, untouched, until it is back.
+  const unknown = !def
+  def ??= { type: node.data.type, label: node.data.label ?? node.data.type, description: '', config: {} }
   const isWidget = def.type === 'widget'
   const isMerge = def.type === 'merge'
   const { widget } = context
@@ -167,6 +170,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
     ...missing.map((r) => <Notice key={r.key} settings={r.pane ?? r.key}>Needs {r.needs}.</Notice>),
     def.type === 'widget-action' && !widget && <Notice key="link">Link this node to a widget node to pick its action.</Notice>,
     isWidget && !type && <Notice key="deleted" color="red">This widget was deleted. Drop a new one from the library.</Notice>,
+    unknown && <Notice key="unknown" color="red" settings="nodes">Unknown node type "{def.type}": a custom node that isn't loaded.</Notice>,
     error && <Notice key="error" color="red">Last run failed: {error}</Notice>,
   ].filter(Boolean)
   return (
