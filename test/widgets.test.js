@@ -7,7 +7,7 @@ import path from 'node:path'
 import { counter } from './fixture-type.js'
 
 process.chdir(await fs.mkdtemp(path.join(os.tmpdir(), 'ovrly-')))
-const { types, normalize, merge, create, get, read, update, play, remove, changes } = await import('../server/widgets.js')
+const { types, normalize, create, get, read, update, play, remove, changes } = await import('../server/widgets.js')
 types.counter = normalize(counter)
 
 const text = (id) => fs.readFile(`data/widgets/${id}.json`, 'utf8')
@@ -26,14 +26,6 @@ test('normalize fills bindings', () => {
   const bound = normalize({ onSignal: 'push', onStop: 'end', actions: { start: {}, push: {} } })
   assert.ok(bound.actions.end.run)
   assert.equal(bound.actions.stop, undefined)
-})
-
-test('merge detects no-ops', () => {
-  const cur = { state: { a: 1 }, runtime: { b: 2 } }
-  assert.equal(merge(cur), null)
-  assert.equal(merge(cur, { state: cur.state }), null)
-  const r = { b: 3 }
-  assert.deepEqual(merge(cur, { runtime: r }), { state: cur.state, runtime: r })
 })
 
 test('create saves only id, type, state', async () => {
@@ -60,6 +52,7 @@ test('state changes are saved, runtime ones are not', async () => {
 
 test('a no-op does nothing', async () => {
   assert.equal(await (await update(id, { action: 'noop' })).done, false)
+  assert.equal(await (await update(id, { action: 'same' })).done, false)
 })
 
 test('changes fires for state only', async () => {

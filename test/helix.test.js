@@ -22,5 +22,5 @@ globalThis.fetch = async () => {
 
 test('a burst over the rate limit waits and succeeds', async () => {
   const results = await Promise.all(Array.from({ length: 30 }, () => helix('GET', 'users')))
-  assert.equal(results.length, 30)
+  assert.deepEqual(results, Array(30).fill([{ ok: true }]))
 })

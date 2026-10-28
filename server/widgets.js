@@ -71,7 +71,7 @@ export const loadTypes = () => (loading = loading.catch(() => {}).then(async () 
 
 // An action's or handler's { state?, runtime? } over the current { state, runtime }: each part it returns replaces
 // that part. null when nothing changed.
-export function merge(current, result) {
+function merge(current, result) {
   const { state = current.state, runtime = current.runtime } = result ?? {}
   return state === current.state && runtime === current.runtime ? null : { state, runtime }
 }

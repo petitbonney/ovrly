@@ -11,5 +11,6 @@ export const counter = {
     add: { inputs: { n: {} }, run: ({ state, input }) => ({ state: { ...state, total: state.total + Number(input.n) } }) },
     hold: { run: () => ({ runtime: { shown: 0 } }) },
     noop: { run: () => {} },
+    same: { run: ({ state }) => ({ state }) },
   },
 }
