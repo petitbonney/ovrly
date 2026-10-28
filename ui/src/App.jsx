@@ -180,7 +180,7 @@ function Library({ defs, types, off }) {
   )
 }
 
-// A choice in the "New workflow" modal: a title and, for a template, a one-line description.
+// A choice in the "New workflow" modal: a title and a one-line description.
 function Choice({ title, description, icon: Icon, onClick }) {
   return (
     <Button variant="default" justify="start" h="auto" py="xs" onClick={onClick} leftSection={Icon && <Icon size={20} />}
@@ -201,8 +201,8 @@ function NewWorkflow({ opened, onDone, onClose }) {
     <Modal opened={opened} onClose={onClose} title="New workflow" size="xl">
       <Stack gap="xs">
         <SimpleGrid cols={2} spacing="xs">
-          <Choice title="Blank" icon={IconFile} onClick={() => importBundle(blank).then(onDone)} />
-          <Choice title="Import JSON…" icon={IconFileImport}
+          <Choice title="Blank" description="Start from an empty canvas." icon={IconFile} onClick={() => importBundle(blank).then(onDone)} />
+          <Choice title="Import" description="Load a workflow from an exported JSON file." icon={IconFileImport}
             onClick={() => importFile().then(onDone, (err) => alert(`Import failed: ${err.message}`))} />
         </SimpleGrid>
         {templates.length > 0 && (
