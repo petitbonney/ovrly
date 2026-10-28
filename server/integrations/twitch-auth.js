@@ -98,12 +98,20 @@ export async function token() {
 export const helix = async (method, path, body, query) => (await helixJson(method, path, body, query)).data
 
 // Like helix, but returns the whole response ({ data, total, pagination… }; {} when it has none).
+// Over Twitch's rate limit (a 429, e.g. a burst of chat replies), it waits until the bucket is full again
+// (Ratelimit-Reset, 60s at most) and tries again, 3 times at most.
 export async function helixJson(method, path, body, query) {
-  const res = await fetch(`https://api.twitch.tv/helix/${path}${query && Object.keys(query).length ? `?${new URLSearchParams(query)}` : ''}`, {
-    method,
-    headers: { 'Client-Id': CLIENT_ID, Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
-    body: body && JSON.stringify(query || path.startsWith('eventsub') ? body : { broadcaster_id: auth.userId, ...body }),
-  })
+  let res
+  for (let tries = 1; ; tries++) {
+    res = await fetch(`https://api.twitch.tv/helix/${path}${query && Object.keys(query).length ? `?${new URLSearchParams(query)}` : ''}`, {
+      method,
+      headers: { 'Client-Id': CLIENT_ID, Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
+      body: body && JSON.stringify(query || path.startsWith('eventsub') ? body : { broadcaster_id: auth.userId, ...body }),
+    })
+    if (res.status !== 429 || tries > 3) break
+    const reset = Number(res.headers.get('Ratelimit-Reset')) * 1000 || Date.now() + 1000
+    await new Promise((r) => setTimeout(r, Math.min(60_000, Math.max(0, reset - Date.now())) + 100))
+  }
   const json = await res.json().catch(() => ({}))
   record('http', 'twitch-api', { method, path, ...(!res.ok && { error: json.message }) })
   if (!res.ok) throw httpError(502, `Twitch ${path}: ${json.message || res.status}`) // Twitch refused
