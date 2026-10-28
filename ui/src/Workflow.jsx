@@ -169,7 +169,9 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
   const notices = [
     ...missing.map((r) => <Notice key={r.key} settings={r.pane ?? r.key}>Needs {r.needs}.</Notice>),
     def.type === 'widget-action' && !widget && <Notice key="link">Link this node to a widget node to pick its action.</Notice>,
-    isWidget && !type && <Notice key="deleted" color="red">This widget was deleted. Drop a new one from the library.</Notice>,
+    isWidget && !type && (widget
+      ? <Notice key="unknown" color="red" settings="widgets">Unknown widget type "{widget.type}": a custom widget that isn't loaded. Its settings are kept.</Notice>
+      : <Notice key="deleted" color="red">This widget was deleted. Drop a new one from the library.</Notice>),
     unknown && <Notice key="unknown" color="red" settings="nodes">Unknown node type "{def.type}": a custom node that isn't loaded.</Notice>,
     error && <Notice key="error" color="red">Last run failed: {error}</Notice>,
   ].filter(Boolean)

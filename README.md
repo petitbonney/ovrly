@@ -49,9 +49,11 @@ Ovrly lets you connect stream events (Twitch chat) to actions (overlays, key pre
   Edit Data changes data, Map Value swaps a key's value through a "from" → "to" list; Edit Variable sets, adds to or deletes a variable.
 - **More nodes**: Code (JavaScript on the data), Schedule (a trigger every N minutes),
   Execute Workflow (runs another workflow from one of its Called By Workflow triggers, picked by its ID, and merges its result in).
-- **Custom nodes**: node types of your own, one JavaScript file each in `data/nodes/` (see [Custom nodes](#custom-nodes)).
-  Settings → Custom nodes lists them and their errors, imports a file, reloads and opens the folder; a changed file
-  reloads by itself. They run as Ovrly does, with full access to your computer: only add files you trust.
+- **Custom nodes and widgets**: node and widget types of your own, in `data/custom/` (see [Custom nodes](#custom-nodes)
+  and [Custom widgets](#custom-widgets)). Settings → Custom nodes and Custom widgets list them and their errors,
+  import a node file or a widget folder, start a new widget from a working example, reload and open the folder; a
+  changed file reloads by itself (and so do the widget's pages in OBS). They run as Ovrly does, with full access to
+  your computer: only add files you trust.
 - **Errors and history**: a node that fails stops the firing there. An Error Trigger workflow runs when a node fails
   in another one. `GET /api/runs` has the last 100 firings (in memory), with each node's input and output.
 - **Widget concurrency**: starting a widget that is still playing (e.g. a second `!spin`) replaces what plays; the
@@ -183,7 +185,7 @@ server/
   files.js        the OS file dialog, and media files on disk
   windows.js      open windows, for Key Press
   icons.js        Tabler icons for node types and Stream Deck keys
-  custom-nodes.js custom node types from ./data/nodes, and the helpers they get
+  custom.js       custom node and widget types from ./data/custom, and the helpers they get
   nodes/          one file per node type
   integrations/   one module per outside service, with its routes:
     twitch.js       chat (tmi.js), Guest and Streamer modes
@@ -199,7 +201,7 @@ ui/               React app (Vite); starter workflows in ui/src/templates.js
 widgets/          one folder per widget type (index.html + widget.js)
 streamdeck/       the Ovrly Stream Deck plugin (com.ovrly.deck.sdPlugin; pnpm streamdeck:pack, pnpm streamdeck:link to develop)
 test/             node --test (pnpm test)
-data/             your widgets, workflows and custom nodes (gitignored)
+data/             your widgets, workflows and custom/ node and widget types (gitignored)
 ```
 
 ## Writing a node
@@ -226,7 +228,7 @@ A node with several outputs declares them, e.g. `outputs: ['true', 'false']`, an
 
 ### Custom nodes
 
-A custom node is written the same way, in `data/nodes/<name>.js` (or imported from Settings → Custom nodes). It can't
+A custom node is written the same way, in `data/custom/nodes/<name>.js` (or imported from Settings → Custom nodes). It can't
 take a built-in type, goes to the library's **Custom** group unless it names its own `group`, and needs `type`,
 `label`, `category` (`trigger`, `logic` or `action`) and `run`. Instead of importing Ovrly's files, `run` gets
 `ovrly`: `fill(text, data)` (and `fillJson`, `fillUrl`, `value`, `list`, see `server/template.js`), `vars` and
@@ -234,7 +236,7 @@ take a built-in type, goes to the library's **Custom** group unless it names its
 `twitch.needStreamer(feature)` and `obs.request(type, data)`.
 
 ```js
-// data/nodes/dice-total.js
+// data/custom/nodes/dice-total.js
 export default {
   type: 'dice-total',
   label: 'Dice Total',
@@ -279,6 +281,18 @@ export default {
 Actions may be async (e.g. to call the Twitch API), and `on: { 'channel.follow': (state, data, config) => state }` updates a widget's state from bus events, such as Twitch EventSub notifications. `fields` gives settings hints, as for nodes (see `ui/src/Fields.jsx`); a duration lists its usual values, e.g. `duration: { unit: 's', presets: [3, 5, 10] }`, shown as buttons next to an input for any other value.
 
 The page calls `subscribe(({ config, state }) => …, { stop, cancel })` from `/widgets/lib.js`: when "stop" or "cancel" ends what plays, its handler runs instead of render (e.g. play an outro, or cut); a page without one renders the new state, marked `ended` so a reloaded page doesn't replay it. Each action is `{ description, inputs, only, run(state, input, config) }`; every type has `start`, plus `stop` and `cancel`, which keep the state unless the type gives its own `run` (Voting's closes the vote). A workflow runs `start` with the widget node (drag the widget type from the library), or the action named by `linked` (TwitchPlays: `'push'`), and the others with Widget Action nodes in front of it. `inputs` says what an action asks for on the node, as node fields: e.g. `{ option: { vars: true, hint }, user: { vars: true, default: '{{user}}' } }`, or `{ image: { type: 'image', hint } }` for a file picker (`image`, `sound` or `video`). The action gets them filled from the data, e.g. `run(state, { option, user }, config)`. `only` shows an action only with some settings, as for fields (Voting's `vote`: `{ mode: 'chat' }`); `description` and `inputs` are listed in the node's ⓘ tooltip. A widget type can also give data back to the workflow: `output(state, config)` returns e.g. `{ winner: 'Red' }`, merged into the data for the next nodes, and `adds: ['winner']` lists those keys for the `{ }` menu. The lottery, roulette and dice roll output `winner` (they share `widgets/draw.js`, and `draw-page.js` for their pages), voting `winner`, `votes` and `winners`. The widget node waits until the widget has stopped before the next nodes run. If the widget type knows how long an action plays, it says so with `playTime(action, config, state)` (ms) and the server waits that long, whether or not an overlay page is open (the draw widgets and alerts do). Otherwise the page reports the end: return a promise from the render function (e.g. `wait(ms)` from `lib.js`) while an animation plays. After "stop", the workflow goes on once the outro has played: `stopTime(config)` (ms, 0 by default). An action arriving while another plays replaces it, unless `queues(config, action)` says the type queues them (alerts in some layouts, votes while a vote is open): then both play. `over(state, config)` ends what plays early, as stopped (a vote closed on Twitch).
+
+### Custom widgets
+
+A custom widget is a folder in `data/custom/widgets/`, named as its type, written like the built-in ones: `widget.js`
+(a `start` action at least) and `index.html`, plus any file the page uses (styles, scripts, images, fonts, sounds,
+videos). Its files are served at `/widgets/<type>/`, as the built-in ones, so the page uses `/widgets/lib.js`,
+`/widgets/base.css` and the `/vendor/` libraries the same way. Its actions get `ovrly` (see [Custom nodes](#custom-nodes)),
+as do its `on` handlers (third argument). **New widget…** in Settings → Custom widgets makes a working one to start
+from (a text shown for a few seconds); the built-in widgets in `widgets/` show the rest.
+
+When a custom widget changes, what plays on its widgets stops there, they get its new settings' defaults and their
+pages reload. A widget node whose type isn't loaded keeps its settings and shows in red until the type is back.
 
 ## Import / export
 

@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events'
 import bus from './bus.js'
 import * as store from './store.js'
 import { iconNode } from './icons.js'
-import * as custom from './custom-nodes.js'
+import * as custom from './custom.js'
 
 // Load every node type from ./nodes, keyed by type, in the library's order: most used first, a group's nodes together.
 // Types not listed go last.
@@ -24,7 +24,7 @@ const rank = (type) => (order.includes(type) ? order.indexOf(type) : order.lengt
 const dir = new URL('./nodes/', import.meta.url)
 const builtIn = await Promise.all((await fs.readdir(dir)).map(async (name) => (await import(new URL(name, dir))).default))
 export const nodes = {}
-// Custom node files that couldn't be loaded, [{ file, error }] (Settings → Custom nodes).
+// Custom node files that couldn't be loaded, [{ name, error }] (Settings → Custom nodes).
 export const problems = []
 
 // Live run feedback for the editor (GET /api/activity): { workflow, node, state } where state is running, done,
@@ -33,11 +33,11 @@ export const problems = []
 // when the node types were reloaded.
 export const activity = new EventEmitter()
 
-// (Re)loads the node types: the built-in ones, then the custom ones (server/custom-nodes.js), which can't take a
+// (Re)loads the node types: the built-in ones, then the custom ones (server/custom.js), which can't take a
 // built-in type. `nodes` stays the same object, so the modules holding it see the change. Reloads run one at a time.
 let loading = Promise.resolve()
 export const loadNodes = () => (loading = loading.catch(() => {}).then(async () => {
-  const { defs, errors } = await custom.load(new Set(builtIn.map((d) => d.type)))
+  const { defs, errors } = await custom.loadNodes(new Set(builtIn.map((d) => d.type)))
   const next = {}
   for (const def of [...builtIn, ...defs].sort((a, b) => rank(a.type) - rank(b.type))) next[def.type] = { ...def, iconNode: await iconNode(def.icon) }
   for (const type in nodes) delete nodes[type]
@@ -288,7 +288,7 @@ function listen(event) {
 }
 
 await loadNodes()
-custom.watch(() => loadNodes().catch((err) => console.error('[nodes]', err)))
+custom.watch('nodes', () => loadNodes().catch((err) => console.error('[nodes]', err)))
 
 // Schedule triggers decide themselves if they are due: once a second, every workflow that is on is asked.
 // unref: the server keeps the process alive, not this (tests import the engine and must exit).

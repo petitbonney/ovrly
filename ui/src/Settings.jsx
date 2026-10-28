@@ -8,7 +8,7 @@ import Heading from './Heading.jsx'
 import themes from './themes.js'
 import { get, json } from './api.js'
 
-// Opens the Settings dialog on a pane: an integration key, 'variables', 'nodes', 'network' or 'appearance'.
+// Opens the Settings dialog on a pane: an integration key, 'variables', 'nodes', 'widgets', 'network' or 'appearance'.
 export const openSettings = (item) => window.dispatchEvent(new CustomEvent('ovrly-settings', { detail: item }))
 
 // An integration's status as an icon whose shape and color both say it: a check when connected, "!" when set up but
@@ -277,39 +277,59 @@ function Variables() {
   )
 }
 
-// Custom nodes: node types of the user's own, JavaScript files in data/nodes/ (server/custom-nodes.js). Lists those
-// loaded and those that failed, each with Remove; Import copies a file there, Reload and Open folder for editing them
-// in place. Follows the server's reloads (files changed on disk) through the activity stream.
-function CustomNodes() {
+// Custom nodes and widgets (kind: 'nodes' or 'widgets'): types of the user's own, in data/custom/ (server/custom.js).
+// Lists those loaded and those that failed, each with Delete; Import copies a node file or a widget folder there, New
+// widget starts one from a working example, Reload and Open folder are for editing them in place. Follows the server's
+// reloads (files changed on disk) through the activity stream.
+const TRUST = 'Custom code runs with full access to this computer: only import files you trust.'
+function Custom({ kind }) {
+  const nodes = kind === 'nodes'
   const [list, setList] = useState()
   const [error, setError] = useState('')
   const call = async (path, options) => {
-    const res = await fetch(`/api/custom-nodes${path}`, options)
+    const res = await fetch(`/api/custom/${kind}${path}`, options)
     const body = await res.json().catch(() => ({}))
     res.ok ? (setList(body), setError('')) : setError(body.error ?? res.statusText)
+    return res.ok
   }
   useEffect(() => {
-    get('/api/custom-nodes').then(setList, (err) => setError(err.message))
-    const onActivity = (e) => e.detail.nodes && get('/api/custom-nodes').then(setList, () => {})
+    const load = () => get(`/api/custom/${kind}`).then(setList, (err) => setError(err.message))
+    const onActivity = (e) => (nodes ? e.detail.nodes : e.detail.widgetTypes) && load()
+    load()
     window.addEventListener('ovrly-activity', onActivity)
     return () => window.removeEventListener('ovrly-activity', onActivity)
-  }, [])
+  }, [kind])
+  // A node is a .js file; a widget a folder, sent a file at a time (skipping hidden ones, e.g. .DS_Store), then put in
+  // place at once.
   const pick = () => {
-    const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.js,.mjs' })
+    const input = Object.assign(document.createElement('input'), { type: 'file', ...(nodes ? { accept: '.js,.mjs' } : { webkitdirectory: true }) })
     input.onchange = async () => {
-      const file = input.files[0]
-      if (!file || !confirm(`A custom node runs with full access to this computer: only import files you trust.\n\nImport ${file.name}?`)) return
-      call(`/${encodeURIComponent(file.name)}`, json('PUT', { code: await file.text() }))
+      const files = [...input.files].filter((f) => !f.webkitRelativePath.split('/').some((p) => p.startsWith('.')))
+      if (!files.length) return
+      const name = nodes ? files[0].name : files[0].webkitRelativePath.split('/')[0]
+      if (!confirm(`${TRUST}\n\nImport ${name}? It replaces ${nodes ? 'a file' : 'a widget'} of the same name.`)) return
+      if (nodes) return call(`/${encodeURIComponent(name)}`, json('PUT', { code: await files[0].text() }))
+      for (const [i, f] of files.entries()) {
+        const rel = f.webkitRelativePath.split('/').slice(1).join('/')
+        const res = await fetch(`/api/custom/widgets/${encodeURIComponent(name)}/file?path=${encodeURIComponent(rel)}${i ? '' : '&first=1'}`,
+          { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: f })
+        if (!res.ok) return setError((await res.json().catch(() => ({}))).error ?? res.statusText)
+      }
+      call(`/${encodeURIComponent(name)}/done`, { method: 'POST' })
     }
     input.click()
   }
-  const remove = (file) => confirm(`Delete ${file} from the custom nodes folder?`) && call(`/${encodeURIComponent(file)}`, { method: 'DELETE' })
-  const row = (file, text, color) => (
-    <Group key={file} gap="xs" wrap="nowrap">
-      <Text size="xs" ff="monospace" w={160} truncate title={file} style={{ flexShrink: 0 }}>{file}</Text>
+  const create = () => {
+    const label = prompt('Name of the new widget, e.g. Big Text')
+    if (label?.trim()) call('/new', json('POST', { label }))
+  }
+  const remove = (name) => confirm(`Delete ${name} from the custom ${kind} folder?`) && call(`/${encodeURIComponent(name)}`, { method: 'DELETE' })
+  const row = (name, text, color) => (
+    <Group key={name} gap="xs" wrap="nowrap">
+      <Text size="xs" ff="monospace" w={160} truncate title={name} style={{ flexShrink: 0 }}>{name}</Text>
       <Text size="xs" c={color} flex={1} miw={0}>{text}</Text>
-      <Tooltip label="Delete the file">
-        <ActionIcon variant="subtle" color="red" aria-label={`Delete ${file}`} onClick={() => remove(file)}><IconTrash size={14} /></ActionIcon>
+      <Tooltip label={nodes ? 'Delete the file' : 'Delete the folder'}>
+        <ActionIcon variant="subtle" color="red" aria-label={`Delete ${name}`} onClick={() => remove(name)}><IconTrash size={14} /></ActionIcon>
       </Tooltip>
     </Group>
   )
@@ -317,20 +337,22 @@ function CustomNodes() {
   return (
     <Stack gap="sm">
       <Text size="xs" c="dimmed">
-        Node types of your own: JavaScript files in <Code>{list.dir}</Code>, written like Ovrly's (<Code>server/nodes/</Code>).
-        They run with full access to this computer: only add files you trust.
+        {nodes ? <>Node types of your own: JavaScript files in <Code>{list.dir}</Code>, written like Ovrly's (<Code>server/nodes/</Code>).</>
+          : <>Widget types of your own: folders in <Code>{list.dir}</Code>, each named as its type with a <Code>widget.js</Code> and an <Code>index.html</Code>, written like Ovrly's (<Code>widgets/</Code>). Their pages in OBS reload when they change.</>}
+        {' '}{TRUST}
       </Text>
-      {list.nodes.length || list.errors.length ? (
+      {list.items.length || list.errors.length ? (
         <Stack gap={4}>
-          {list.nodes.map((n) => row(n.file, `${n.label} (${n.category})`))}
-          {list.errors.map((e) => row(e.file, e.error, 'red'))}
+          {list.items.map((i) => row(i.name, i.label))}
+          {list.errors.map((e) => row(e.name, e.error, 'red'))}
         </Stack>
-      ) : <Text size="xs" c="dimmed">No custom nodes yet.</Text>}
+      ) : <Text size="xs" c="dimmed">No custom {kind} yet.</Text>}
       {error && <Text size="xs" c="red">{error}</Text>}
       <Group gap="xs" justify="end">
-        <Button size="xs" variant="default" leftSection={<IconFolderOpen size={14} />} onClick={() => fetch('/api/custom-nodes/open', { method: 'POST' })}>Open folder</Button>
+        <Button size="xs" variant="default" leftSection={<IconFolderOpen size={14} />} onClick={() => fetch(`/api/custom/${kind}/open`, { method: 'POST' })}>Open folder</Button>
         <Button size="xs" variant="default" leftSection={<IconRefresh size={14} />} onClick={() => call('/reload', { method: 'POST' })}>Reload</Button>
-        <Button size="xs" leftSection={<IconFileImport size={14} />} onClick={pick}>Import…</Button>
+        {!nodes && <Button size="xs" variant="default" leftSection={<IconPlus size={14} />} onClick={create}>New widget…</Button>}
+        <Button size="xs" leftSection={<IconFileImport size={14} />} onClick={pick}>{nodes ? 'Import…' : 'Import folder…'}</Button>
       </Group>
     </Stack>
   )
@@ -436,6 +458,7 @@ export default function Settings({ opened, item, onItem, onClose, statuses, setS
           <Heading title="Workflows" mt="sm" />
           <NavLink component="button" label="Variables" active={item === 'variables'} onClick={() => onItem('variables')} />
           <NavLink component="button" label="Custom nodes" active={item === 'nodes'} onClick={() => onItem('nodes')} />
+          <NavLink component="button" label="Custom widgets" active={item === 'widgets'} onClick={() => onItem('widgets')} />
           <Heading title="Network" mt="sm" />
           <NavLink component="button" label="LAN" active={item === 'network'} onClick={() => onItem('network')} />
           <Heading title="Appearance" mt="sm" />
@@ -444,7 +467,7 @@ export default function Settings({ opened, item, onItem, onClose, statuses, setS
         <div style={{ flex: 1, minWidth: 0 }}>
           {item === 'appearance' ? <Appearance theme={theme} onTheme={onTheme} />
             : item === 'variables' ? <Variables />
-            : item === 'nodes' ? <CustomNodes />
+            : item === 'nodes' || item === 'widgets' ? <Custom key={item} kind={item} />
             : !status ? <Loader size="sm" />
             : current ? <current.Pane key={current.key} status={status} info={current.info(status)} setStatus={(s) => setStatus(current.path, s)} />
             : <Network status={status} setStatus={(s) => setStatus('/api/network', s)} />}

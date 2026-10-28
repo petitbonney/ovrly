@@ -31,7 +31,7 @@
     }
     view.items.forEach(({ id, x, y, w, h }, i) => {
       if (!frames[id]) {
-        mergeSource.addEventListener(id, (e) => (mergeLast[id] = e.data))
+        mergeSource.addEventListener(id, (e) => JSON.parse(e.data).reload || (mergeLast[id] = e.data)) // not a reload: it would loop
         frames[id] = stage.appendChild(document.createElement('iframe'))
         frames[id].dataset.merged = ''
         frames[id].src = `/w/${id}`

@@ -4,7 +4,8 @@ import { access, network, setLan } from './access.js'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
 import { nodes, problems, loadNodes, fire, cancel, running, activity, history, line, drop, arrived, unjoin } from './engine.js'
-import * as custom from './custom-nodes.js'
+import * as custom from './custom.js'
+import { httpError } from './errors.js'
 import * as twitch from './integrations/twitch.js'
 import * as twitchAuth from './integrations/twitch-auth.js'
 import * as obs from './integrations/obs.js'
@@ -28,28 +29,46 @@ app.use(express.json())
 
 // Node types for the UI library (metadata only, no run function).
 app.get('/api/nodes', (req, res) => res.json(Object.values(nodes).map(({ run, live, control, ...meta }) => ({ ...meta, live: !!live }))))
-// Custom nodes (server/custom-nodes.js, Settings → Custom nodes): the files loaded and those that failed. Importing
-// (PUT { code }), removing or reloading them answers that again, once reloaded.
-const customNodes = () => ({ dir: custom.dir, errors: problems,
-  nodes: Object.values(nodes).filter((d) => d.custom).map(({ custom: file, type, label, category }) => ({ file, type, label, category })) })
-app.get('/api/custom-nodes', (req, res) => res.json(customNodes()))
-app.post('/api/custom-nodes/reload', async (req, res) => {
-  await loadNodes()
-  res.json(customNodes())
-})
-app.post('/api/custom-nodes/open', (req, res) => {
-  custom.open()
+// Custom nodes and widgets (server/custom.js; Settings → Custom nodes, Custom widgets): those loaded and those that
+// failed, { dir, items: [{ name, type, label }], errors: [{ name, error }] }. The calls that change them answer that
+// again, once reloaded: importing a node (PUT { code }), a widget folder (PUT each file as is, ?path=, first=1 for the
+// first one, then POST done), a new widget from the starter (POST { label }), deleting one, reloading.
+const kinds = {
+  nodes: { defs: nodes, problems, reload: loadNodes },
+  widgets: { defs: widgets.types, problems: widgets.problems, reload: widgets.loadTypes },
+}
+function kindOf(req) {
+  if (!kinds[req.params.kind]) throw httpError(404, `No custom ${req.params.kind}`)
+  return req.params.kind
+}
+const customList = (kind) => ({ dir: custom.dirs[kind], errors: kinds[kind].problems,
+  items: Object.values(kinds[kind].defs).filter((d) => d.custom).map(({ custom: name, type, label }) => ({ name, type, label })) })
+const reloaded = async (kind, res, extra) => {
+  await kinds[kind].reload()
+  res.json({ ...customList(kind), ...extra })
+}
+app.get('/api/custom/:kind', (req, res) => res.json(customList(kindOf(req))))
+app.post('/api/custom/:kind/reload', (req, res) => reloaded(kindOf(req), res))
+app.post('/api/custom/:kind/open', (req, res) => {
+  custom.open(kindOf(req))
   res.sendStatus(204)
 })
-app.put('/api/custom-nodes/:file', async (req, res) => {
-  await custom.save(req.params.file, req.body.code)
-  await loadNodes()
-  res.json(customNodes())
+app.delete('/api/custom/:kind/:name', async (req, res) => {
+  await custom.remove(kindOf(req), req.params.name)
+  await reloaded(req.params.kind, res)
 })
-app.delete('/api/custom-nodes/:file', async (req, res) => {
-  await custom.remove(req.params.file)
-  await loadNodes()
-  res.json(customNodes())
+app.put('/api/custom/nodes/:name', async (req, res) => {
+  await custom.saveNode(req.params.name, req.body.code)
+  await reloaded('nodes', res)
+})
+app.post('/api/custom/widgets/new', async (req, res) => reloaded('widgets', res, { type: await custom.scaffold(req.body.label) }))
+app.put('/api/custom/widgets/:type/file', express.raw({ type: () => true, limit: '100mb' }), async (req, res) => {
+  await custom.file(req.params.type, req.query.path, req.body, req.query.first === '1')
+  res.sendStatus(204)
+})
+app.post('/api/custom/widgets/:type/done', async (req, res) => {
+  await custom.done(req.params.type)
+  await reloaded('widgets', res)
 })
 // What a node holds now, shown in its settings (node types with `live`, e.g. a Cooldown's time left), for ?type=.
 app.get('/api/nodes/:workflow/:node/live', (req, res) => {
@@ -195,7 +214,7 @@ app.get('/file', files.serve)
 app.use(twitch.routes, obs.routes, giphy.routes, hue.routes, streamdeck.routes, myinstants.routes, fonts.routes, windows.routes)
 
 // Widget types for the UI: metadata, and each action's description, inputs and only (no functions).
-app.get('/api/widget-types', (req, res) => res.json(Object.values(widgets.types).map(({ actions, output, playTime, stopTime, on, queues, over, ...meta }) => ({
+app.get('/api/widget-types', (req, res) => res.json(Object.values(widgets.types).map(({ actions, output, playTime, stopTime, on, queues, over, page, ...meta }) => ({
   ...meta,
   actions: Object.fromEntries(Object.entries(actions).map(([name, { run, ...action }]) => [name, action])),
 }))))
@@ -216,6 +235,8 @@ app.post('/api/widgets/:id/action', async (req, res) => {
 })
 // An action that changed a widget's state (e.g. TwitchPlays' mode) shows in the editor's settings: see /api/activity.
 widgets.changes.on('state', (widget) => activity.emit('activity', { widget: widget.id }))
+// Widget types reloaded (custom widgets changed): the editor fetches them again.
+widgets.changes.on('types', () => activity.emit('activity', { widgetTypes: true }))
 
 // Workflow writes (server/workflows.js): saving one stops it if switched off, moves Merge Widgets and deletes widgets
 // no workflow uses anymore. Reads go through the generic routes below.
@@ -251,7 +272,7 @@ app.use('/api', (err, req, res, next) => {
 // Widget pages for OBS browser sources: /w/<id> serves its type's page, /w/<id>/events streams its state. An unknown
 // page (a deleted widget, Merge Widgets node) is an empty one, so a browser source left with it shows nothing on stream.
 const blank = (res) => res.status(404).type('html').send('<!doctype html><title>Not found</title>')
-app.use('/widgets', express.static('widgets'))
+app.use('/widgets', express.static('widgets'), express.static(custom.dirs.widgets)) // custom widget pages too
 // Animation and physics libraries for widget pages (anime.js, three.js, cannon-es), mapped by the pages' import maps.
 app.use('/vendor/animejs', express.static('node_modules/animejs/dist/modules'))
 app.use('/vendor/three', express.static('node_modules/three'))
@@ -265,7 +286,7 @@ app.get('/w/:id{/:events}', async (req, res) => {
   const widget = await widgets.get(req.params.id).catch(() => null) // null for an unknown type too
   if (!widget) return req.params.events ? res.sendStatus(404) : blank(res)
   if (req.params.events === 'events') return widgets.stream(widget.id, req, res)
-  res.sendFile(`widgets/${widget.type}/index.html`, { root: '.' })
+  res.sendFile(widgets.types[widget.type].page)
 })
 
 // Merge Widgets pages (server/merge.js): /m/<workflow>/<node> shows the widget nodes linked into that node, on its

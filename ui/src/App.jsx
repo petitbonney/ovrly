@@ -168,7 +168,8 @@ function Library({ defs, types, off }) {
         <Groups items={[
           ...types.filter(match).map((t) => ({ el: (
             <Item key={t.type} label={t.label} description={t.soon ? `Coming soon. ${t.description}` : t.description} icon={t.Icon}
-              color={colors.widget} needs={t.needs} off={off} badge={t.soon && <Badge size="xs" variant="light" color="yellow">Soon</Badge>}
+              color={colors.widget} needs={t.needs} off={off}
+              badge={t.soon ? <Badge size="xs" variant="light" color="yellow">Soon</Badge> : t.custom && <Badge size="xs" variant="light" color="gray">Custom</Badge>}
               data={['application/ovrly-widget', t.type]} onAdd={() => addToWorkflow({ widget: t.type })} />
           ) })),
           ...defs.filter((d) => d.category === 'widget' && d.type !== 'widget' && match(d))
@@ -262,12 +263,16 @@ export default function App({ theme, onTheme }) {
     source.onmessage = (e) => window.dispatchEvent(new CustomEvent('ovrly-activity', { detail: JSON.parse(e.data) }))
     return () => source.close()
   }, [])
-  // Node types are fetched again when the server reloads them (custom nodes changed).
+  // Node and widget types are fetched again when the server reloads them (custom ones changed).
   useEffect(() => {
     const loadDefs = () => get('/api/nodes').then((list) => setDefs(list.map(withIcon)))
-    const onActivity = (e) => e.detail.nodes && loadDefs()
+    const loadTypes = () => get('/api/widget-types').then((list) => setTypes(list.map(withIcon)))
+    const onActivity = (e) => {
+      if (e.detail.nodes) loadDefs()
+      if (e.detail.widgetTypes) loadTypes()
+    }
     loadDefs()
-    get('/api/widget-types').then((list) => setTypes(list.map(withIcon)))
+    loadTypes()
     window.addEventListener('ovrly-activity', onActivity)
     return () => window.removeEventListener('ovrly-activity', onActivity)
   }, [])

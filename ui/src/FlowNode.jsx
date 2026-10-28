@@ -1,6 +1,7 @@
 // n8n-style graph node: icon box with the label underneath; triggers get a rounded left side. Triggers that can be
 // tried from here (Manual Trigger, chat triggers) get a bolt that fires them. A node whose needs aren't met (an
-// integration not ready) gets a warning badge, one of a type that isn't loaded (a custom node removed or broken) a red one. Nodes with several outputs (if/else, switch) get one labelled handle
+// integration not ready) gets a warning badge, one of a type that isn't loaded (a custom node or widget removed or
+// broken) a red one. Nodes with several outputs (if/else, switch) get one labelled handle
 // each, and grow taller with more than five. Widget nodes show their widget's icon and name, with the action they run
 // underneath unless it is "start".
 import { useEffect } from 'react'
@@ -84,7 +85,7 @@ export default function FlowNode({ id, data, selected }) {
           <IconBolt size={18} fill="currentColor" />
         </button>
       )}
-      {!def ? <span className="needs unknown" title={`Unknown node type "${data.type}"`}><IconAlertTriangle size={12} /></span>
+      {!def || (widget && !type) ? <span className="needs unknown" title={`Unknown ${def ? 'widget' : 'node'} type "${def ? widget.type : data.type}"`}><IconAlertTriangle size={12} /></span>
         : missing.length > 0 && <span className="needs" title={missing.map((m) => `Needs ${m}.`).join(' ')}><IconPlugOff size={12} /></span>}
       {!trigger && <div className="in-bar" style={{ height: (inputs - 1) * 18 + 22 }} />}
       {!trigger && Array.from({ length: inputs }, (_, i) => (
