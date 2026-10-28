@@ -1,6 +1,7 @@
 // Custom nodes and widgets: files in data/custom/ load next to the built-in ones (a broken one or a taken type is
-// reported, not loaded), run with the ovrly helpers and reload once changed. A workflow reaching an unknown node type
-// fails there; a widget whose type is gone keeps its file. New widget's starter loads and plays.
+// reported, not loaded; a node's helper files in a subfolder are skipped), run with the ovrly helpers and reload once
+// changed. A workflow reaching an unknown node type fails there; a widget whose type is gone keeps its file. New
+// widget's starter loads and plays.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
@@ -13,8 +14,10 @@ const write = async (file, code) => {
   await fs.mkdir(path.dirname(`data/custom/${file}`), { recursive: true })
   await fs.writeFile(`data/custom/${file}`, code)
 }
-await write('nodes/shout.js', `export default { type: 'shout', label: 'Shout', category: 'action', config: { text: '{{user}}!' },
-  run: ({ config, data, ovrly }) => ({ ...data, shout: ovrly.fill(config.text, data).toUpperCase() }) }`)
+await write('nodes/lib/upper.js', 'export const upper = (s) => s.toUpperCase()') // a helper: imported, not a node
+await write('nodes/shout.js', `import { upper } from './lib/upper.js'
+export default { type: 'shout', label: 'Shout', category: 'action', config: { text: '{{user}}!' },
+  run: ({ config, data, ovrly }) => ({ ...data, shout: upper(ovrly.fill(config.text, data)) }) }`)
 await write('nodes/broken.js', 'export default {')
 await write('nodes/log.js', `export default { type: 'log', label: 'Mine', category: 'action', run: () => ({}) }`)
 const big = (label) => `export default { type: 'big', label: '${label}', state: { size: 1 },
@@ -30,7 +33,7 @@ const custom = await import('../server/custom.js')
 const node = (id, type, config = {}) => ({ id, data: { type, config } })
 const flow = (type) => ({ id: type, nodes: [node('t', 'manual'), node('n', type)], edges: [{ id: 'e', source: 't', target: 'n' }] })
 
-test('a custom node loads, in the Custom group, and runs with the helpers', async () => {
+test('a custom node loads, in the Custom group, and runs with the helpers and its own files', async () => {
   assert.equal(nodes.shout.group, 'Custom')
   assert.equal(nodes.shout.custom, 'shout.js')
   const [run] = await fire(flow('shout'), 'manual', { user: 'ana' })

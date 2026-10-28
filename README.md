@@ -330,6 +330,24 @@ from (a text shown for a few seconds); the built-in widgets in `widgets/` show t
 When a custom widget changes, what plays on its widgets stops there, they get its new settings' defaults and their
 pages reload. A widget node whose type isn't loaded keeps its settings and shows in red until the type is back.
 
+### Packages in custom code
+
+Custom code has Node's built-ins (`node:fs`, `node:crypto`…) and `fetch`, but no npm installs (the download bundles
+Node without npm). To use a package:
+
+- **Copy its ESM build** next to your code and import it by a relative path. A node's own files go in a subfolder,
+  e.g. `data/custom/nodes/lib/` (only the `.js` files directly in `nodes/` are nodes); a widget's anywhere in its
+  folder.
+- **Or bundle** your code and its packages into one file, e.g.
+  `npx esbuild src/my-node.js --bundle --platform=node --format=esm --outfile=data/custom/nodes/my-node.js`.
+- **In a page**, map it in the import map: to the `/vendor/` libraries (anime.js, three.js, cannon-es), to a file in
+  the widget's folder (`/widgets/<type>/lib/confetti.js`), or to a CDN with a pinned version
+  (`https://esm.sh/canvas-confetti@1.9.3`). A CDN needs internet when OBS loads the page: prefer a copied file.
+
+Ovrly's own packages are within reach (imports look up to its `node_modules`), but they aren't for custom code: Ovrly
+may upgrade or drop them. Use the `ovrly` helpers, `/vendor/` in pages, or a copy of your own. Only a node's file and a
+widget's `widget.js` reload when changed; the files they import reload on a restart.
+
 ## Import / export
 
 Each workflow and widget is a single JSON file in `./data`. Use **Export** to download one, and **Import** (or just drop the file into `./data`) to load one.
