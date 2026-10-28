@@ -12,6 +12,21 @@
 .widget-split .live { overflow: auto; }
 .preview-fit { flex: 1; min-height: 0; }
 .preview-fit .preview { display: block; height: 100%; aspect-ratio: auto; }
+/* A Code node's editor fills the settings column, or the full-screen view (Fields.jsx), its code in the theme's colors
+   (CodeEditor.jsx). */
+.settings > :has(> .code-field) { flex: 1; }
+.code-field { flex: 1; min-height: 200px; }
+.code-editor { flex: 1; min-height: 0; }
+.mantine-Modal-content:has(.code-modal) { display: flex; flex-direction: column; }
+.code-modal { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+.tok-keyword, .tok-operator.tok-keyword { color: var(--mantine-color-violet-text); }
+.tok-string, .tok-string2 { color: var(--mantine-color-green-text); }
+.tok-number, .tok-bool, .tok-atom, .tok-null { color: var(--mantine-color-orange-text); }
+.tok-comment { color: var(--mantine-color-dimmed); font-style: italic; }
+.tok-propertyName { color: var(--mantine-color-blue-text); }
+.tok-variableName2, .tok-typeName, .tok-className { color: var(--mantine-color-cyan-text); }
+.tok-definition { color: var(--mantine-color-yellow-text); }
+.tok-invalid { color: var(--mantine-color-red-text); }
 /* Copy/paste feedback over the graph. */
 .toast { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 10; }
 /* How to start, over an empty graph (clicks go through, except on its button). */

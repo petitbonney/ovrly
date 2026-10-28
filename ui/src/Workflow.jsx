@@ -31,6 +31,7 @@ import Play from './Play.jsx'
 import LogResult from './LogResult.jsx'
 import NodeLive from './NodeLive.jsx'
 import ChatTest from './ChatTest.jsx'
+import CodeTest from './CodeTest.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
 import FlowNode, { colors, outputsOf } from './FlowNode.jsx'
@@ -139,7 +140,7 @@ function boundsOf(list) {
 // error), then the settings column, with a live column on its right when the node has something to watch or press: a
 // widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, a Wait For All's links with
 // Force and Cancel, an action's Play and result (Play.jsx), a Log's last data (LogResult.jsx), a Cooldown's, Delay's
-// or Fan In's state (NodeLive.jsx), a Chat !command's test Run (ChatTest.jsx). A Merge Widgets node shows its
+// or Fan In's state (NodeLive.jsx), a Chat !command's test Run (ChatTest.jsx), a Code node's Test (CodeTest.jsx). A Merge Widgets node shows its
 // canvas instead (with the widgets linked into it, context.inputs). context.widget is the widget the node points to; off: the requirements not met (Settings.jsx).
 function Config({ workflow, node, def, context, off, running, error, onChange, onWidgetChange, onCopy, onClose, onError }) {
   if (!node || !def) return null
@@ -157,6 +158,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
     : def.join ? <JoinLinks workflow={workflow} node={node.id} links={context.links} />
     : def.type === 'log' ? <LogResult key={node.id} workflow={workflow} node={node.id} />
     : def.type === 'chat-command' ? <ChatTest key={node.id} workflow={workflow} node={node.id} config={config} />
+    : def.type === 'code' ? <CodeTest key={node.id} workflow={workflow} node={node.id} config={config} />
     : def.live ? <NodeLive key={node.id} workflow={workflow} node={node.id} type={def.type} config={config} />
     : def.play && applies(def.play, config) && (
       <Play key={node.id} workflow={workflow} node={node.id} type={def.type} config={config} disabled={missing.length > 0} running={running} />
