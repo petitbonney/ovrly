@@ -58,15 +58,21 @@ async function walk(workflow, node, data, run, from) {
   // `id` keys a node's memory across firings (cooldown).
   const id = `${workflow.id}/${node.id}`
   // A join holds each firing that arrives before every link has delivered; the last one to complete it continues, with
-  // all the data merged, and the ones waiting end there.
+  // all the data merged, and the ones waiting end there. A firing whose trigger leads to every link (e.g. two branches
+  // of one chat message) waits on its own, so firings arriving at once don't mix their data; the others meet across
+  // firings (e.g. two triggers).
   if (def.join) {
-    const j = (joins[id] ??= { arrived: {}, waiting: [] })
+    const incoming = workflow.edges.filter((e) => e.target === node.id)
+    const reached = new Set([run.trigger])
+    for (const n of reached) for (const e of workflow.edges) if (e.source === n) reached.add(e.target)
+    const key = incoming.every((e) => reached.has(e.source)) ? `${id}#${run.record.id}` : id
+    const j = (joins[key] ??= { arrived: {}, waiting: [] })
     j.arrived[from.edge] = data
-    if (workflow.edges.some((e) => e.target === node.id && !(e.id in j.arrived))) {
+    if (incoming.some((e) => !(e.id in j.arrived))) {
       status('waiting')
       data = await new Promise((resolve) => j.waiting.push(resolve))
       if (!data) return
-    } else data = release(id, false)
+    } else data = release(key, false)
   }
   const config = { ...def.config, ...node.data.config }
   // A queue node lets one firing at a time through: the next waits until everything after it has finished.
@@ -112,14 +118,17 @@ function release(key, go) {
   return data
 }
 
-// The links that have delivered to a Wait For All node, as link ids (GET /api/joins/:workflow/:node).
-export const arrived = (workflow, node) => Object.keys(joins[`${workflow}/${node}`]?.arrived ?? {})
+// A Wait For All node's waits: the one across firings, and those of firings waiting on their own (`<key>#<firing>`).
+const waits = (workflow, node) => Object.keys(joins).filter((k) => k === `${workflow}/${node}` || k.startsWith(`${workflow}/${node}#`))
 
-// Ends the wait at a Wait For All node: Force continues now with what arrived, Cancel drops it (the firings stop there).
+// The links that have delivered to a Wait For All node, in any of its waits, as link ids (GET /api/joins/:workflow/:node).
+export const arrived = (workflow, node) => [...new Set(waits(workflow, node).flatMap((k) => Object.keys(joins[k].arrived)))]
+
+// Ends the waits at a Wait For All node: Force continues now with what arrived, Cancel drops them (the firings stop there).
 export function unjoin(workflow, node, go) {
-  const key = `${workflow}/${node}`
-  if (!joins[key]) return false
-  release(key, go)
+  const keys = waits(workflow, node)
+  if (!keys.length) return false
+  keys.forEach((k) => release(k, go))
   if (!go) activity.emit('activity', { workflow, node, state: 'stopped' })
   return true
 }
@@ -199,7 +208,7 @@ export function fire(workflow, event, data, parent = {}, only) {
     }
     // outputs: node type or id -> output of the last node of that type that ran, for {{ $node... }}. origins: the
     // triggers this firing comes from, as `workflow/node` keys: its own, after those of the firings that called it.
-    const run = { event, signal: controller.signal, outputs: {}, depth: parent.depth ?? 0, record, start,
+    const run = { event, signal: controller.signal, outputs: {}, depth: parent.depth ?? 0, record, start, trigger: t.id,
       origins: [...(parent.origins ?? []), `${workflow.id}/${t.id}`] }
     const began = Date.now()
     try {
@@ -227,7 +236,7 @@ export const running = () => Object.fromEntries(Object.entries(runs).filter(([, 
 // all) give up, and nothing after them runs.
 export function cancel(workflowId) {
   for (const controller of runs[workflowId] ?? []) controller.abort()
-  for (const key in joins) if (key.startsWith(`${workflowId}/`)) unjoin(workflowId, key.slice(workflowId.length + 1), false)
+  for (const key in joins) if (key.startsWith(`${workflowId}/`)) unjoin(workflowId, key.slice(workflowId.length + 1).split('#')[0], false)
 }
 
 // Fires the event on every workflow that is on, as last saved (edits apply without a restart); switched-off ones are
@@ -248,4 +257,5 @@ const fireAll = (event, data) => store.list('workflows')
 for (const event of new Set(Object.values(nodes).flatMap((d) => [d.event ?? []].flat()))) bus.on(event, (data) => fireAll(event, data))
 
 // Schedule triggers decide themselves if they are due: once a second, every workflow that is on is asked.
-setInterval(() => fireAll('schedule', {}), 1000)
+// unref: the server keeps the process alive, not this (tests import the engine and must exit).
+setInterval(() => fireAll('schedule', {}), 1000).unref()
