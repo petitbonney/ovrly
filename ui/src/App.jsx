@@ -125,8 +125,10 @@ function Item({ label, description, icon: Icon, color, needs = [], off, badge, d
     </Tooltip>
   )
 }
+// A custom node type (Settings → Custom nodes) is badged so.
 const nodeItem = (d, color, off) => (
   <Item key={d.type} label={d.label} description={d.description} icon={d.Icon} color={color} needs={d.needs} off={off}
+    badge={d.custom && <Badge size="xs" variant="light" color="gray">Custom</Badge>}
     data={['application/ovrly', d.type]} onAdd={() => addToWorkflow({ node: d.type })} />
 )
 
@@ -166,7 +168,8 @@ function Library({ defs, types, off }) {
         <Groups items={[
           ...types.filter(match).map((t) => ({ el: (
             <Item key={t.type} label={t.label} description={t.soon ? `Coming soon. ${t.description}` : t.description} icon={t.Icon}
-              color={colors.widget} needs={t.needs} off={off} badge={t.soon && <Badge size="xs" variant="light" color="yellow">Soon</Badge>}
+              color={colors.widget} needs={t.needs} off={off}
+              badge={t.soon ? <Badge size="xs" variant="light" color="yellow">Soon</Badge> : t.custom && <Badge size="xs" variant="light" color="gray">Custom</Badge>}
               data={['application/ovrly-widget', t.type]} onAdd={() => addToWorkflow({ widget: t.type })} />
           ) })),
           ...defs.filter((d) => d.category === 'widget' && d.type !== 'widget' && match(d))
@@ -260,9 +263,18 @@ export default function App({ theme, onTheme }) {
     source.onmessage = (e) => window.dispatchEvent(new CustomEvent('ovrly-activity', { detail: JSON.parse(e.data) }))
     return () => source.close()
   }, [])
+  // Node and widget types are fetched again when the server reloads them (custom ones changed).
   useEffect(() => {
-    get('/api/nodes').then((list) => setDefs(list.map(withIcon)))
-    get('/api/widget-types').then((list) => setTypes(list.map(withIcon)))
+    const loadDefs = () => get('/api/nodes').then((list) => setDefs(list.map(withIcon)))
+    const loadTypes = () => get('/api/widget-types').then((list) => setTypes(list.map(withIcon)))
+    const onActivity = (e) => {
+      if (e.detail.nodes) loadDefs()
+      if (e.detail.widgetTypes) loadTypes()
+    }
+    loadDefs()
+    loadTypes()
+    window.addEventListener('ovrly-activity', onActivity)
+    return () => window.removeEventListener('ovrly-activity', onActivity)
   }, [])
   useEffect(() => {
     let stale = false // a newer refetch started: these answers may be older than its, so they're dropped

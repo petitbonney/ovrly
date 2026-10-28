@@ -2,6 +2,7 @@
 // ./data/widgets/<id>.json) and runtime (in memory), runs their actions, and pushes them to /w/:id pages over SSE.
 // Each action is recorded as a `widget` event, and its end (with the output) as `widget-done` (GET /api/events).
 import fs from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import bus, { record } from './bus.js'
@@ -9,8 +10,10 @@ import * as store from './store.js'
 import { fill, list } from './template.js'
 import { iconNode } from './icons.js'
 import { httpError } from './errors.js'
+import * as custom from './custom.js'
 
-// Load every widget type from ../widgets/<type>/widget.js, keyed by type. Each action is { description, inputs, only,
+// Widget types: the built-in ones from ../widgets/<type>/widget.js, then the custom ones (server/custom.js), keyed by
+// type, each with its page (index.html). Each action is { description, inputs, only,
 // run({ state, runtime, input }) → { state?, runtime? } }: inputs says what it asks for, as node fields ({ option: {
 // vars: true, hint }, user: { vars: true, default: '{{user}}' } }), and only when it applies, as a setting's only (e.g.
 // { mode: 'chat' }). An input of type: 'list' gets a list instead of text: its own items, or a data key's value (see
@@ -34,12 +37,36 @@ export function normalize(def) {
 // Types are kept in the library's order: most used first (unlisted ones last).
 const order = ['alerts', 'label', 'voting', 'sound', 'image', 'video', 'lottery', 'roulette', 'dice', 'twitch-plays']
 const rank = (name) => (order.includes(name) ? order.indexOf(name) : order.length)
+const folders = (await fs.readdir(dir, { withFileTypes: true })).filter((e) => e.isDirectory())
+const bundled = await Promise.all(folders.map(async (e) => ({
+  ...(await import(new URL(`${e.name}/widget.js`, dir))).default,
+  page: fileURLToPath(new URL(`${e.name}/index.html`, dir)),
+})))
 export const types = {}
-const folders = (await fs.readdir(dir, { withFileTypes: true })).filter((e) => e.isDirectory()).sort((a, b) => rank(a.name) - rank(b.name))
-for (const entry of folders) {
-  const def = (await import(new URL(`${entry.name}/widget.js`, dir))).default
-  types[def.type] = { ...normalize(def), iconNode: await iconNode(def.icon) }
-}
+// Custom widget folders that couldn't be loaded, [{ name, error }] (Settings → Custom widgets).
+export const problems = []
+
+// (Re)loads the widget types; `types` stays the same object. The widgets of a custom type start over: what plays on
+// them stops there (as cancelled), their state gets the type's new defaults and their pages reload. A widget whose type
+// is gone keeps its file, but can't be used until the type is back. Emits 'types' on `changes`. One reload at a time.
+let loading = Promise.resolve()
+export const loadTypes = () => (loading = loading.catch(() => {}).then(async () => {
+  const { defs, errors } = await custom.loadWidgets(new Set(bundled.map((d) => d.type)))
+  const reloaded = new Set([...Object.values(types), ...defs].filter((d) => d.custom).map((d) => d.type))
+  for (const type in types) delete types[type]
+  for (const def of [...bundled, ...defs].sort((a, b) => rank(a.type) - rank(b.type))) types[def.type] = { ...normalize(def), iconNode: await iconNode(def.icon) }
+  problems.splice(0, Infinity, ...errors)
+  follow()
+  for (const widget of Object.values(cache)) {
+    if (!reloaded.has(widget?.type)) continue
+    settleAll(widget.id, false)
+    delete runtimes[widget.id]
+    if (types[widget.type]) Object.assign(widget, filled(widget))
+    for (const res of clients[widget.id] ?? []) res.write('data: {"reload":true}\n\n')
+    if (types[widget.type]) push(widget) // the new state, for Merge Widgets pages to start from
+  }
+  changes.emit('types')
+}))
 
 
 // An action's or handler's { state?, runtime? } over the current { state, runtime }: each part it returns replaces
@@ -98,13 +125,13 @@ export function create(type, state = {}) {
   return save({ id: randomUUID(), type, state })
 }
 
-// The widget, loaded from its file on first use; null if there's none, or its type isn't loaded.
+// The widget, loaded from its file on first use; null if there's none, or its type isn't loaded (anymore).
 export async function get(id) {
   if (!cache[id]) {
     const file = await store.get('widgets', id)
     if (file && !cache[id] && !removed.has(id)) cache[id] = filled(file)
   }
-  return cache[id] ?? null
+  return types[cache[id]?.type] ? cache[id] : null
 }
 
 export async function read(id) {
@@ -169,7 +196,7 @@ async function apply(widget, { action, input = {} }) {
   // A sync action is put in place in the same tick, so two quick ones build on each other.
   let result
   try {
-    result = act.run({ ...snap, input })
+    result = act.run({ ...snap, input, ovrly: custom.ovrly })
     if (result instanceof Promise) result = await result
   } catch (err) {
     throw Object.assign(err, { status: err.status ?? 400 })
@@ -216,7 +243,7 @@ async function end(widget, how, input = {}, run) {
   const snap = snapshot(widget)
   let next = snap, error
   try {
-    next = merge(snap, await def.actions[action].run({ ...snap, input })) ?? snap
+    next = merge(snap, await def.actions[action].run({ ...snap, input, ovrly: custom.ovrly })) ?? snap
   } catch (err) {
     error = err
   }
@@ -260,26 +287,32 @@ export async function play(id, action, input, data, signal) {
   return (await done) ? { ...data, ...output(widget) } : null
 }
 
-// Bus events a widget type follows: its on: { event: (snap, data) => ({ state?, runtime? }) } handlers run for each of
-// its widgets, e.g. a Twitch poll's progress updating the Voting widget that started it. Returning nothing skips it.
-// Only widgets loaded since the server started get them: the others' runtime is the type's default, so none of them
-// has started anything to follow.
-for (const def of Object.values(types)) {
-  for (const [event, handle] of Object.entries(def.on ?? {})) {
-    bus.on(event, async (data) => {
-      // Errors are logged: a rejection here would crash the server.
-      try {
-        for (const widget of Object.values(cache).filter((w) => w.type === def.type)) {
-          const snap = snapshot(widget)
-          const next = merge(snap, handle(snap, data))
-          if (!next) continue
-          const saved = commit(widget, next)
-          if (def.over?.(next)) settleAll(widget.id, true)
-          await saved
-          push(widget)
-        }
-      } catch (err) { console.error(`[${def.type}]`, err) }
-    })
+// Bus events a widget type follows: its on: { event: (snap, data, ovrly) => ({ state?, runtime? }) } handlers run for
+// each of its widgets, e.g. a Twitch poll's progress updating the Voting widget that started it. Returning nothing
+// skips it. Only widgets loaded since the server started get them: the others' runtime is the type's default, so none
+// of them has started anything to follow. Set up again on each reload of the types.
+const handlers = [] // [event, listener]
+function follow() {
+  for (const [event, listener] of handlers.splice(0)) bus.off(event, listener)
+  for (const def of Object.values(types)) {
+    for (const [event, handle] of Object.entries(def.on ?? {})) {
+      const listener = async (data) => {
+        // Errors are logged: a rejection here would crash the server.
+        try {
+          for (const widget of Object.values(cache).filter((w) => w?.type === def.type)) {
+            const snap = snapshot(widget)
+            const next = merge(snap, handle(snap, data, custom.ovrly))
+            if (!next) continue
+            const saved = commit(widget, next)
+            if (def.over?.(next)) settleAll(widget.id, true)
+            await saved
+            push(widget)
+          }
+        } catch (err) { console.error(`[${def.type}]`, err) }
+      }
+      bus.on(event, listener)
+      handlers.push([event, listener])
+    }
   }
 }
 
@@ -304,3 +337,6 @@ export async function attach(id, res) {
   if (widget) push(widget)
   return () => set.delete(res)
 }
+
+await loadTypes()
+custom.watch('widgets', () => loadTypes().catch((err) => console.error('[widgets]', err)))
