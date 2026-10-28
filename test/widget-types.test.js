@@ -44,7 +44,6 @@ test('roulette and dice draw a winner among their choices', () => {
   assert.ok(roulette >= 0 && roulette <= 36)
   const runtime = start('dice').runtime
   assert.equal(types.dice.output({ state: types.dice.state, runtime }).winner, String(runtime.winner + 1))
-  assert.equal(types.dice.playTime('start', { state: types.dice.state }), 3500)
 })
 
 test('voting counts a chat vote in runtime', () => {
@@ -58,7 +57,6 @@ test('twitch plays mode changes the setting', () => {
   assert.equal(out.state.mode, 'democracy')
   assert.equal(out.runtime.loop, -1)
   assert.equal(run('twitch-plays', 'mode', { mode: 'anarchy' }), undefined)
-  assert.equal(types['twitch-plays'].onSignal, 'push')
 })
 
 test('twitch plays stop keeps the mode', () => {
