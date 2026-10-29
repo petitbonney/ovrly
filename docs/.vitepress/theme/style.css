@@ -1,0 +1,6 @@
+/* Screenshots: framed, so the editor's dark UI stands apart from the page. */
+.vp-doc img {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgb(0 0 0 / 0.15);
+}

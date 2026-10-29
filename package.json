@@ -9,6 +9,9 @@
     "build": "vite build",
     "start": "NODE_ENV=production node server/index.js",
     "test": "node --test test/*.test.js",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:shots": "pnpm build && docker run --rm --init -v \"$PWD\":/w mcr.microsoft.com/playwright:v1.64.1-noble node /w/docs/screenshots/take.js",
     "streamdeck:pack": "streamdeck pack streamdeck/com.ovrly.deck.sdPlugin -o streamdeck -f --no-update-check",
     "streamdeck:link": "streamdeck link streamdeck/com.ovrly.deck.sdPlugin"
   },
@@ -36,6 +39,8 @@
   "devDependencies": {
     "@elgato/cli": "^1.10.3",
     "@vitejs/plugin-react": "^6.1.2",
-    "vite": "^8.3.4"
+    "playwright": "1.64.1",
+    "vite": "^8.3.4",
+    "vitepress": "1.6.4"
   }
 }
