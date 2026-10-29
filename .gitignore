@@ -24,3 +24,6 @@ data/
 
 # Claude Code: personal settings only
 .claude/settings.local.json
+
+# Docs (VitePress) cache
+docs/.vitepress/cache/

@@ -1,0 +1,3 @@
+# esbuild (VitePress's) ships its binary as a package: its install script only checks it.
+allowBuilds:
+  esbuild: false

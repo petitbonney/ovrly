@@ -1,6 +1,6 @@
 # Agent guide
 
-Ovrly is a local, node-based automation tool for live stream interactions. See [README.md](README.md) for the architecture.
+Ovrly is a local, node-based automation tool for live stream interactions. See [docs/developer/](docs/developer/index.md) for the architecture, and keep the docs (`docs/`, VitePress) in step with what you change.
 
 ## Principles
 
@@ -19,13 +19,14 @@ Plain JavaScript (ESM), no TypeScript. pnpm, single package. Express + `ws` on t
 ```bash
 pnpm install
 pnpm dev      # server + UI on http://localhost:6875
+pnpm docs:dev # the docs site; pnpm docs:shots retakes its screenshots (Docker)
 ```
 
 ## Conventions
 
 - One node type = one file in `server/nodes/`, exporting `{ type, label, icon, category, group, config, run }` (`icon` a Tabler name, e.g. `'dice-5'`, with `iconRotate` in degrees if it needs turning; `group` is its sub-section in the library). An action worth trying from its settings sets `play: true` (or `play: { only: { … } }` for some settings only): its live column gets Play and the result.
 - One widget type = one folder in `widgets/`, its `widget.js` naming its `icon` the same way.
-- Custom node and widget types (the user's own, in `data/custom/nodes/` and `data/custom/widgets/`) are written the same way, but get Ovrly's helpers as `ovrly` (in `run`, widget actions and `on` handlers; `server/custom.js`) instead of importing its files: add a helper there only when a custom type needs it. They bring their own packages (copied or bundled, see the README's "Packages in custom code"): Ovrly's dependencies aren't an API for them.
+- Custom node and widget types (the user's own, in `data/custom/nodes/` and `data/custom/widgets/`) are written the same way, but get Ovrly's helpers as `ovrly` (in `run`, widget actions and `on` handlers; `server/custom.js`) instead of importing its files: add a helper there only when a custom type needs it. They bring their own packages (copied or bundled, see "Packages in custom code" in `docs/developer/custom.md`): Ovrly's dependencies aren't an API for them.
 - A widget node carries `state` (saved in its widget file: settings, action inputs, kept data) and `runtime` (in memory, lost on restart).
 - Data lives in `./data` as JSON files (gitignored). Never commit it.
 - Scope: Twitch and OBS, plus the Stream Deck as a controller (its plugin is in `streamdeck/`) and Philips Hue lights. Ask before adding another platform.
