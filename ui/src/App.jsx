@@ -4,7 +4,7 @@
 import { Component, Fragment, useEffect, useRef, useState } from 'react'
 import {
   ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, Notification, ScrollArea, SimpleGrid, Stack, Switch, Text,
-  TextInput, Tooltip, UnstyledButton, useAppShellResize,
+  TextInput, Tooltip, UnstyledButton, useAppShellResize, useComputedColorScheme,
 } from '@mantine/core'
 import { IconChevronRight, IconFile, IconFileImport, IconPlugOff, IconPlus, IconSearch, IconSettings, IconTool, IconUrgent, IconX } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
@@ -15,6 +15,9 @@ import { colors, withIcon } from './FlowNode.jsx'
 import templates from './templates.js'
 import { importBundle, importFile } from './share.js'
 import { get, json } from './api.js'
+// The wordmark, kept with the docs' (light and dark versions).
+import wordmark from '../../docs/public/wordmark.svg'
+import wordmarkDark from '../../docs/public/wordmark-dark.svg'
 
 // The workflows, each with its on/off switch (off: its triggers ignore chat and API calls) and a loader while it runs.
 function List({ items, selected, onSelect, onAdd, onToggle }) {
@@ -247,6 +250,7 @@ class EditorBoundary extends Component {
 
 // theme, onTheme: the editor theme's name and its setter (main.jsx).
 export default function App({ theme, onTheme }) {
+  const scheme = useComputedColorScheme('dark')
   const [selected, setSelected] = useState(null)
   const [defs, setDefs] = useState([])
   const [types, setTypes] = useState([])
@@ -384,6 +388,10 @@ export default function App({ theme, onTheme }) {
       footer={{ height: Math.max(200, Math.round(innerHeight * 0.45)), collapsed: !(editing && openNodes[selected.id]) }}
     >
       <AppShell.Navbar p="sm">
+        {/* The wordmark leads home: no workflow selected. */}
+        <UnstyledButton title="Home" onClick={() => setSelected(null)} style={{ alignSelf: 'flex-start', margin: '4px 0 12px 4px', lineHeight: 0 }}>
+          <img src={scheme === 'dark' ? wordmarkDark : wordmark} alt="Ovrly" height={28} />
+        </UnstyledButton>
         {/* The stop button sits at the bottom of the workflows section, below however many workflows there are. */}
         <AppShell.Section grow style={{ overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
           <List items={workflows} selected={selected} onSelect={setSelected} onAdd={() => setModal(true)} onToggle={toggle} />

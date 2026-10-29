@@ -12,6 +12,7 @@ export default defineConfig({
   lastUpdated: true,
   ignoreDeadLinks: 'localhostLinks', // Ovrly's own address; links between pages are still checked
   srcExclude: ['screenshots/**'], // the screenshot script, not pages
+  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/ovrly/logo.svg' }]],
   markdown: {
     // `{{ }}` is Ovrly's template syntax, and Vue's: keep inline code as written (code blocks already are).
     config(md) {
@@ -20,6 +21,8 @@ export default defineConfig({
     },
   },
   themeConfig: {
+    logo: { light: '/wordmark.svg', dark: '/wordmark-dark.svg', alt: 'Ovrly' },
+    siteTitle: false, // the wordmark already reads "Ovrly"
     nav: [
       { text: 'Streamer', link: '/streamer/', activeMatch: '/streamer/' },
       { text: 'Developer', link: '/developer/', activeMatch: '/developer/' },
