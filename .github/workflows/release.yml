@@ -8,7 +8,11 @@ env:
   NODE_VERSION: 24.11.0
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
   build:
+    needs: test
     strategy:
       matrix:
         include:

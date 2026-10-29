@@ -23,4 +23,6 @@ pnpm test
 pnpm docs:build
 ```
 
+CI runs them too (with `pnpm build`) on each push and pull request, and before a release.
+
 If you changed the UI, run `pnpm docs:shots` and commit the new screenshots (see [Run from source](./from-source#docs)). If you changed what a streamer sees, update the matching page in `docs/streamer/`.
