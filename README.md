@@ -1,4 +1,4 @@
-# Ovrly
+# <picture><source media="(prefers-color-scheme: dark)" srcset="docs/public/wordmark-dark.svg"><img src="docs/public/wordmark.svg" alt="Ovrly" height="56"></picture>
 
 > Node-based automation for live stream interactions.
 

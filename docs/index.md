@@ -1,7 +1,7 @@
 ---
 layout: home
 hero:
-  name: Ovrly
+  name: <img class="wordmark-light" src="/ovrly/wordmark.svg" alt="Ovrly"><img class="wordmark-dark" src="/ovrly/wordmark-dark.svg" alt="Ovrly">
   text: Automate your live stream by drawing it
   tagline: Connect Twitch events to overlays, OBS, lights, keys and more, with a node graph. Free, open source, and it runs on your computer.
   actions:

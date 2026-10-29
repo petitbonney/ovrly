@@ -1,3 +1,8 @@
+/* The home page's wordmark (index.md, hero name): the version for the current theme. */
+.VPHero .name img { height: 72px; }
+.wordmark-dark, .dark .wordmark-light { display: none; }
+.dark .wordmark-dark { display: inline; }
+
 /* Screenshots: framed, so the editor's dark UI stands apart from the page. */
 .vp-doc img {
   border: 1px solid var(--vp-c-divider);

@@ -1,0 +1,9 @@
+<!-- Ovrly icon, for dark backgrounds: a trigger node behind a node, read as the O. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 204 204">
+  <mask id="mi" maskUnits="userSpaceOnUse" x="0" y="0" width="204" height="204">
+    <rect width="204" height="204" fill="#fff"/>
+    <rect x="57" y="57" width="154" height="154" rx="19.44" fill="#000"/>
+  </mask>
+  <path d="M70,10 H127.56 Q130,10 130,12.44 V127.56 Q130,130 127.56,130 H70 A60 60 0 0 1 70 10 Z" fill="none" stroke="#ff922b" stroke-width="20" stroke-linejoin="round" mask="url(#mi)"/>
+  <rect x="74" y="74" width="120" height="120" rx="2.44" fill="none" stroke="#38d9a9" stroke-width="20"/>
+</svg>
