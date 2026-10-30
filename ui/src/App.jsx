@@ -3,7 +3,7 @@
 // both toggle and resize.
 import { Component, Fragment, useEffect, useRef, useState } from 'react'
 import {
-  ActionIcon, Affix, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, Notification, ScrollArea, SimpleGrid, Stack, Switch, Text,
+  ActionIcon, Affix, Anchor, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, Notification, ScrollArea, SimpleGrid, Stack, Switch, Text,
   TextInput, Tooltip, UnstyledButton, useAppShellResize, useComputedColorScheme,
 } from '@mantine/core'
 import { IconChevronRight, IconFile, IconFileImport, IconPlugOff, IconPlus, IconSearch, IconSettings, IconTool, IconUrgent, IconX } from '@tabler/icons-react'
@@ -12,6 +12,7 @@ import TimerBar from './TimerBar.jsx'
 import Settings, { StatusIcon, integrations, requirements, unmet, useStatuses } from './Settings.jsx'
 import Heading from './Heading.jsx'
 import { colors, withIcon } from './FlowNode.jsx'
+import { graphOnly } from './chain.js'
 import templates from './templates.js'
 import { importBundle, importFile } from './share.js'
 import { get, json } from './api.js'
@@ -146,11 +147,13 @@ function Groups({ items }) {
   ))
 }
 
-// Drag a node type or a widget type onto the graph; each widget dropped is a new instance.
-function Library({ defs, types, off }) {
+// Drag a node type or a widget type onto the graph; each widget dropped is a new instance. In the Basic view (basic:
+// { trigger, graph }) only what keeps the workflow one line: triggers while it has none, no branching nodes.
+function Library({ defs, types, off, basic }) {
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
-  const match = (d) => !q || d.label.toLowerCase().includes(q)
+  const match = (d) => (!q || d.label.toLowerCase().includes(q))
+    && (!basic || (d.category === 'trigger' ? !basic.trigger : !graphOnly.includes(d.type)))
   return (
     <>
       <TextInput
@@ -179,6 +182,7 @@ function Library({ defs, types, off }) {
             .map((d) => ({ group: d.group, el: nodeItem(d, colors.widget, off) })),
         ]} />
       </Section>}
+      {basic && <Text size="xs" c="dimmed" mt="md">More nodes (branches, merges) in the <Anchor size="xs" component="button" onClick={basic.graph}>graph view</Anchor>.</Text>}
     </>
   )
 }
@@ -199,12 +203,12 @@ function Choice({ title, description, icon: Icon, onClick }) {
 // "New workflow" modal: blank or imported from a JSON file side by side, then the templates (if any) in two columns. Calls onDone
 // with { kind, id }.
 function NewWorkflow({ opened, onDone, onClose }) {
-  const blank = { workflows: [{ name: 'New workflow', nodes: [], edges: [] }] }
+  const blank = { workflows: [{ name: 'New workflow', nodes: [], edges: [], view: 'basic' }] }
   return (
     <Modal opened={opened} onClose={onClose} title="New workflow" size="xl">
       <Stack gap="xs">
         <SimpleGrid cols={2} spacing="xs">
-          <Choice title="Blank" description="Start from an empty canvas." icon={IconFile} onClick={() => importBundle(blank).then(onDone)} />
+          <Choice title="Blank" description="Start from a list of steps; switch to the graph when you need branches." icon={IconFile} onClick={() => importBundle(blank).then(onDone)} />
           <Choice title="Import" description="Load a workflow from an exported JSON file." icon={IconFileImport}
             onClick={() => importFile().then(onDone, (err) => alert(`Import failed: ${err.message}`))} />
         </SimpleGrid>
@@ -320,6 +324,8 @@ export default function App({ theme, onTheme }) {
   }, [])
   // Panels the user toggled on/off. The library starts hidden in a narrow window, leaving the graph room.
   const [panels, setPanels] = useState({ library: innerWidth >= 1100 })
+  // The open workflow's Basic view, for the library (see Library).
+  const [basic, setBasic] = useState(null)
   const togglePanel = (key) => setPanels((p) => ({ ...p, [key]: !p[key] }))
   // Workflow id -> id of its selected node, whose settings show in the bottom pane; kept when switching workflows.
   const [openNodes, setOpenNodes] = useState({})
@@ -421,6 +427,7 @@ export default function App({ theme, onTheme }) {
             onToggle={togglePanel}
             openNode={openNodes[selected.id]}
             onNodeSelect={(nodeId) => setOpenNodes((o) => ({ ...o, [selected.id]: nodeId }))}
+            onBasic={setBasic}
           />
         </EditorBoundary>
       ) : (
@@ -435,7 +442,7 @@ export default function App({ theme, onTheme }) {
       )}
       <AppShell.Aside>
         <div className="pane">
-          <Library defs={defs} types={types} off={off} />
+          <Library defs={defs} types={types} off={off} basic={basic} />
         </div>
       </AppShell.Aside>
       {stopped.length > 0 && (

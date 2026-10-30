@@ -29,6 +29,8 @@ Your workflows and widgets are saved in the `data` folder next to the launcher. 
 
    ![The New workflow dialog: Blank, Import, and the templates](/screenshots/new-workflow.png)
 
+   Or pick **Blank** to build your own: it opens as a list of steps (the [Basic view](./editor#basic-a-list-of-steps)), a trigger then what it does.
+
 3. Templates start switched off. Connect what the workflow needs first (here, [Twitch](./twitch) to read your chat), then turn on the switch next to its name.
 4. Show its widgets in OBS: select the widget node (the die), copy the **OBS browser source** link from its settings, and add it to OBS as a **Browser Source** (see [OBS](./obs#show-a-widget)).
 

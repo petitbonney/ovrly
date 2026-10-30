@@ -4,12 +4,28 @@
 
 ## Left: workflows
 
-- **+** opens the New workflow dialog (blank, import or a [template](./templates)).
+- **+** opens the New workflow dialog (blank, which starts in the [Basic view](#basic-a-list-of-steps), import or a [template](./templates)).
 - The **switch** next to a workflow turns it off: what it is running is cancelled, and its triggers ignore chat and API calls. ▶ Run still works, to try it.
 - **EMERGENCY** turns every workflow off at once, then offers to turn them back on.
 - Below, one row per integration you set up (✓ connected, ! failing; its tooltip says more), opening its settings. **Settings** has them all, plus variables, custom nodes and widgets, LAN and the theme.
 
-## Middle: the graph
+## Middle: Basic or Graph
+
+**Basic | Graph**, at the left of the toolbar, picks how the workflow shows. Each workflow remembers its choice; a Blank one starts in Basic.
+
+### Basic: a list of steps
+
+For one-line workflows, e.g. an alert on a new follower: a trigger under **When**, then the steps it runs, in order, under **Then**.
+
+![The Basic view: Follow, then an Alerts widget](/screenshots/basic-view.png)
+
+- **Pick the trigger** and **add steps** from the library (double-click, or drag onto the list): a step goes at the end.
+- **Click** a step to open its settings. Its **⋯** menu moves it up or down, or deletes it (the steps around it stay linked).
+- The library leaves out what makes branches (If / Else, Switch, Fan Out…): its link at the bottom switches to the graph for those.
+
+Basic is available while the workflow is one line: one trigger, each node linked to the next only (from its first output: If / Else's "true", Cooldown's "pass"). Once the graph has a branch, Basic is greyed out; remove the branch and it comes back.
+
+### Graph
 
 The toolbar has undo/redo, the workflow's name, ▶ (runs its Manual Triggers) and ■ (stops it, cancelling what runs), then export, delete, and show/hide the library.
 

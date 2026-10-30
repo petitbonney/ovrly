@@ -75,12 +75,24 @@
 .react-flow__controls-button.locked, .react-flow__controls-button.locked:hover { background: var(--mantine-color-blue-6); color: #fff; }
 .react-flow { --xy-edge-stroke: var(--ovrly-line); --xy-edge-stroke-width: 2; --xy-background-color: var(--ovrly-canvas); --xy-background-pattern-color: var(--ovrly-dots); }
 
+/* Basic view (Basic.jsx): one column of cards on the canvas color, drawn like graph nodes. */
+.basic { flex: 1; min-height: 0; overflow-y: auto; background: var(--ovrly-canvas); }
+.basic-list { width: min(420px, 100% - 32px); margin: 0 auto; padding-bottom: var(--mantine-spacing-xl); }
+.basic-step { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; background: var(--ovrly-node); border: 2px solid var(--ovrly-line); border-radius: 8px; cursor: pointer; text-align: left; font: inherit; }
+.basic-step.trigger { border-radius: 30px 8px 8px 30px; padding-left: 18px; }
+.basic-step.empty { border-style: dashed; }
+.basic-step.selected { border-color: var(--ovrly-selected); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ovrly-selected) 15%, transparent); }
+/* The graph stays under it, measured but clipped away (its nodes set their own visibility); !important beats
+   ReactFlow's inline position. */
+.editor .react-flow.under-basic { position: absolute !important; inset: 0; clip-path: inset(50%); }
+.basic-link { width: 2px; height: 20px; margin: 0 auto; background: var(--ovrly-line); }
+
 /* Live run feedback (Workflow.jsx): running pulses blue, done flashes green, stopped dims, error turns red. */
-.run-running .flow-node { border-color: var(--mantine-color-blue-4); animation: run-pulse 1s ease-in-out infinite; }
-.run-waiting .flow-node { border-color: var(--mantine-color-yellow-5); border-style: dashed; }
-.run-done .flow-node { border-color: var(--mantine-color-green-5); box-shadow: 0 0 0 4px rgba(64, 192, 87, 0.25); }
-.run-stopped .flow-node { opacity: 0.5; }
-.run-error .flow-node { border-color: var(--mantine-color-red-6); box-shadow: 0 0 0 4px rgba(250, 82, 82, 0.3); }
+.run-running :is(.flow-node, .basic-step) { border-color: var(--mantine-color-blue-4); animation: run-pulse 1s ease-in-out infinite; }
+.run-waiting :is(.flow-node, .basic-step) { border-color: var(--mantine-color-yellow-5); border-style: dashed; }
+.run-done :is(.flow-node, .basic-step) { border-color: var(--mantine-color-green-5); box-shadow: 0 0 0 4px rgba(64, 192, 87, 0.25); }
+.run-stopped :is(.flow-node, .basic-step) { opacity: 0.5; }
+.run-error :is(.flow-node, .basic-step) { border-color: var(--mantine-color-red-6); box-shadow: 0 0 0 4px rgba(250, 82, 82, 0.3); }
 .react-flow__edge.run-flow path { stroke: var(--mantine-color-blue-4); }
 @keyframes run-pulse { 50% { box-shadow: 0 0 0 6px rgba(77, 171, 247, 0.35); } }
 /* Merge Widgets canvas (Merge.jsx): as large as fits beside its settings; each widget is a live preview box. */
