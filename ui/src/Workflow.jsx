@@ -563,10 +563,9 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     setNodes(list.map((n, i) => ({ ...n, selected: n.id === select, position: { x: start.x + i * (NODE + CAPTION + GRID), y: start.y } })))
     setEdges(relink(list, edges, firstOutput))
   }
-  const moveStep = (id, by) => {
-    const list = [...chain]
-    const i = list.findIndex((n) => n.id === id)
-    ;[list[i], list[i + by]] = [list[i + by], list[i]]
+  const moveStep = (id, to) => {
+    const list = chain.filter((n) => n.id !== id)
+    list.splice(to, 0, chain.find((n) => n.id === id))
     setChain(list, selected?.id)
   }
   // Back to the graph: fitted, as the Basic edits moved its nodes.
@@ -722,12 +721,6 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     <>
       <AppShell.Main className="editor">
         <Group gap="xs" p="xs" wrap="nowrap" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
-          <Tooltip label="Has branches: edit it in the graph" disabled={!!chain}>
-            <SegmentedControl size="xs" value={basic ? 'basic' : 'graph'} onChange={pickView} aria-label="View" data={[
-              { value: 'basic', disabled: !chain, label: <Group gap={4} wrap="nowrap"><IconList size={14} />Basic</Group> },
-              { value: 'graph', label: <Group gap={4} wrap="nowrap"><IconHierarchy2 size={14} />Graph</Group> },
-            ]} />
-          </Tooltip>
           <Tooltip label="Undo (Ctrl+Z)">
             <ActionIcon size="md" variant="default" aria-label="Undo" disabled={!history.current.past.length} onClick={undo}><IconArrowBackUp size={18} /></ActionIcon>
           </Tooltip>
@@ -735,6 +728,12 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
             <ActionIcon size="md" variant="default" aria-label="Redo" disabled={!history.current.future.length} onClick={redo}><IconArrowForwardUp size={18} /></ActionIcon>
           </Tooltip>
           <TextInput flex={1} miw={80} size="xs" aria-label="Workflow name" value={name} onChange={(e) => setName(e.target.value)} />
+          <Tooltip label="Has branches: edit it in the graph" disabled={!!chain}>
+            <SegmentedControl size="xs" value={basic ? 'basic' : 'graph'} onChange={pickView} aria-label="View" data={[
+              { value: 'basic', disabled: !chain, label: <Group gap={4} wrap="nowrap"><IconList size={14} />Basic</Group> },
+              { value: 'graph', label: <Group gap={4} wrap="nowrap"><IconHierarchy2 size={14} />Graph</Group> },
+            ]} />
+          </Tooltip>
           <Divider orientation="vertical" />
           <Tooltip label="Export as JSON">
             <ActionIcon size="md" variant="default" aria-label="Export as JSON" onClick={() => exportWorkflow(workflow.id).then((b) => download(b, name))}><IconDownload size={18} /></ActionIcon>

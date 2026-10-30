@@ -12,7 +12,7 @@
 
 ## Middle: Basic or Graph
 
-**Basic | Graph**, at the left of the toolbar, picks how the workflow shows. Each workflow remembers its choice; a Blank one starts in Basic.
+**Basic | Graph**, right of the workflow's name in the toolbar, picks how the workflow shows. Each workflow remembers its choice; a Blank one starts in Basic.
 
 ### Basic: a list of steps
 
@@ -20,8 +20,8 @@ For one-line workflows, e.g. an alert on a new follower: a trigger under **When*
 
 ![The Basic view: Follow, then an Alerts widget](/screenshots/basic-view.png)
 
-- **Pick the trigger** and **add steps** from the library (double-click, or drag onto the list): a step goes at the end.
-- **Click** a step to open its settings. Its **⋯** menu moves it up or down, or deletes it (the steps around it stay linked).
+- **Pick the trigger** and **add steps** from the library (double-click, or drag onto the list): a step goes at the end. The dashed **+** below the steps marks where the next one goes.
+- **Click** a step to open its settings. **Drag** it by its grip (left of the card) to move it, the other steps making room; its **⋯** menu also moves it up or down, or deletes it (the steps around it stay linked).
 - The **⚡** left of the trigger fires it (see [Fire a trigger](#fire-a-trigger)).
 - The library leaves out what makes branches (If / Else, Switch, Fan Out…): its link at the bottom switches to the graph for those.
 
@@ -29,7 +29,7 @@ Basic is available while the workflow is one line: one trigger, each node linked
 
 ### Graph
 
-The toolbar has undo/redo, the workflow's name, then export, delete, and show/hide the library.
+The toolbar has undo/redo, the workflow's name, Basic | Graph, then export, delete, and show/hide the library.
 
 - **Add a node**: drag it from the library, or double-click it (or press Enter on it): it is added after the selected node, and linked from it.
 - **Link** nodes by dragging from an output (right) to an input (left). Data flows along the links.
