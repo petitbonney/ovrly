@@ -95,12 +95,11 @@
 /* A step's grip, left of its card like a trigger's bolt. */
 .basic-step .grip { position: absolute; left: -28px; line-height: 0; color: var(--mantine-color-dimmed); cursor: grab; touch-action: none; }
 .basic-step .grip:hover, .basic-step.dragging .grip { color: var(--mantine-color-text); }
-/* While a step is dragged, the others slide to make room for it, and a dashed outline shows where it would land. */
+/* While a step moves, the others make room for it (Basic.jsx slides them), and a dashed outline shows where it would land. */
 .basic-steps { position: relative; }
 .basic-slot { position: relative; }
+.basic-slot.moving { z-index: 1; }
 .basic-landing { position: absolute; left: 0; right: 0; border: 2px dashed var(--ovrly-line); border-radius: 8px; background: var(--ovrly-canvas); transition: top 150ms; }
-.basic.sorting .basic-slot { transition: transform 150ms; }
-.basic.sorting .basic-slot:has(.dragging) { transition: none; }
 .basic.sorting, .basic.sorting * { cursor: grabbing !important; }
 .basic-step.selected { border-color: var(--ovrly-selected); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ovrly-selected) 15%, transparent); }
 /* The graph stays under it, measured but clipped away (its nodes set their own visibility); !important beats
