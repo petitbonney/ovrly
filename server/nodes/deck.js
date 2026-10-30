@@ -22,6 +22,13 @@ export default {
   // mode: Stream Deck when the node is added while the plugin is connected. buttons: [{ id, icon, name, color }],
   // the id made at random when added.
   config: { mode: 'companion', buttons: [] },
+  // Fired by hand (its bolt): its first button, the way its mode fires. Its settings' buttons press the others.
+  manual: {
+    event: (inputs, config) => {
+      const id = config.buttons[0]?.id ?? ''
+      return config.mode === 'streamdeck' ? { event: 'streamdeck', data: { button: id } } : { event: 'webhook', data: { path: `deck/${id}` } }
+    },
+  },
   run({ config, data, event }) {
     const plugin = config.mode === 'streamdeck'
     if (plugin !== (event === 'streamdeck')) return null // each mode fires its own way only

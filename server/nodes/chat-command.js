@@ -1,6 +1,6 @@
 // Trigger: fires on a chat message starting with one of its commands, e.g. "!spin red", from viewers of at least the
 // role set. Adds { command (as typed), args }.
-import { sentBy } from '../integrations/twitch.js'
+import { sentBy, testChat, testRoles } from '../integrations/twitch.js'
 
 // Each role includes those above it, as in chat bots: VIPs also lets mods and the streamer in.
 const roles = ['everyone', 'sub', 'vip', 'mod', 'broadcaster']
@@ -25,6 +25,14 @@ export default {
   },
   event: 'chat',
   config: { command: '!spin', from: 'everyone' },
+  // Fired by hand: its first command, then the args typed.
+  manual: {
+    config: (config) => ({ args: '', user: '{{ $vars.channel }}', role: config.from, firstMessage: false }),
+    fields: { args: { hint: 'After the command, e.g. red 3' }, user: { hint: 'Empty: TestViewer' }, role: { options: testRoles } },
+    event: ({ args, ...inputs }, config) => ({
+      data: testChat({ ...inputs, message: `!${config.command.split('+')[0].trim().replace(/^!/, '')} ${args}`.trim() }),
+    }),
+  },
   run({ config, data, id }) {
     if (sentBy.get(data.messageId)?.includes(id)) return null // its own reply, back through chat
     const [first, ...args] = data.message.trim().split(/\s+/)

@@ -5,7 +5,8 @@
 ## Left: workflows
 
 - **+** opens the New workflow dialog (blank, which starts in the [Basic view](#basic-a-list-of-steps), import or a [template](./templates)).
-- The **switch** next to a workflow turns it off: what it is running is cancelled, and its triggers ignore chat and API calls. ▶ Run still works, to try it.
+- The **switch** next to a workflow turns it off: what it is running is cancelled, and its triggers ignore chat and API calls. A trigger's **⚡** still fires it, to try it.
+- A **spinner** shows next to a running workflow. Hover it and it becomes **■ Stop**: it cancels what that workflow is running, without opening it.
 - **EMERGENCY** turns every workflow off at once, then offers to turn them back on.
 - Below, one row per integration you set up (✓ connected, ! failing; its tooltip says more), opening its settings. **Settings** has them all, plus variables, custom nodes and widgets, LAN and the theme.
 
@@ -21,13 +22,14 @@ For one-line workflows, e.g. an alert on a new follower: a trigger under **When*
 
 - **Pick the trigger** and **add steps** from the library (double-click, or drag onto the list): a step goes at the end.
 - **Click** a step to open its settings. Its **⋯** menu moves it up or down, or deletes it (the steps around it stay linked).
+- The **⚡** left of the trigger fires it (see [Fire a trigger](#fire-a-trigger)).
 - The library leaves out what makes branches (If / Else, Switch, Fan Out…): its link at the bottom switches to the graph for those.
 
 Basic is available while the workflow is one line: one trigger, each node linked to the next only (from its first output: If / Else's "true", Cooldown's "pass"). Once the graph has a branch, Basic is greyed out; remove the branch and it comes back.
 
 ### Graph
 
-The toolbar has undo/redo, the workflow's name, ▶ (runs its Manual Triggers) and ■ (stops it, cancelling what runs), then export, delete, and show/hide the library.
+The toolbar has undo/redo, the workflow's name, then export, delete, and show/hide the library.
 
 - **Add a node**: drag it from the library, or double-click it (or press Enter on it): it is added after the selected node, and linked from it.
 - **Link** nodes by dragging from an output (right) to an input (left). Data flows along the links.
@@ -48,6 +50,17 @@ Click a node to open its settings. Every node has the same layout: a one-line de
 Changes save by themselves. Text settings take [`{{ }}` expressions](./data#expressions): the **{ }** menu inserts data from earlier nodes, e.g. `{{user}}`.
 
 Some actions (HTTP Request, Switch Scene, Hue Lights…) have a **Play** button in their live column, to try them with their current settings.
+
+## Fire a trigger
+
+Every trigger has a **⚡** on its left, on the graph and in the Basic view: it fires the trigger as if its event had happened, e.g. a cheer of 100 bits, and the workflow runs from there. The nodes after it really run: a chat reply is sent, a scene switches.
+
+Its settings have a **Fire** section in their live column: what the event carries (the bits and who cheered, a chat command's args, user and role…), then **Fire** and what the trigger output. What you type there is saved with the node, and the ⚡ uses it too. It starts from values the trigger's settings let through, e.g. Minimum bits; an event they filter out doesn't fire, and Ovrly says so.
+
+- A **Manual Trigger** fires with its Data (JSON).
+- A **Schedule** fires now, whatever its interval.
+- A **Control Pad** fires its first button; its buttons in the live column fire the others.
+- **Channel Points** fires the reward set, without its IDs: Channel Points Redemption can't fulfill or refund it.
 
 ## Right: the library
 

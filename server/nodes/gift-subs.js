@@ -13,6 +13,13 @@ export default {
   fields: { minGifts: { label: 'Minimum gifts', presets: [1, 5, 10, 20, 50] } },
   event: 'twitch.gift',
   config: { minGifts: 1 },
+  manual: {
+    config: (config) => ({ count: Number(config.minGifts) || 1, user: 'TestViewer' }),
+    fields: { count: { presets: [1, 5, 10, 20, 50] } },
+    event: ({ count, user }) => ({
+      data: { user_name: user, tier: '1000', total: Number(count), recipients: Array.from({ length: Number(count) }, (_, i) => `TestViewer${i + 1}`) },
+    }),
+  },
   run({ config, data }) {
     if (data.total < Number(config.minGifts)) return null
     return { user: data.is_anonymous ? 'Anonymous' : data.user_name, tier: Number(data.tier) / 1000 || 1,

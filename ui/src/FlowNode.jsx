@@ -1,5 +1,5 @@
-// n8n-style graph node: icon box with the label underneath; triggers get a rounded left side. Triggers that can be
-// tried from here (Manual Trigger, chat triggers) get a bolt that fires them. A node whose needs aren't met (an
+// n8n-style graph node: icon box with the label underneath; triggers get a rounded left side, and a bolt that fires
+// them by hand (Bolt, also on Basic view cards) when their type can (its `manual`). A node whose needs aren't met (an
 // integration not ready) gets a warning badge, one of a type that isn't loaded (a custom node or widget removed or
 // broken) a red one. Nodes with several outputs (if/else, switch) get one labelled handle
 // each, and grow taller with more than five. Widget nodes show their widget's icon and name, with the action they run
@@ -61,11 +61,24 @@ export function subtitle({ type: nodeType, config, def, widget, widgetType: type
     : key && shown !== '' && `${key}: ${shown}`
 }
 
-// The editor passes in data: workflowId, the workflow the node is in; def, its node type; widget, the instance a widget or
+// The bolt of a trigger fired by hand: onFire() fires it (Workflow.jsx fireNode), the workflow running on from there.
+export function Bolt({ onFire }) {
+  return (
+    <button className="bolt nodrag" title="Fire: runs the workflow from this trigger" aria-label="Fire this trigger"
+      onKeyDown={(e) => e.stopPropagation()} onClick={(e) => {
+        e.stopPropagation() // don't select the node (which opens its settings)
+        onFire()
+      }}>
+      <IconBolt size={18} fill="currentColor" />
+    </button>
+  )
+}
+
+// The editor passes in data: def, its node type; widget, the instance a widget or
 // Widget Action node points to (undefined for a deleted one, or none linked); widgetType, that widget's type; missing,
-// what it needs that isn't ready (requirement notes).
+// what it needs that isn't ready (requirement notes); fire(), fires the trigger by hand.
 export default function FlowNode({ id, data, selected }) {
-  const { workflowId, def, widget, widgetType: type, missing = [] } = data
+  const { def, widget, widgetType: type, missing = [] } = data
   const outputs = outputsOf(def, data.config)
   // Handles added or removed (a switch case) must be measured again, or links to them are misplaced.
   const updateNodeInternals = useUpdateNodeInternals()
@@ -75,21 +88,10 @@ export default function FlowNode({ id, data, selected }) {
   const isWidget = data.type === 'widget'
   const Icon = (isWidget ? type : def)?.Icon ?? IconBox
   const trigger = def?.category === 'trigger'
-  // The bolt runs a Manual Trigger, or sends a chat trigger a test message (server: /api/workflows/:id/run). Chat
-  // !command has none: its settings have a test Run with args, user and role (ChatTest.jsx).
-  const testable = data.type === 'manual' || (data.type !== 'chat-command' && [def?.event].flat().includes('chat'))
   const sub = subtitle(data)
   return (
     <div className={`flow-node${trigger ? ' trigger' : ''}${selected ? ' selected' : ''}`} style={{ height: nodeHeight(def, data.config, inputs) }}>
-      {testable && (
-        <button className="bolt nodrag" title={data.type === 'manual' ? 'Run this trigger' : 'Test: send it a chat message from TestViewer'}
-          aria-label={data.type === 'manual' ? 'Run this trigger' : 'Test this trigger'} onClick={(e) => {
-            e.stopPropagation() // don't select the node (which opens its editor)
-            fetch(`/api/workflows/${workflowId}/run?node=${id}`, { method: 'POST' })
-          }}>
-          <IconBolt size={18} fill="currentColor" />
-        </button>
-      )}
+      {def?.manual && <Bolt onFire={data.fire} />}
       {!def || (widget && !type) ? <span className="needs unknown" title={`Unknown ${def ? 'widget' : 'node'} type "${def ? widget.type : data.type}"`}><IconAlertTriangle size={12} /></span>
         : missing.length > 0 && <span className="needs" title={missing.map((m) => `Needs ${m}.`).join(' ')}><IconPlugOff size={12} /></span>}
       {!trigger && <div className="in-bar" style={{ height: (inputs - 1) * 18 + 22 }} />}

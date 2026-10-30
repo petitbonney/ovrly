@@ -20,7 +20,7 @@ import {
 } from '@mantine/core'
 import {
   IconArrowBackUp, IconArrowForwardUp, IconBox, IconDownload, IconHierarchy2, IconLayoutSidebarRight, IconList, IconLock, IconLockOpen, IconMaximize, IconMinus,
-  IconPlayerPlay, IconPlayerStop, IconPlus, IconSitemap,
+  IconPlus, IconSitemap,
   IconTrash,
 } from '@tabler/icons-react'
 import Fields, { applies } from './Fields.jsx'
@@ -31,7 +31,7 @@ import JoinLinks from './JoinLinks.jsx'
 import Play from './Play.jsx'
 import LogResult from './LogResult.jsx'
 import NodeLive from './NodeLive.jsx'
-import ChatTest from './ChatTest.jsx'
+import Fire from './Fire.jsx'
 import CodeTest from './CodeTest.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
@@ -143,9 +143,9 @@ function boundsOf(list) {
 // error), then the settings column, with a live column on its right when the node has something to watch or press: a
 // widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, a Wait For All's links with
 // Force and Cancel, an action's Play and result (Play.jsx), a Log's last data (LogResult.jsx), a Cooldown's, Delay's
-// or Fan In's state (NodeLive.jsx), a Chat !command's test Run (ChatTest.jsx), a Code node's Test (CodeTest.jsx). A Merge Widgets node shows its
+// or Fan In's state (NodeLive.jsx), a trigger's Fire (Fire.jsx), a Code node's Test (CodeTest.jsx). A Merge Widgets node shows its
 // canvas instead (with the widgets linked into it, context.inputs). context.widget is the widget the node points to; off: the requirements not met (Settings.jsx).
-function Config({ workflow, node, def, context, off, running, error, onChange, onWidgetChange, onCopy, onClose, onError }) {
+function Config({ workflow, node, def, context, off, running, error, onChange, onManualChange, onFire, onWidgetChange, onCopy, onClose, onError }) {
   if (!node) return null
   // A type that isn't loaded (a custom node removed or broken): its settings are kept, untouched, until it is back.
   const unknown = !def
@@ -163,7 +163,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
     : def.queue ? <QueueLine workflow={workflow} node={node.id} />
     : def.join ? <JoinLinks workflow={workflow} node={node.id} links={context.links} />
     : def.type === 'log' ? <LogResult key={node.id} workflow={workflow} node={node.id} />
-    : def.type === 'chat-command' ? <ChatTest key={node.id} workflow={workflow} node={node.id} config={config} />
+    : def.manual ? <Fire key={node.id} type={def.type} config={config} values={node.data.manual} onChange={onManualChange} onFire={onFire} />
     : def.type === 'code' ? <CodeTest key={node.id} workflow={workflow} node={node.id} config={config} />
     : def.live ? <NodeLive key={node.id} workflow={workflow} node={node.id} type={def.type} config={config} />
     : def.play && applies(def.play, config) && (
@@ -247,8 +247,6 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   // id -> a token while data travels on it: a link animates for a moment, even into a node that runs for minutes (an
   // open vote), and node id -> its last error. Only for display: not saved, not part of undo.
   const [live, setLive] = useState({ nodes: {}, edges: {}, errors: {} })
-  // Firings of this workflow in progress, for the Stop button.
-  const [firings, setFirings] = useState(0)
   useEffect(() => {
     // A node that failed in a recent run (the engine's history, newest first) shows it until it runs again.
     get(`/api/runs?workflow=${workflow.id}`).then((runs) => {
@@ -282,7 +280,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const onActivity = ({ detail: a }) => {
       if (a.widget) return onWidgetChange() // an action changed a widget's state: its settings show it
       if (a.workflow !== workflow.id) return
-      if ('running' in a) return setFirings(a.running)
+      if ('running' in a) return // the workflow list's loader
       if (a.edge) return pass(a.edge)
       setLive((l) => {
         const errors = { ...l.errors }
@@ -346,7 +344,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const isWidget = n.data.type === 'widget'
     const needs = needsOf(def, { ...def?.config, ...n.data.config }, isWidget && widgetType, { ...widgetType?.state, ...widget?.state })
     const missing = requirements.filter((r) => off.includes(r.key) && needs.includes(r.key)).map((r) => r.needs)
-    const context = { workflowId: workflow.id, def, widget, widgetType, missing }
+    const context = { def, widget, widgetType, missing, fire: () => fireNode(n.id) }
     const shown = { ...n, ariaLabel: (isWidget ? widget?.state.name : def?.label) ?? n.data.label, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
     return live.nodes[n.id] ? { ...shown, className: `run-${live.nodes[n.id]}` } : shown
   })
@@ -659,7 +657,17 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   useEffect(() => {
     onNodeSelect(selected?.id ?? null)
   }, [selected?.id])
-  const hasManual = nodes.some((n) => n.data.type === 'manual')
+  // Fires a trigger by hand (its bolt, its settings' Fire), with its settings and inputs as edited, maybe not saved
+  // yet: answers { out } | {} (its settings filtered the event out) | { error }, and says so when it didn't fire.
+  const fireNode = async (id) => {
+    const n = nodes.find((node) => node.id === id)
+    const answer = await fetch(`/api/workflows/${workflow.id}/run?node=${id}`, json('POST', { config: n.data.config, inputs: n.data.manual }))
+      .then((res) => (res.ok ? res.json() : { error: res.status === 404 ? 'not saved yet, try again' : res.statusText }), (err) => ({ error: err.message }))
+    if (answer.error) notify(`${nodeName(n)} didn't fire: ${answer.error}`, 'red')
+    else if (!answer.out) notify(`${nodeName(n)} didn't fire: its settings filter this event out.`, 'yellow')
+    return answer
+  }
+  const setManual = (manual) => setNodes((ns) => ns.map((n) => (n.id === selected.id ? { ...n, data: { ...n.data, manual } } : n)))
   const scheme = useComputedColorScheme('dark')
   // One-shot auto layout: every node glides to its place, the view stays put (a single undo step: history
   // waits for the edit to settle). Nodes stay movable and land on the grid.
@@ -727,16 +735,6 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
             <ActionIcon size="md" variant="default" aria-label="Redo" disabled={!history.current.future.length} onClick={redo}><IconArrowForwardUp size={18} /></ActionIcon>
           </Tooltip>
           <TextInput flex={1} miw={80} size="xs" aria-label="Workflow name" value={name} onChange={(e) => setName(e.target.value)} />
-          <Tooltip label={hasManual ? 'Run manual triggers' : 'Add a Manual Trigger to run this workflow by hand'}>
-            <ActionIcon size="md" variant="light" color="green" aria-label="Run manual triggers" disabled={!hasManual} onClick={() => fetch(`/api/workflows/${workflow.id}/run`, { method: 'POST' })}>
-              <IconPlayerPlay size={18} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Stop the workflow (cancels its running nodes)">
-            <ActionIcon size="md" variant="light" color="red" aria-label="Stop the workflow" disabled={!firings} onClick={() => fetch(`/api/workflows/${workflow.id}/cancel`, { method: 'POST' })}>
-              <IconPlayerStop size={18} />
-            </ActionIcon>
-          </Tooltip>
           <Divider orientation="vertical" />
           <Tooltip label="Export as JSON">
             <ActionIcon size="md" variant="default" aria-label="Export as JSON" onClick={() => exportWorkflow(workflow.id).then((b) => download(b, name))}><IconDownload size={18} /></ActionIcon>
@@ -849,6 +847,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
           types,
         }}
         onChange={setConfig}
+        onManualChange={setManual}
+        onFire={() => fireNode(selected.id)}
         onWidgetChange={onWidgetChange}
         onCopy={() => copy([selected])}
         onClose={deselect}

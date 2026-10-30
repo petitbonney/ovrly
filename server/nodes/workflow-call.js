@@ -9,5 +9,10 @@ export default {
   event: 'call',
   fields: { id: { type: 'id', label: 'ID', hint: 'Execute Workflow nodes pick it by this name' } },
   config: { id: 'main' }, // new nodes get a UUID (ui/src/Workflow.jsx); 'main' is for older ones
+  manual: {
+    config: { data: '{}' },
+    fields: { data: { type: 'json', label: 'Data (JSON)', hint: 'As an Execute Workflow node would pass it' } },
+    event: ({ data }) => ({ data: JSON.parse(data || '{}') }),
+  },
   run: ({ data }) => data,
 }

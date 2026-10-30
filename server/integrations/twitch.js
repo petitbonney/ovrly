@@ -23,6 +23,18 @@ export const sentBy = new Map()
 // mode and guestChannel are the settings; channel is the chat being read.
 export const status = { mode: 'guest', guestChannel: '', channel: '', connected: false }
 
+// A chat trigger's manual firing (its bolt): a chat message as tmi.js gives it, from the user and role picked
+// (TestViewer when empty). testRoles are the roles to pick from.
+export const testRoles = [{ value: 'everyone', label: 'Viewer' }, { value: 'sub', label: 'Sub' }, { value: 'vip', label: 'VIP' }, { value: 'mod', label: 'Mod' }, { value: 'broadcaster', label: 'Streamer' }]
+export function testChat({ user, role, message, firstMessage = false }) {
+  user = user.trim() || 'TestViewer'
+  return {
+    user, login: user.toLowerCase(), channel: status.channel, message, messageId: '', userId: '', color: '', timestamp: Date.now(),
+    broadcaster: role === 'broadcaster', mod: role === 'mod', vip: role === 'vip', sub: role === 'sub', subMonths: role === 'sub' ? 1 : 0,
+    firstMessage, returning: false, emotes: [], action: false, highlighted: false, rewardId: '', replyToId: '', replyToUser: '', replyToMessage: '',
+  }
+}
+
 // Whether Streamer features can run: Streamer mode, signed in with every scope Ovrly asks for.
 export const streamer = () => status.mode === 'streamer' && !!auth.status.login && auth.status.scopesOk
 // For nodes and widgets: throws unless Streamer features can run. what: the feature, e.g. 'Twitch polls'.

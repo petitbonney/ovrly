@@ -12,6 +12,11 @@ export default {
   fields: { minViewers: { label: 'Minimum viewers', presets: [1, 3, 10, 25, 50] } },
   event: 'channel.raid',
   config: { minViewers: 1 },
+  manual: {
+    config: (config) => ({ viewers: Number(config.minViewers) || 1, user: 'TestViewer' }),
+    fields: { viewers: { presets: [1, 3, 10, 25, 50] } },
+    event: ({ viewers, user }) => ({ data: { from_broadcaster_user_name: user, viewers: Number(viewers) } }),
+  },
   run({ config, data }) {
     if (data.viewers < Number(config.minViewers)) return null
     return { user: data.from_broadcaster_user_name, viewers: data.viewers }

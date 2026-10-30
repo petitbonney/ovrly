@@ -19,7 +19,10 @@ export default {
   },
   event: 'schedule',
   config: { minutes: 10, when: 'always' },
-  run({ config, id }) {
+  manual: { event: () => ({ data: { now: true } }) },
+  run({ config, data, id }) {
+    if (data.now) return { time: new Date().toISOString() } // fired by hand: now, whatever the interval
+
     const interval = config.minutes * 60000
     if (!(interval >= 1000)) return null // a bad setting never fires
     if (config.when === 'live' && !eventsub.live) return null // not asked: starts over once live

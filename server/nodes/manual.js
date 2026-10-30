@@ -8,5 +8,6 @@ export default {
   fields: { data: { type: 'json', label: 'Data (JSON)' } },
   event: 'manual',
   config: { data: '{"mode": "manual"}' },
+  manual: { event: () => ({ data: {} }) }, // its data is its setting
   run: ({ config, data }) => ({ ...JSON.parse(config.data || '{}'), ...data }),
 }

@@ -36,7 +36,7 @@ Your workflows and widgets are saved in the `data` folder next to the launcher. 
 
 ![The !roll dice workflow: Chat !command → Cooldown → Queue → Dice → Roll result](/screenshots/editor.png)
 
-Try it without going live: a Chat !command node's settings have a test **Run** (with the args, user and role you pick), and the ⚡ beside the other chat triggers sends a test message from TestViewer.
+Try it without going live: the **⚡** beside a trigger fires it, and its settings' **Fire** section picks what it carries, e.g. a Chat !command's args, user and role (see [Fire a trigger](./editor#fire-a-trigger)).
 
 ## Where to next
 

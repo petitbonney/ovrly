@@ -1,6 +1,6 @@
 // Trigger: fires on every chat message, from viewers of at least the role set, except those of the users ignored (chat
 // bots by default). data = { user, message, channel, messageId, … } (messageId is for a reply or Delete Message).
-import { sentBy } from '../integrations/twitch.js'
+import { sentBy, testChat, testRoles } from '../integrations/twitch.js'
 
 // Each role includes those above it, as in chat bots: VIPs also lets mods and the streamer in.
 const roles = ['everyone', 'sub', 'vip', 'mod', 'broadcaster']
@@ -26,6 +26,11 @@ export default {
   },
   event: 'chat',
   config: { from: 'everyone', firstOnly: false, ignore: 'Nightbot+StreamElements+Streamlabs+Moobot+Fossabot' },
+  manual: {
+    config: (config) => ({ message: 'Hello from Ovrly!', user: '{{ $vars.channel }}', role: config.from, firstMessage: config.firstOnly }),
+    fields: { user: { hint: 'Empty: TestViewer' }, role: { options: testRoles } },
+    event: (inputs) => ({ data: testChat(inputs) }),
+  },
   run({ config, data, id }) {
     if (sentBy.get(data.messageId)?.includes(id)) return null // its own message, back through chat
     const role = data.broadcaster ? 4 : data.mod ? 3 : data.vip ? 2 : data.sub ? 1 : 0

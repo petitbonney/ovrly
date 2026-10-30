@@ -9,7 +9,7 @@ Ovrly listens on `http://localhost:6875` (set `PORT` to change it). Only this co
 | `ANY /hooks/<path>` | Fires API Call triggers set to `<path>`. The query and JSON body become data. |
 | `ANY /hooks/<path>/<name>-<id>` | Presses a Control Pad button (Companion mode). |
 | `POST /api/emit/<event>` | Publishes a fake event on the bus, e.g. `chat` with `{ user, message }`. |
-| `POST /api/workflows/<id>/run` | Runs a workflow's Manual Triggers (`?node=<id>`: just that trigger). |
+| `POST /api/workflows/<id>/run` | Runs a workflow's Manual Triggers. `?node=<id>` fires that trigger by hand (its `manual`), with the body's `{ inputs, config }` over those saved, and answers `{ out }` (what it output), `{}` (its settings filtered the event out) or `{ error }`. |
 | `POST /api/workflows/<id>/cancel` | Cancels its firings in progress. |
 | `POST /api/stop` | EMERGENCY: switches every workflow off. |
 

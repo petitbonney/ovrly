@@ -46,8 +46,12 @@
 .flow-node { position: relative; width: 90px; height: 90px; display: grid; place-items: center; background: var(--ovrly-node); border: 2px solid var(--ovrly-line); border-radius: 8px; }
 .flow-node.trigger { border-radius: 45px 8px 8px 45px; }
 .flow-node.selected { border-color: var(--ovrly-selected); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ovrly-selected) 15%, transparent); }
-.flow-node .bolt { position: absolute; left: -26px; color: var(--ovrly-trigger); background: none; border: 0; padding: 0; cursor: pointer; line-height: 0; }
-.flow-node .bolt:hover { transform: scale(1.2); }
+/* A running workflow's loader in the list turns into its Stop button while hovered or focused (App.jsx Running). */
+.running .stop, .running:is(:hover, :focus-visible) .spin { display: none; }
+.running:is(:hover, :focus-visible) .stop { display: block; }
+/* A trigger's bolt (FlowNode.jsx Bolt), left of its node or Basic view card. */
+.bolt { position: absolute; left: -26px; color: var(--ovrly-trigger); background: none; border: 0; padding: 0; cursor: pointer; line-height: 0; }
+.bolt:hover { transform: scale(1.2); }
 /* Needs an integration that isn't ready (FlowNode.jsx): a badge on the top right corner. */
 .flow-node .needs { position: absolute; top: -8px; right: -8px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--mantine-color-yellow-5); color: #000; }
 .flow-node .needs.unknown { background: var(--mantine-color-red-6); color: #fff; }
@@ -79,7 +83,7 @@
 .basic { flex: 1; min-height: 0; overflow-y: auto; background: var(--ovrly-canvas); }
 .basic-list { width: min(420px, 100% - 32px); margin: 0 auto; padding-bottom: var(--mantine-spacing-xl); }
 .basic-step { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; background: var(--ovrly-node); border: 2px solid var(--ovrly-line); border-radius: 8px; cursor: pointer; text-align: left; font: inherit; }
-.basic-step.trigger { border-radius: 30px 8px 8px 30px; padding-left: 18px; }
+.basic-step.trigger { position: relative; border-radius: 30px 8px 8px 30px; padding-left: 18px; }
 .basic-step.empty { border-style: dashed; }
 .basic-step.selected { border-color: var(--ovrly-selected); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ovrly-selected) 15%, transparent); }
 /* The graph stays under it, measured but clipped away (its nodes set their own visibility); !important beats

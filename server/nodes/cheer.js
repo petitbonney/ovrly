@@ -12,6 +12,11 @@ export default {
   fields: { minBits: { label: 'Minimum bits', presets: [1, 100, 500, 1000, 5000] } },
   event: 'channel.cheer',
   config: { minBits: 1 },
+  manual: {
+    config: (config) => ({ bits: Number(config.minBits) || 1, user: 'TestViewer', message: '' }),
+    fields: { bits: { presets: [1, 100, 500, 1000, 5000] } },
+    event: ({ bits, user, message }) => ({ data: { user_name: user, bits: Number(bits), message } }),
+  },
   run({ config, data }) {
     if (data.bits < Number(config.minBits)) return null
     return { user: data.is_anonymous ? 'Anonymous' : data.user_name, bits: data.bits, message: data.message ?? '' }

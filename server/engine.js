@@ -5,6 +5,7 @@ import bus from './bus.js'
 import * as store from './store.js'
 import { iconNode } from './icons.js'
 import * as custom from './custom.js'
+import { fill } from './template.js'
 
 // Load every node type from ./nodes, keyed by type, in the library's order: most used first, a group's nodes together.
 // Types not listed go last.
@@ -194,7 +195,7 @@ async function step(workflow, node, data, run, { def, config, id, status, from }
     if (!trigger) log({ output: null })
     return end('stopped')
   }
-  if (trigger) run.start()
+  if (trigger) run.start(out)
   log({ output: out })
   end('done')
   // Nodes with several outputs (if/else, switch) return { [output]: data }; only those outputs continue. A split node
@@ -216,8 +217,8 @@ const listens = (def, event) => [def?.event].flat().includes(event)
 
 // Runs every trigger of this workflow that listens to the event, and resolves with their runs once they have all
 // finished: { error, last } where last is the data of the last node that ran. parent ({ signal, depth, origins }) is the
-// firing that called this workflow (Execute Workflow): cancelling it cancels this one too. only: a trigger node id to
-// run alone.
+// firing that called this workflow (Execute Workflow): cancelling it cancels this one too, and its onStart(out) hears
+// the trigger's output as soon as it fires. only: a trigger node id to run alone.
 export function fire(workflow, event, data, parent = {}, only) {
   return Promise.all(workflow.nodes.filter((n) => (!only || n.id === only) && listens(nodes[n.data.type], event)).map(async (t) => {
     const controller = new AbortController()
@@ -226,10 +227,11 @@ export function fire(workflow, event, data, parent = {}, only) {
     const count = () => activity.emit('activity', { workflow: workflow.id, running: firing.size })
     const record = { id: ++lastRun, workflow: workflow.id, name: workflow.name, event, at: new Date().toISOString(), status: 'running', nodes: [] }
     // A firing counts as running once its trigger matched: most chat messages match no trigger.
-    const start = () => {
+    const start = (out) => {
       count(firing.add(controller))
       history.unshift(record)
       history.splice(100)
+      parent.onStart?.(out)
     }
     // outputs: node type or id -> output of the last node of that type that ran, for {{ $node... }}. origins: the
     // triggers this firing comes from, as `workflow/node` keys: its own, after those of the firings that called it.
@@ -254,6 +256,41 @@ export function fire(workflow, event, data, parent = {}, only) {
   }))
 }
 
+// A trigger fired by hand (its bolt, its settings' Fire): node types with `manual` { config, fields, event }. config: the
+// inputs it asks for and their first values (or a function of the node's settings giving them, so that it gets
+// through them); fields: hints for those inputs, as for settings; event(inputs, config): the event it makes of them,
+// { event (the node's first by default), data }, as it comes from Twitch, chat or elsewhere.
+export const manualOf = (def, config) => ({
+  config: typeof def.manual.config === 'function' ? def.manual.config(config) : def.manual.config ?? {},
+  fields: def.manual.fields ?? {},
+})
+
+// Fires a workflow's trigger by hand, alone, with the event its `manual` makes: from its first inputs, under those saved
+// with the node (data.manual), under those given (the editor's, as typed; config too), their {{ }} filled. Resolves once
+// the trigger has run: { out } (what it output; the firing goes on), {} (its settings filtered the event out) or
+// { error }; null for a node that can't be fired so.
+export async function fireManual(workflow, nodeId, { config, inputs } = {}) {
+  const node = workflow.nodes.find((n) => n.id === nodeId)
+  const def = nodes[node?.data.type]
+  if (!def?.manual) return null
+  config = { ...def.config, ...(config ?? node.data.config) }
+  const given = { ...manualOf(def, config).config, ...node.data.manual, ...inputs }
+  const filled = Object.fromEntries(Object.entries(given).map(([k, v]) => [k, typeof v === 'string' ? fill(v, {}) : v]))
+  let made
+  try {
+    made = def.manual.event(filled, config)
+  } catch (err) {
+    return { error: err.message } // e.g. bad JSON
+  }
+  const fired = { ...workflow, nodes: workflow.nodes.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, config } } : n)) }
+  const multi = def.outputs || def.outputsFrom // { [output]: data }, as the editor shows it: its data
+  return new Promise((resolve) => {
+    const onStart = (out) => resolve({ out: multi ? Object.values(out)[0] : out })
+    fire(fired, made.event ?? [def.event].flat()[0], made.data, { onStart }, nodeId)
+      .then(([run]) => resolve(run?.error ? { error: run.error.message } : {}))
+  })
+}
+
 // Workflow id -> number of firings in progress, for clients that connect while some run.
 export const running = () => Object.fromEntries(Object.entries(runs).filter(([, set]) => set.size).map(([id, set]) => [id, set.size]))
 
@@ -265,7 +302,7 @@ export function cancel(workflowId) {
 }
 
 // Fires the event on every workflow that is on, as last saved (edits apply without a restart); switched-off ones are
-// skipped (the Run button still fires a switched-off workflow's manual triggers, through fire()).
+// skipped (a trigger fired by hand still fires in one, through fire()).
 // Errors are logged: this runs from the bus and a timer, where a rejection would crash the server. A workflow that
 // can't fire (e.g. a file edited by hand, without nodes) is skipped on its own, logged once, so the others still fire.
 const broken = new Set()

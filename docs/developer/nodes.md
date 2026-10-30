@@ -33,7 +33,27 @@ export default {
 | `event` | For a trigger: the bus event it listens to, or a list; `run` gets the one that fired as `event`. |
 | `needs` | Requirement keys: `twitch`, `obs`, `streamdeck`, `giphy`, `hue`, or `chat`. The UI marks the node when one isn't ready. |
 | `play` | `true` (or `{ only: { … } }`) gives its settings a Play button and the result, to try it. |
+| `manual` | For a trigger: how it fires by hand (below). |
 | `iconRotate` | Degrees, for an icon that needs turning. |
+
+## Firing a trigger by hand
+
+A trigger with `manual` gets a ⚡ on the graph and a **Fire** section in its settings, which fire it as if its event had happened: the workflow really runs from there.
+
+```js
+// server/nodes/cheer.js
+manual: {
+  config: (config) => ({ bits: Number(config.minBits) || 1, user: 'TestViewer', message: '' }),
+  fields: { bits: { presets: [1, 100, 500, 1000, 5000] } },
+  event: ({ bits, user, message }) => ({ data: { user_name: user, bits: Number(bits), message } }),
+},
+```
+
+- `config`: the inputs the Fire section asks for, as a node's `config` (an object, or a function of the node's settings, so that the first values get through them). The ones typed are saved with the node.
+- `fields`: hints for those inputs, as `fields` are for settings.
+- `event(inputs, config)`: the event they make, `{ event, data }`, shaped like the real one, so it goes through `run` and its filters. `event` defaults to the node's first.
+
+A trigger with nothing to ask for has only `event`, e.g. Manual Trigger's `manual: { event: () => ({ data: {} }) }`.
 
 ## Twitch features
 

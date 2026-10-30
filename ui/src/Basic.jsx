@@ -1,9 +1,9 @@
 // Basic view of a one-line workflow (chain.js): its trigger under "When", its steps under "Then", and "Add step". A card
-// opens the node's settings, like a click on the graph; its menu moves or deletes it. Library items dropped here are
+// opens the node's settings, like a click on the graph; its menu moves or deletes it; the trigger's bolt fires it. Library items dropped here are
 // added at the end (a trigger at the top).
 import { ActionIcon, Button, Menu, Stack, Text } from '@mantine/core'
 import { IconArrowDown, IconArrowUp, IconBox, IconDots, IconPlugOff, IconPlus, IconTrash } from '@tabler/icons-react'
-import { colors, subtitle } from './FlowNode.jsx'
+import { Bolt, colors, subtitle } from './FlowNode.jsx'
 
 const Title = ({ children }) => <Text size="xs" fw={700} c="dimmed" tt="uppercase" mt="md" mb={6}>{children}</Text>
 const Link = () => <div className="basic-link" />
@@ -21,6 +21,7 @@ export default function Basic({ list, onSelect, onMove, onDelete, onLibrary, onD
       <div key={n.id} className={n.className}>
         <div className={`basic-step${isTrigger ? ' trigger' : ''}${n.selected ? ' selected' : ''}`} role="button" tabIndex={0}
           aria-label={n.ariaLabel} onClick={() => onSelect(n.id)} onKeyDown={(e) => e.key === 'Enter' && onSelect(n.id)}>
+          {isTrigger && n.data.def?.manual && <Bolt onFire={n.data.fire} />}
           <Icon size={28} stroke={1.5} color={colors[n.data.def?.category]} style={{ flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <Text size="sm" fw={600} truncate>{n.ariaLabel}</Text>

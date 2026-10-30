@@ -6,7 +6,7 @@ import {
   ActionIcon, Affix, Anchor, AppShell, Badge, Button, Center, Collapse, Divider, Group, Loader, Modal, NavLink, Notification, ScrollArea, SimpleGrid, Stack, Switch, Text,
   TextInput, Tooltip, UnstyledButton, useAppShellResize, useComputedColorScheme,
 } from '@mantine/core'
-import { IconChevronRight, IconFile, IconFileImport, IconPlugOff, IconPlus, IconSearch, IconSettings, IconTool, IconUrgent, IconX } from '@tabler/icons-react'
+import { IconChevronRight, IconFile, IconFileImport, IconPlayerStopFilled, IconPlugOff, IconPlus, IconSearch, IconSettings, IconTool, IconUrgent, IconX } from '@tabler/icons-react'
 import Workflow from './Workflow.jsx'
 import TimerBar from './TimerBar.jsx'
 import Settings, { StatusIcon, integrations, requirements, unmet, useStatuses } from './Settings.jsx'
@@ -20,7 +20,24 @@ import { get, json } from './api.js'
 import wordmark from '../../docs/public/wordmark.svg'
 import wordmarkDark from '../../docs/public/wordmark-dark.svg'
 
-// The workflows, each with its on/off switch (off: its triggers ignore chat and API calls) and a loader while it runs.
+// A running workflow's loader; hovered or focused, it is its Stop button, which cancels its running nodes.
+function Running({ id }) {
+  return (
+    <Tooltip label="Stop the workflow (cancels its running nodes)" openDelay={400}>
+      <ActionIcon className="running" size={20} variant="subtle" color="red" aria-label="Stop the workflow" onKeyDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation() // don't open the workflow
+          fetch(`/api/workflows/${id}/cancel`, { method: 'POST' })
+        }}>
+        <Loader size={10} className="spin" />
+        <IconPlayerStopFilled size={14} className="stop" />
+      </ActionIcon>
+    </Tooltip>
+  )
+}
+
+// The workflows, each with its on/off switch (off: its triggers ignore chat and API calls) and a loader while it runs
+// (Running: its Stop).
 function List({ items, selected, onSelect, onAdd, onToggle }) {
   // Workflow id -> firings in progress, from the engine's live activity: a loader shows next to running workflows.
   const [running, setRunning] = useState({})
@@ -44,7 +61,7 @@ function List({ items, selected, onSelect, onAdd, onToggle }) {
           <NavLink
             key={item.id}
             label={<Text inherit truncate title={name}>{name}</Text>}
-            rightSection={running[item.id] > 0 && <Loader size={10} />}
+            rightSection={running[item.id] > 0 && <Running id={item.id} />}
             c={on ? undefined : 'dimmed'}
             active={selected?.id === item.id}
             onClick={() => onSelect({ kind: 'workflows', id: item.id })}

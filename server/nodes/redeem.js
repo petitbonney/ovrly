@@ -12,6 +12,13 @@ export default {
   fields: { reward: { rewards: true, hint: 'Empty for any reward' } },
   event: 'channel.channel_points_custom_reward_redemption.add',
   config: { reward: '' },
+  // Fired by hand: the reward set (no IDs: Channel Points Redemption can't fulfill it).
+  manual: {
+    config: { user: 'TestViewer', input: '' },
+    event: ({ user, input }, config) => ({
+      data: { id: '', user_name: user, user_input: input, reward: { id: '', title: config.reward.trim() || 'Test reward', cost: 0 } },
+    }),
+  },
   run({ config, data }) {
     const reward = config.reward.trim().toLowerCase()
     if (reward && data.reward.title.toLowerCase() !== reward) return null

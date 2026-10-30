@@ -4,11 +4,11 @@ Every node type, as the library lists them. **Needs** says what has to be set up
 
 ## Triggers
 
-A workflow starts at a trigger.
+A workflow starts at a trigger. Its **⚡** fires it by hand, to try the workflow (see [Fire a trigger](./editor#fire-a-trigger)).
 
 | Node | Fires when | Needs |
 | --- | --- | --- |
-| Manual Trigger | you press ▶ Run in the toolbar, or the ⚡ on the node | |
+| Manual Trigger | you press the ⚡ on the node | |
 | Chat !command | a chat message starts with a command, e.g. `!spin red`, from viewers of at least a role | chat |
 | Chat Message | any chat message | chat |
 | Channel Points | a viewer redeems a channel points reward | Twitch |
