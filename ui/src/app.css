@@ -82,16 +82,23 @@
 /* Basic view (Basic.jsx): one column of cards on the canvas color, drawn like graph nodes. */
 .basic { flex: 1; min-height: 0; overflow-y: auto; background: var(--ovrly-canvas); }
 .basic-list { width: min(420px, 100% - 32px); margin: 0 auto; padding-bottom: var(--mantine-spacing-xl); }
-.basic-step { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; background: var(--ovrly-node); border: 2px solid var(--ovrly-line); border-radius: 8px; cursor: pointer; text-align: left; font: inherit; }
+.basic-step { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; background: var(--ovrly-node); border: 2px solid var(--ovrly-line); border-radius: 8px; cursor: pointer; text-align: left; font: inherit; transition: scale 150ms, box-shadow 150ms; }
 .basic-step.trigger { border-radius: 30px 8px 8px 30px; padding-left: 18px; }
 .basic-step.empty { border-style: dashed; }
-.basic-step.add { justify-content: center; min-height: 52px; border-style: dashed; background: transparent; color: var(--mantine-color-dimmed); cursor: default; }
-.basic-step.dragging { box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35); }
+.basic-step.add { justify-content: center; min-height: 52px; border-style: dashed; background: var(--ovrly-canvas); color: var(--mantine-color-dimmed); cursor: default; }
+/* One line behind the whole chain, from the trigger to the "+", showing between the cards; moving them never breaks it. The cards'
+   wrappers hide it behind a dimmed (stopped) card. */
+.basic-chain { position: relative; }
+.basic-chain::before { content: ''; position: absolute; left: calc(50% - 1px); width: 2px; top: 26px; bottom: 26px; background: var(--ovrly-line); }
+.basic-card { position: relative; background: var(--ovrly-canvas); }
+.basic-step.dragging { scale: 1.02; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4); }
 /* A step's grip, left of its card like a trigger's bolt. */
 .basic-step .grip { position: absolute; left: -28px; line-height: 0; color: var(--mantine-color-dimmed); cursor: grab; touch-action: none; }
 .basic-step .grip:hover, .basic-step.dragging .grip { color: var(--mantine-color-text); }
-/* While a step is dragged, the others slide to make room for it. */
+/* While a step is dragged, the others slide to make room for it, and a dashed outline shows where it would land. */
+.basic-steps { position: relative; }
 .basic-slot { position: relative; }
+.basic-landing { position: absolute; left: 0; right: 0; border: 2px dashed var(--ovrly-line); border-radius: 8px; background: var(--ovrly-canvas); transition: top 150ms; }
 .basic.sorting .basic-slot { transition: transform 150ms; }
 .basic.sorting .basic-slot:has(.dragging) { transition: none; }
 .basic.sorting, .basic.sorting * { cursor: grabbing !important; }
@@ -99,7 +106,6 @@
 /* The graph stays under it, measured but clipped away (its nodes set their own visibility); !important beats
    ReactFlow's inline position. */
 .editor .react-flow.under-basic { position: absolute !important; inset: 0; clip-path: inset(50%); }
-.basic-link { width: 2px; height: 20px; margin: 0 auto; background: var(--ovrly-line); }
 
 /* Live run feedback (Workflow.jsx): running pulses blue, done flashes green, stopped dims, error turns red. */
 .run-running :is(.flow-node, .basic-step) { border-color: var(--mantine-color-blue-4); animation: run-pulse 1s ease-in-out infinite; }

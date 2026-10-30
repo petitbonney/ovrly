@@ -21,7 +21,7 @@ For one-line workflows, e.g. an alert on a new follower: a trigger under **When*
 ![The Basic view: Follow, then an Alerts widget](/screenshots/basic-view.png)
 
 - **Pick the trigger** and **add steps** from the library (double-click, or drag onto the list): a step goes at the end. The dashed **+** below the steps marks where the next one goes.
-- **Click** a step to open its settings. **Drag** it by its grip (left of the card) to move it, the other steps making room; its **⋯** menu also moves it up or down, or deletes it (the steps around it stay linked).
+- **Click** a step to open its settings. **Drag** it by its grip (left of the card) to move it: the other steps make room, a dashed outline shows where it lands, and **Escape** puts it back. **Alt+↑** / **Alt+↓** on a step, or its **⋯** menu, also move it up or down; the menu deletes it too (the steps around it stay linked).
 - The **⚡** left of the trigger fires it (see [Fire a trigger](#fire-a-trigger)).
 - The library leaves out what makes branches (If / Else, Switch, Fan Out…): its link at the bottom switches to the graph for those.
 
