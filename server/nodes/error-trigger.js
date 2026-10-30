@@ -9,5 +9,6 @@ export default {
   adds: ['workflow', 'node', 'error'],
   event: 'workflow-error',
   config: {},
+  manual: { event: () => ({ data: { workflow: 'Test workflow', node: 'HTTP Request', error: 'Sample error' } }) },
   run: ({ data }) => data,
 }

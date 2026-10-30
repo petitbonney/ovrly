@@ -22,6 +22,4 @@ In the library and on the graph, a node that needs it shows a plug icon, and its
 
 ## Test without going live
 
-- A **Chat !command** node's settings have a test **Run**, with the args, user and role you pick.
-- The **⚡** beside the other chat triggers sends them a test message from TestViewer.
-- A **Manual Trigger** runs with ▶ in the toolbar.
+Every trigger has a **⚡** that fires it as if the event had happened: a chat message, a cheer, a raid, a follow… Its settings' **Fire** section picks what the event carries, e.g. a Chat !command's args, user and role. See [Fire a trigger](./editor#fire-a-trigger).

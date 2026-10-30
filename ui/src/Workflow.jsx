@@ -1,4 +1,5 @@
-// Workflow editor: ReactFlow graph (center) and selected node settings (bottom), autosaved.
+// Workflow editor: ReactFlow graph (center) and selected node settings (bottom), autosaved. A one-line workflow can
+// also be shown as a list of steps (the Basic view, Basic.jsx), picked in the toolbar and saved with it as `view`.
 // Nodes are dropped from the library: node types, or widget types (each drop creates a widget instance and its widget
 // node). A widget node starts its widget (or runs the action its type binds to signals instead); a Widget Action node linked in
 // front of it makes it run another one, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; a
@@ -14,12 +15,12 @@ import { animate } from 'animejs'
 import TimerBar from './TimerBar.jsx'
 import '@xyflow/react/dist/style.css'
 import {
-  ActionIcon, AppShell, Button, Center, CloseButton, Divider, Group, Modal, Notification, SimpleGrid, Stack, Text, TextInput, Tooltip,
+  ActionIcon, AppShell, Button, Center, CloseButton, Divider, Group, Modal, Notification, SegmentedControl, SimpleGrid, Stack, Text, TextInput, Tooltip,
   useComputedColorScheme,
 } from '@mantine/core'
 import {
-  IconArrowBackUp, IconArrowForwardUp, IconBox, IconDownload, IconLayoutSidebarRight, IconLock, IconLockOpen, IconMaximize, IconMinus,
-  IconPlayerPlay, IconPlayerStop, IconPlus, IconSitemap,
+  IconArrowBackUp, IconArrowForwardUp, IconBox, IconDownload, IconHierarchy2, IconLayoutSidebarRight, IconList, IconLock, IconLockOpen, IconMaximize, IconMinus,
+  IconPlus, IconSitemap,
   IconTrash,
 } from '@tabler/icons-react'
 import Fields, { applies } from './Fields.jsx'
@@ -30,12 +31,14 @@ import JoinLinks from './JoinLinks.jsx'
 import Play from './Play.jsx'
 import LogResult from './LogResult.jsx'
 import NodeLive from './NodeLive.jsx'
-import ChatTest from './ChatTest.jsx'
+import Fire from './Fire.jsx'
 import CodeTest from './CodeTest.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
 import FlowNode, { colors, outputsOf } from './FlowNode.jsx'
 import layout from './layout.js'
+import Basic from './Basic.jsx'
+import { chainOf, relink } from './chain.js'
 import { exportWorkflow, download, withWidgetIds } from './share.js'
 import { get, json } from './api.js'
 import { requirements } from './Settings.jsx'
@@ -140,9 +143,9 @@ function boundsOf(list) {
 // error), then the settings column, with a live column on its right when the node has something to watch or press: a
 // widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, a Wait For All's links with
 // Force and Cancel, an action's Play and result (Play.jsx), a Log's last data (LogResult.jsx), a Cooldown's, Delay's
-// or Fan In's state (NodeLive.jsx), a Chat !command's test Run (ChatTest.jsx), a Code node's Test (CodeTest.jsx). A Merge Widgets node shows its
+// or Fan In's state (NodeLive.jsx), a trigger's Fire (Fire.jsx), a Code node's Test (CodeTest.jsx). A Merge Widgets node shows its
 // canvas instead (with the widgets linked into it, context.inputs). context.widget is the widget the node points to; off: the requirements not met (Settings.jsx).
-function Config({ workflow, node, def, context, off, running, error, onChange, onWidgetChange, onCopy, onClose, onError }) {
+function Config({ workflow, node, def, context, off, running, error, onChange, onManualChange, onFire, onWidgetChange, onCopy, onClose, onError }) {
   if (!node) return null
   // A type that isn't loaded (a custom node removed or broken): its settings are kept, untouched, until it is back.
   const unknown = !def
@@ -160,7 +163,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
     : def.queue ? <QueueLine workflow={workflow} node={node.id} />
     : def.join ? <JoinLinks workflow={workflow} node={node.id} links={context.links} />
     : def.type === 'log' ? <LogResult key={node.id} workflow={workflow} node={node.id} />
-    : def.type === 'chat-command' ? <ChatTest key={node.id} workflow={workflow} node={node.id} config={config} />
+    : def.manual ? <Fire key={node.id} type={def.type} config={config} values={node.data.manual} onChange={onManualChange} onFire={onFire} />
     : def.type === 'code' ? <CodeTest key={node.id} workflow={workflow} node={node.id} config={config} />
     : def.live ? <NodeLive key={node.id} workflow={workflow} node={node.id} type={def.type} config={config} />
     : def.play && applies(def.play, config) && (
@@ -206,8 +209,9 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
 }
 
 // openNode: id of the node whose settings were open last time; onNodeSelect(id | null) reports selection changes.
-// off: the requirements not met (Settings.jsx).
-function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDelete, onWidgetChange, panels, onToggle, onNodeSelect }) {
+// off: the requirements not met (Settings.jsx). onBasic({ trigger, graph } | null) tells the library the Basic view is
+// shown (it then offers only what keeps the workflow one line).
+function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDelete, onWidgetChange, panels, onToggle, onNodeSelect, onBasic }) {
   const [name, setName] = useState(workflow.name)
   const [nodes, setNodes, onNodesChange] = useNodesState(
     workflow.nodes.map((n) => ({ ...n, type: 'step', selected: n.id === openNode })),
@@ -216,6 +220,17 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView, zoomIn, zoomOut } = useReactFlow()
   // A node's type, from the library's node types.
   const defOf = (n) => defs.find((d) => d.type === n?.data.type)
+  const firstOutput = (n) => outputsOf(defOf(n), n.data.config)[0]?.id ?? null
+  // Basic view: the nodes in order while the graph is one line (else null, and the graph is shown).
+  const chain = chainOf(nodes, edges, { isTrigger: (n) => defOf(n)?.category === 'trigger', firstOutput })
+  const [view, setView] = useState(workflow.view === 'basic' ? 'basic' : 'graph')
+  const basic = view === 'basic' && !!chain
+  useEffect(() => {
+    if (view === 'basic' && !chain) setView('graph') // an undo brought a branch back
+  }, [view, !chain])
+  const hasTrigger = chain?.[0] && defOf(chain[0])?.category === 'trigger'
+  useEffect(() => onBasic(basic ? { trigger: hasTrigger, graph: () => pickView('graph') } : null), [basic, hasTrigger])
+  useEffect(() => () => onBasic(null), [])
 
   // Short feedback message (copy, paste, a node failing) shown over the graph for a few seconds.
   const [toast, setToast] = useState(null)
@@ -232,8 +247,6 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   // id -> a token while data travels on it: a link animates for a moment, even into a node that runs for minutes (an
   // open vote), and node id -> its last error. Only for display: not saved, not part of undo.
   const [live, setLive] = useState({ nodes: {}, edges: {}, errors: {} })
-  // Firings of this workflow in progress, for the Stop button.
-  const [firings, setFirings] = useState(0)
   useEffect(() => {
     // A node that failed in a recent run (the engine's history, newest first) shows it until it runs again.
     get(`/api/runs?workflow=${workflow.id}`).then((runs) => {
@@ -267,7 +280,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const onActivity = ({ detail: a }) => {
       if (a.widget) return onWidgetChange() // an action changed a widget's state: its settings show it
       if (a.workflow !== workflow.id) return
-      if ('running' in a) return setFirings(a.running)
+      if ('running' in a) return // the workflow list's loader
       if (a.edge) return pass(a.edge)
       setLive((l) => {
         const errors = { ...l.errors }
@@ -331,7 +344,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const isWidget = n.data.type === 'widget'
     const needs = needsOf(def, { ...def?.config, ...n.data.config }, isWidget && widgetType, { ...widgetType?.state, ...widget?.state })
     const missing = requirements.filter((r) => off.includes(r.key) && needs.includes(r.key)).map((r) => r.needs)
-    const context = { workflowId: workflow.id, def, widget, widgetType, missing }
+    const context = { def, widget, widgetType, missing, fire: () => fireNode(n.id) }
     const shown = { ...n, ariaLabel: (isWidget ? widget?.state.name : def?.label) ?? n.data.label, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
     return live.nodes[n.id] ? { ...shown, className: `run-${live.nodes[n.id]}` } : shown
   })
@@ -396,10 +409,10 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   // The save waiting for its debounce: sent at once if the editor closes first (another workflow picked, the page left).
   const pending = useRef(null)
   useEffect(() => {
-    pending.current = { name, ...graph }
+    pending.current = { name, view, ...graph }
     const timer = setTimeout(() => {
       pending.current = null
-      fetch(`/api/workflows/${workflow.id}`, json('PUT', { name, ...graph })).then((res) => {
+      fetch(`/api/workflows/${workflow.id}`, json('PUT', { name, view, ...graph })).then((res) => {
         if (!res.ok) throw new Error(res.statusText)
         if (unsaved.current) notify('Saved.')
         unsaved.current = false
@@ -411,7 +424,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
       })
     }, 500)
     return () => clearTimeout(timer)
-  }, [name, graphKey, retry])
+  }, [name, view, graphKey, retry])
   useEffect(() => {
     // keepalive lets a save outlive the page, for a body up to 64 KB: only when the page goes.
     const flush = (keepalive) => {
@@ -522,6 +535,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
       onWidgetChange()
     }
     const node = { id: crypto.randomUUID(), type: 'step', position, selected: true, data: { type: def.type, label: def.label, config } }
+    if (basic) return setChain(def.category === 'trigger' ? [node, ...chain] : [...chain, node], node.id)
     setNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)).concat(node))
     // From the selected node's first output; the same checks as a link drawn by hand.
     const link = from && { source: from.id, sourceHandle: outputsOf(defOf(from), from.data.config)[0]?.id ?? null, target: node.id }
@@ -540,6 +554,24 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     if (!dx && !dy) return
     const { x, y, zoom } = getViewport()
     setViewport({ x: x - dx * zoom, y: y - dy * zoom, zoom }, { duration: 300 })
+  }
+
+  // Basic view edits: the nodes in their new order (selecting one, or none), relinked in a row on the grid where the
+  // line starts, so the graph is tidy too.
+  const setChain = (list, select) => {
+    const start = chain[0]?.position ?? { x: 0, y: 0 }
+    setNodes(list.map((n, i) => ({ ...n, selected: n.id === select, position: { x: start.x + i * (NODE + CAPTION + GRID), y: start.y } })))
+    setEdges(relink(list, edges, firstOutput))
+  }
+  const moveStep = (id, to) => {
+    const list = chain.filter((n) => n.id !== id)
+    list.splice(to, 0, chain.find((n) => n.id === id))
+    setChain(list, selected?.id)
+  }
+  // Back to the graph: fitted, as the Basic edits moved its nodes.
+  const pickView = (v) => {
+    setView(v)
+    if (v === 'graph') requestAnimationFrame(() => fitView(fitOptions))
   }
 
   const onDrop = (e) => {
@@ -610,21 +642,31 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
       const key = e.key.toLowerCase()
       const picked = nodes.filter((n) => n.selected)
       if (key === 'c' && picked.length) copy(picked)
-      if (key === 'v' && clipboard) paste()
+      if (key === 'v' && clipboard && !basic) paste() // pasted nodes would be off the line
       if ((key === 'z' && e.shiftKey) || key === 'y') redo()
       else if (key === 'z') undo()
       if (key === 'z' || key === 'y') e.preventDefault()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [nodes, edges, widgets])
+  }, [nodes, edges, widgets, basic])
 
   const selected = nodes.find((n) => n.selected)
   // The shell shows the bottom (node settings) pane for the selected node, and remembers it per workflow.
   useEffect(() => {
     onNodeSelect(selected?.id ?? null)
   }, [selected?.id])
-  const hasManual = nodes.some((n) => n.data.type === 'manual')
+  // Fires a trigger by hand (its bolt, its settings' Fire), with its settings and inputs as edited, maybe not saved
+  // yet: answers { out } | {} (its settings filtered the event out) | { error }, and says so when it didn't fire.
+  const fireNode = async (id) => {
+    const n = nodes.find((node) => node.id === id)
+    const answer = await fetch(`/api/workflows/${workflow.id}/run?node=${id}`, json('POST', { config: n.data.config, inputs: n.data.manual }))
+      .then((res) => (res.ok ? res.json() : { error: res.status === 404 ? 'not saved yet, try again' : res.statusText }), (err) => ({ error: err.message }))
+    if (answer.error) notify(`${nodeName(n)} didn't fire: ${answer.error}`, 'red')
+    else if (!answer.out) notify(`${nodeName(n)} didn't fire: its settings filter this event out.`, 'yellow')
+    return answer
+  }
+  const setManual = (manual) => setNodes((ns) => ns.map((n) => (n.id === selected.id ? { ...n, data: { ...n.data, manual } } : n)))
   const scheme = useComputedColorScheme('dark')
   // One-shot auto layout: every node glides to its place, the view stays put (a single undo step: history
   // waits for the edit to settle). Nodes stay movable and land on the grid.
@@ -686,15 +728,11 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
             <ActionIcon size="md" variant="default" aria-label="Redo" disabled={!history.current.future.length} onClick={redo}><IconArrowForwardUp size={18} /></ActionIcon>
           </Tooltip>
           <TextInput flex={1} miw={80} size="xs" aria-label="Workflow name" value={name} onChange={(e) => setName(e.target.value)} />
-          <Tooltip label={hasManual ? 'Run manual triggers' : 'Add a Manual Trigger to run this workflow by hand'}>
-            <ActionIcon size="md" variant="light" color="green" aria-label="Run manual triggers" disabled={!hasManual} onClick={() => fetch(`/api/workflows/${workflow.id}/run`, { method: 'POST' })}>
-              <IconPlayerPlay size={18} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Stop the workflow (cancels its running nodes)">
-            <ActionIcon size="md" variant="light" color="red" aria-label="Stop the workflow" disabled={!firings} onClick={() => fetch(`/api/workflows/${workflow.id}/cancel`, { method: 'POST' })}>
-              <IconPlayerStop size={18} />
-            </ActionIcon>
+          <Tooltip label="Has branches: edit it in the graph" disabled={!!chain}>
+            <SegmentedControl size="xs" value={basic ? 'basic' : 'graph'} onChange={pickView} aria-label="View" data={[
+              { value: 'basic', disabled: !chain, label: <Group gap={4} wrap="nowrap"><IconList size={14} />Basic</Group> },
+              { value: 'graph', label: <Group gap={4} wrap="nowrap"><IconHierarchy2 size={14} />Graph</Group> },
+            ]} />
           </Tooltip>
           <Divider orientation="vertical" />
           <Tooltip label="Export as JSON">
@@ -728,7 +766,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
           </Notification>
         )}
         {/* An empty graph says how to start. */}
-        {ready && !nodes.length && (
+        {ready && !basic && !nodes.length && (
           <Center className="empty-hint">
             <Stack align="center" gap="xs">
               <Text c="dimmed" ta="center">Start with a trigger: drag one from the library onto the graph, or double-click it.</Text>
@@ -736,6 +774,17 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
             </Stack>
           </Center>
         )}
+        {basic && (
+          <Basic list={chain.map((n) => shownNodes.find((s) => s.id === n.id))}
+            onSelect={(id) => setNodes((ns) => ns.map((n) => (n.selected !== (n.id === id) ? { ...n, selected: n.id === id } : n)))}
+            onMove={moveStep} onDelete={(id) => setChain(chain.filter((n) => n.id !== id), selected?.id)}
+            onLibrary={() => !panels.library && onToggle('library')}
+            onDrop={(e) => {
+              e.preventDefault()
+              addItem(e.dataTransfer.getData('application/ovrly-widget'), e.dataTransfer.getData('application/ovrly'))
+            }} />
+        )}
+        {/* Kept (hidden) under the Basic view, so its nodes stay measured for a switch back. */}
         <ReactFlow
           ref={flowRef}
           nodes={shownNodes}
@@ -747,10 +796,10 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
           onEdgesChange={onEdgesChange}
           onConnectEnd={onConnectEnd}
           connectionRadius={0} // links snap to whole nodes (see linkAt), not to nearby handles
-          className={preview ? 'previewing' : ''}
+          className={basic ? 'under-basic' : preview ? 'previewing' : ''}
           nodesDraggable={!locked}
           nodesConnectable={!locked}
-          deleteKeyCode={locked ? null : ['Backspace', 'Delete']}
+          deleteKeyCode={locked || basic ? null : ['Backspace', 'Delete']}
           snapToGrid
           snapGrid={[GRID, GRID]}
           onDrop={onDrop}
@@ -797,6 +846,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
           types,
         }}
         onChange={setConfig}
+        onManualChange={setManual}
+        onFire={() => fireNode(selected.id)}
         onWidgetChange={onWidgetChange}
         onCopy={() => copy([selected])}
         onClose={deselect}

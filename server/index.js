@@ -3,7 +3,7 @@ import express from 'express'
 import { access, network, setLan } from './access.js'
 import * as store from './store.js'
 import bus, { recent, record } from './bus.js'
-import { nodes, problems, loadNodes, fire, cancel, running, activity, history, line, drop, arrived, unjoin } from './engine.js'
+import { nodes, problems, loadNodes, fire, fireManual, manualOf, cancel, running, activity, history, line, drop, arrived, unjoin } from './engine.js'
 import * as custom from './custom.js'
 import { httpError } from './errors.js'
 import * as twitch from './integrations/twitch.js'
@@ -20,15 +20,20 @@ import * as widgets from './widgets.js'
 import * as windows from './windows.js'
 import * as workflows from './workflows.js'
 import { vars, saveVars } from './vars.js'
-import { fill } from './template.js'
 
 const PORT = process.env.PORT || 6875 // OVRL on a phone keypad
 const app = express()
 app.use(access)
 app.use(express.json())
 
-// Node types for the UI library (metadata only, no run function).
-app.get('/api/nodes', (req, res) => res.json(Object.values(nodes).map(({ run, live, control, ...meta }) => ({ ...meta, live: !!live }))))
+// Node types for the UI library (metadata only, no run function; manual: whether a trigger can be fired by hand).
+app.get('/api/nodes', (req, res) => res.json(Object.values(nodes).map(({ run, live, control, manual, ...meta }) => ({ ...meta, live: !!live, manual: !!manual }))))
+// A trigger's Fire section (engine.js manualOf): the inputs it asks for with these settings { config }, as
+// { config (their first values), fields }.
+app.post('/api/nodes/:type/manual', (req, res) => {
+  const def = nodes[req.params.type]
+  def?.manual ? res.json(manualOf(def, { ...def.config, ...req.body?.config })) : res.sendStatus(404)
+})
 // Custom nodes and widgets (server/custom.js; Settings → Custom nodes, Custom widgets): those loaded and those that
 // failed, { dir, items: [{ name, type, label }], errors: [{ name, error }] }. The calls that change them answer that
 // again, once reloaded: importing a node (PUT { code }), a widget folder (PUT each file as is, ?path=, first=1 for the
@@ -137,30 +142,18 @@ app.get('/api/events', (req, res) => {
 })
 // Run history: the recent firings with what each node got and returned, newest first; ?workflow=<id> for one workflow.
 app.get('/api/runs', (req, res) => res.json(history.filter((r) => !req.query.workflow || r.workflow === req.query.workflow)))
-// A test chat message, for the bolt on a chat trigger: from TestViewer, with the trigger's first command if it has one
-// (then the text given, if any: a Chat !command's args), and the role and first message it asks for, so the test gets
-// through.
-const testChat = (config, text = '') => ({
-  user: 'TestViewer', login: 'testviewer', channel: twitch.status.channel, messageId: '',
-  message: config.command ? `!${config.command.split('+')[0].trim().replace(/^!/, '')} ${text}`.trim() : 'Hello from Ovrly!',
-  userId: '', color: '', timestamp: Date.now(), broadcaster: config.from === 'broadcaster', mod: config.from === 'mod',
-  vip: config.from === 'vip', sub: config.from === 'sub', subMonths: config.from === 'sub' ? 1 : 0, firstMessage: !!config.firstOnly,
-  returning: false, emotes: [], action: false, highlighted: false, rewardId: '', replyToId: '', replyToUser: '', replyToMessage: '',
-})
-// Runs a workflow's manual triggers now (the Run button in the editor), or just ?node=<id> (the bolt on a trigger): a
-// manual trigger, or a chat trigger, sent a test message (with the body's text after its command, and its data over
-// the test message's, if any: its user filled, e.g. {{ $vars.channel }}, giving the login too, TestViewer when empty).
+// Runs a workflow's Manual Triggers now, or fires just ?node=<id> by hand (a trigger's bolt or Fire, engine.js
+// fireManual), with the body's { config, inputs } if any (the editor's, as typed), and answers { out } | {} | { error }.
 app.post('/api/workflows/:id/run', async (req, res) => {
   const workflow = await store.get('workflows', req.params.id).catch(() => null)
   if (!workflow) return res.sendStatus(404)
-  const node = workflow.nodes.find((n) => n.id === req.query.node)
-  const chat = node && [nodes[node.data.type]?.event].flat().includes('chat')
-  record('http', 'manual', { workflow: workflow.id, ...(chat && { test: 'chat' }) }) // not on the bus: it targets this workflow only
-  const user = fill(req.body?.data?.user ?? '', {}).trim() || 'TestViewer'
-  const data = chat ? { ...testChat({ ...nodes[node.data.type].config, ...node.data.config }, req.body?.text), ...req.body?.data,
-    user, login: user.toLowerCase() } : {}
-  fire(workflow, chat ? 'chat' : 'manual', data, {}, req.query.node)
-  res.sendStatus(204)
+  record('http', 'manual', { workflow: workflow.id, ...(req.query.node && { node: req.query.node }) }) // not on the bus: it targets this workflow only
+  if (!req.query.node) {
+    fire(workflow, 'manual', {})
+    return res.sendStatus(204)
+  }
+  const answer = await fireManual(workflow, req.query.node, req.body ?? {})
+  answer ? res.json(answer) : res.sendStatus(404)
 })
 // Cancels a workflow's firings in progress (the Cancel button in the editor); the workflow stays on.
 app.post('/api/workflows/:id/cancel', (req, res) => {

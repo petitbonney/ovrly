@@ -75,4 +75,6 @@ Each workflow, widget and setting is one JSON file: `data/<kind>/<id>.json`, kin
 - `state`: saved in its widget file (settings, action inputs, kept data such as the lottery's options);
 - `runtime`: in memory, lost on restart (what plays now: a draw, a vote under way).
 
+A workflow also keeps `view` (`basic` or `graph`): how the editor shows it, nothing else reads it. The Basic view (`ui/src/Basic.jsx`) edits the same nodes and links; `ui/src/chain.js` says when a graph is one line.
+
 Import/export moves a bundle `{ widgets: [...], workflows: [...] }`.

@@ -3,7 +3,6 @@
 // Also the Helix API helper, which signs requests with that token.
 import * as store from '../store.js'
 import { record } from '../bus.js'
-import { vars, saveVars } from '../vars.js'
 import { httpError } from '../errors.js'
 
 export const CLIENT_ID = '6vu8lgkxb5ljuijesmm2rlirke32ns'
@@ -34,11 +33,6 @@ async function save(tokens) {
 
 function show() {
   Object.assign(status, { login: auth?.login ?? '', userId: auth?.userId ?? '', scopesOk: SCOPES.every((s) => auth?.scopes?.includes(s)) })
-  // {{ $vars.channel }}: the signed-in channel's login (its URL slug), e.g. Channel Info's default channel.
-  if (status.login && vars.channel !== status.login) {
-    vars.channel = status.login
-    saveVars()
-  }
 }
 
 export async function load() {
@@ -140,8 +134,6 @@ export async function logout() {
   if (auth?.access) await post('revoke', { token: auth.access }).catch(() => {})
   auth = null
   await store.remove('settings', 'twitch-auth')
-  delete vars.channel
-  saveVars()
   show()
   Object.assign(status, { device: null, error: '' })
 }

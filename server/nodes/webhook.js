@@ -10,5 +10,10 @@ export default {
   fields: { path: { hint: 'Any method works, e.g. POST /hooks/my-hook {"user": "bob"}' } },
   event: 'webhook',
   config: { path: 'my-hook' },
+  manual: {
+    config: { body: '{"user": "bob"}' },
+    fields: { body: { type: 'json', label: 'Data (JSON)', hint: 'As the query and JSON body of a request' } },
+    event: ({ body }, config) => ({ data: { ...JSON.parse(body || '{}'), path: config.path } }),
+  },
   run: ({ config, data }) => (data.path === config.path ? data : null),
 }

@@ -55,6 +55,19 @@ await wait(1000)
 await shot('widget-node')
 await page.getByRole('button', { name: 'Close settings' }).click()
 
+// A Blank workflow, in the Basic view: Follow, then Alerts.
+await page.getByRole('button', { name: 'New workflow' }).first().click()
+await page.getByRole('dialog').getByRole('button', { name: 'Blank' }).click()
+await page.getByRole('dialog').waitFor({ state: 'detached' })
+for (const item of ['Follow', 'Alerts']) {
+  await page.getByPlaceholder('Search nodes').fill(item)
+  await page.locator('.mantine-NavLink-root', { hasText: item }).first().dblclick()
+  await wait(500)
+}
+await page.getByPlaceholder('Search nodes').fill('')
+await page.getByRole('button', { name: 'Close settings' }).click()
+await shot('basic-view')
+
 await fromTemplate('Death counter')
 await node('Control Pad').click()
 await wait(500)

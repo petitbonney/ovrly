@@ -70,7 +70,7 @@ export default {
       ],
       info: 'Stream: live, title, game, tags, viewers, uptime (min), startedAt, thumbnail. Followers and subs: followers, lastFollower, lastFollowedAt (only for your channel or one you moderate), subs, subPoints (only for your channel). Last clip: clipUrl, clipTitle, clipViews, clipBy. Next stream: nextTitle, nextGame, nextStart, nextIn (min). Custom API call: response, the whole answer.',
     },
-    channel: { vars: true, hint: 'A login, e.g. {{user}}; empty: yours', info: '{{ $vars.channel }} is yours, set when you sign in to Twitch.' },
+    channel: { vars: true, hint: 'A login, e.g. {{user}}; empty: yours', info: '{{ $vars.channel }} is the channel in Settings → Twitch: yours once signed in, in Streamer mode.' },
     method: { options: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'], only: { what: 'custom' } },
     path: { vars: true, only: { what: 'custom' }, hint: 'e.g. polls?broadcaster_id={{channelId}}',
       info: 'Any endpoint of the Twitch Helix API (dev.twitch.tv/docs/api/reference), after /helix/. {{channelId}} is the channel above. Endpoints that need a permission Ovrly does not ask for fail.' },

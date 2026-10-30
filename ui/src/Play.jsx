@@ -10,7 +10,8 @@ import { json } from './api.js'
 // Values shown as media, by their key.
 const media = { gif: 'img', sticker: 'img', avatar: 'img', thumbnail: 'img', sound: 'audio', clip: 'video' }
 
-function Value({ name, value }) {
+// A value of the result: media, a link, JSON or text (also in a trigger's Fire, Fire.jsx).
+export function Value({ name, value }) {
   if (Array.isArray(value) && value.length && value.every((v) => typeof v !== 'object')) return <Text size="xs">{value.join(', ')}</Text>
   if (value && typeof value === 'object') return <Code block mah={240} style={{ overflow: 'auto' }}>{JSON.stringify(value, null, 2)}</Code>
   if (value === '') return <Text size="xs" c="dimmed">Empty</Text>

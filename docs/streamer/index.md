@@ -29,12 +29,14 @@ Your workflows and widgets are saved in the `data` folder next to the launcher. 
 
    ![The New workflow dialog: Blank, Import, and the templates](/screenshots/new-workflow.png)
 
+   Or pick **Blank** to build your own: it opens as a list of steps (the [Basic view](./editor#basic-a-list-of-steps)), a trigger then what it does.
+
 3. Templates start switched off. Connect what the workflow needs first (here, [Twitch](./twitch) to read your chat), then turn on the switch next to its name.
 4. Show its widgets in OBS: select the widget node (the die), copy the **OBS browser source** link from its settings, and add it to OBS as a **Browser Source** (see [OBS](./obs#show-a-widget)).
 
 ![The !roll dice workflow: Chat !command → Cooldown → Queue → Dice → Roll result](/screenshots/editor.png)
 
-Try it without going live: a Chat !command node's settings have a test **Run** (with the args, user and role you pick), and the ⚡ beside the other chat triggers sends a test message from TestViewer.
+Try it without going live: the **⚡** beside a trigger fires it, and its settings' **Fire** section picks what it carries, e.g. a Chat !command's args, user and role (see [Fire a trigger](./editor#fire-a-trigger)).
 
 ## Where to next
 
