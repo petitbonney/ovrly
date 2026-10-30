@@ -20,7 +20,7 @@ export default {
   event: ['channel.subscribe', 'channel.subscription.message'],
   config: { kinds: ['sub', 'resub', 'gifted'] },
   manual: {
-    config: (config) => ({ kind: config.kinds[0] ?? 'sub', user: 'TestViewer', tier: '1', months: 3, message: '' }),
+    config: (config) => ({ kind: config.kinds[0] ?? 'sub', user: '{{ $vars.channel }}', tier: '1', months: 3, message: '' }),
     fields: {
       kind: { options: kinds },
       tier: { options: [{ value: '1', label: 'Tier 1' }, { value: '2', label: 'Tier 2' }, { value: '3', label: 'Tier 3' }] },

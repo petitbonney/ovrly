@@ -13,7 +13,7 @@ export default {
   event: 'channel.cheer',
   config: { minBits: 1 },
   manual: {
-    config: (config) => ({ bits: Number(config.minBits) || 1, user: 'TestViewer', message: '' }),
+    config: (config) => ({ bits: Number(config.minBits) || 1, user: '{{ $vars.channel }}', message: '' }),
     fields: { bits: { presets: [1, 100, 500, 1000, 5000] } },
     event: ({ bits, user, message }) => ({ data: { user_name: user, bits: Number(bits), message } }),
   },

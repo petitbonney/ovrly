@@ -28,7 +28,7 @@ export default {
   // Fired by hand: its first command, then the args typed.
   manual: {
     config: (config) => ({ args: '', user: '{{ $vars.channel }}', role: config.from, firstMessage: false }),
-    fields: { args: { hint: 'After the command, e.g. red 3' }, user: { hint: 'Empty: TestViewer' }, role: { options: testRoles } },
+    fields: { args: { hint: 'After the command, e.g. red 3' }, user: { hint: 'Empty: yours' }, role: { options: testRoles } },
     event: ({ args, ...inputs }, config) => ({
       data: testChat({ ...inputs, message: `!${config.command.split('+')[0].trim().replace(/^!/, '')} ${args}`.trim() }),
     }),

@@ -10,6 +10,7 @@ import * as store from '../store.js'
 import { httpError, unavailable } from '../errors.js'
 import tmi from 'tmi.js'
 import bus, { record } from '../bus.js'
+import { vars, saveVars } from '../vars.js'
 import * as auth from './twitch-auth.js'
 import * as eventsub from './twitch-eventsub.js'
 
@@ -24,10 +25,10 @@ export const sentBy = new Map()
 export const status = { mode: 'guest', guestChannel: '', channel: '', connected: false }
 
 // A chat trigger's manual firing (its bolt): a chat message as tmi.js gives it, from the user and role picked
-// (TestViewer when empty). testRoles are the roles to pick from.
+// (your channel, {{ $vars.channel }}, when empty). testRoles are the roles to pick from.
 export const testRoles = [{ value: 'everyone', label: 'Viewer' }, { value: 'sub', label: 'Sub' }, { value: 'vip', label: 'VIP' }, { value: 'mod', label: 'Mod' }, { value: 'broadcaster', label: 'Streamer' }]
 export function testChat({ user, role, message, firstMessage = false }) {
-  user = user.trim() || 'TestViewer'
+  user = user.trim() || vars.channel || ''
   return {
     user, login: user.toLowerCase(), channel: status.channel, message, messageId: '', userId: '', color: '', timestamp: Date.now(),
     broadcaster: role === 'broadcaster', mod: role === 'mod', vip: role === 'vip', sub: role === 'sub', subMonths: role === 'sub' ? 1 : 0,
@@ -54,6 +55,11 @@ export async function apply(settings = { mode: status.mode, channel: status.gues
 async function connect(channel) {
   if (client) await client.disconnect().catch(() => {})
   Object.assign(status, { channel, connected: false })
+  // {{ $vars.channel }}: the channel read (its login, the URL slug): the signed-in one in Streamer mode, the Guest one
+  // otherwise. E.g. Channel Info's default channel, the user of a trigger fired by hand.
+  if (channel) vars.channel = channel
+  else delete vars.channel
+  saveVars()
   client = null
   if (!channel) return
 

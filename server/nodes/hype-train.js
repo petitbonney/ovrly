@@ -13,11 +13,11 @@ export default {
   event: ['channel.hype_train.begin', 'channel.hype_train.progress', 'channel.hype_train.end'],
   config: { phase: 'any' },
   manual: {
-    config: (config) => ({ phase: config.phase === 'any' ? 'begin' : config.phase, level: 1 }),
+    config: (config) => ({ phase: config.phase === 'any' ? 'begin' : config.phase, level: 1, top: '{{ $vars.channel }}' }),
     fields: { phase: { options: ['begin', 'progress', 'end'] } },
-    event: ({ phase, level }) => ({
+    event: ({ phase, level, top }) => ({
       event: `channel.hype_train.${phase}`,
-      data: { level: Number(level), total: 1500, progress: 500, goal: 1000, top_contributions: [{ user_name: 'TestViewer', total: 1000 }] },
+      data: { level: Number(level), total: 1500, progress: 500, goal: 1000, top_contributions: [{ user_name: top, total: 1000 }] },
     }),
   },
   run({ config, data, event }) {

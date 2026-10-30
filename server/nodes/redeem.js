@@ -14,7 +14,7 @@ export default {
   config: { reward: '' },
   // Fired by hand: the reward set (no IDs: Channel Points Redemption can't fulfill it).
   manual: {
-    config: { user: 'TestViewer', input: '' },
+    config: { user: '{{ $vars.channel }}', input: '' },
     event: ({ user, input }, config) => ({
       data: { id: '', user_name: user, user_input: input, reward: { id: '', title: config.reward.trim() || 'Test reward', cost: 0 } },
     }),

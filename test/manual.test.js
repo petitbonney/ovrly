@@ -9,6 +9,7 @@ import path from 'node:path'
 
 process.chdir(await fs.mkdtemp(path.join(os.tmpdir(), 'ovrly-')))
 const { nodes, fireManual } = await import('../server/engine.js')
+const { vars } = await import('../server/vars.js')
 
 const workflow = (trigger) => ({ id: 'w', name: 'w', nodes: [trigger, { id: 'next', data: { type: 'code', config: { code: 'return data' } } }],
   edges: [{ id: 't-next', source: 't', target: 'next' }] })
@@ -49,9 +50,10 @@ test('an event its settings filter out answers {}, a failing one its error', asy
 test('it answers once the trigger has fired, while the rest still runs', async () => {
   let open
   globalThis.gate = new Promise((resolve) => (open = resolve))
+  vars.channel = 'mychannel' // the signed-in channel, the first user
   const wf = workflow(node('follow'))
   wf.nodes[1].data.config.code = 'await globalThis.gate; return data'
-  assert.deepEqual(await fireManual(wf, 't'), { out: { user: 'TestViewer' } })
+  assert.deepEqual(await fireManual(wf, 't'), { out: { user: 'mychannel' } })
   open()
 })
 

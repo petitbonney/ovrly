@@ -12,6 +12,8 @@ When a trigger fires, it starts a **run** with some **data**: a Chat !command gi
 
 **Variables** are shared by every workflow and kept across runs and restarts: a death counter, a score. Read them as `{{$vars.deaths}}`; change them with **Edit Variable** (set, add to, delete) or in **Settings → Variables**.
 
+Ovrly keeps `{{$vars.channel}}` set to the channel in **Settings → Twitch**: the Guest channel, or yours once signed in in Streamer mode. A trigger fired by hand uses it as its user.
+
 ## Expressions
 
 Any text setting takes `{{ ... }}`:

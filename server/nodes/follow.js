@@ -10,6 +10,6 @@ export default {
   adds: ['user'],
   event: 'channel.follow',
   config: {},
-  manual: { config: { user: 'TestViewer' }, event: ({ user }) => ({ data: { user_name: user } }) },
+  manual: { config: { user: '{{ $vars.channel }}' }, event: ({ user }) => ({ data: { user_name: user } }) },
   run: ({ data }) => ({ user: data.user_name }),
 }

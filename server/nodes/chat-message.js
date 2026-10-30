@@ -28,7 +28,7 @@ export default {
   config: { from: 'everyone', firstOnly: false, ignore: 'Nightbot+StreamElements+Streamlabs+Moobot+Fossabot' },
   manual: {
     config: (config) => ({ message: 'Hello from Ovrly!', user: '{{ $vars.channel }}', role: config.from, firstMessage: config.firstOnly }),
-    fields: { user: { hint: 'Empty: TestViewer' }, role: { options: testRoles } },
+    fields: { user: { hint: 'Empty: yours' }, role: { options: testRoles } },
     event: (inputs) => ({ data: testChat(inputs) }),
   },
   run({ config, data, id }) {

@@ -14,7 +14,7 @@ export default {
   event: 'twitch.gift',
   config: { minGifts: 1 },
   manual: {
-    config: (config) => ({ count: Number(config.minGifts) || 1, user: 'TestViewer' }),
+    config: (config) => ({ count: Number(config.minGifts) || 1, user: '{{ $vars.channel }}' }),
     fields: { count: { presets: [1, 5, 10, 20, 50] } },
     event: ({ count, user }) => ({
       data: { user_name: user, tier: '1000', total: Number(count), recipients: Array.from({ length: Number(count) }, (_, i) => `TestViewer${i + 1}`) },
