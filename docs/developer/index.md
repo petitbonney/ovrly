@@ -61,6 +61,7 @@ server/
     myinstants.js   Myinstants search
     speech.js       Text-to-Speech: the voice model's download, and speech made in a worker (speech-worker.js)
     fonts.js        Google Fonts families
+    word-lists.js   Word Filter's lists of bad words, each downloaded when first used
 ui/               React app (Vite); starter workflows in ui/src/templates.js
 widgets/          one folder per widget type (index.html + widget.js)
 streamdeck/       the Ovrly Stream Deck plugin (com.ovrly.deck.sdPlugin)

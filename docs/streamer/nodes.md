@@ -44,6 +44,7 @@ Subs, gift subs, cheers and raids work in Guest mode too, from what chat announc
 | Execute Workflow | Runs another workflow (from its Called By Workflow trigger) and waits for its result. |
 | Edit Data | Adds or overwrites data keys, for this run only. |
 | Map Value | Replaces a key's value using a "from" → "to" list. |
+| Word Filter | Masks the [bad words](./data#bad-words) in a key's text, or stops; adds `{{censored}}` and `{{badWords}}`. |
 | Edit Variable | Sets, adds to or deletes a [variable](./data#variables). |
 | Code | Runs JavaScript on the data; its live column tests it on a recent input. |
 

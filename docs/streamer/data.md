@@ -6,7 +6,17 @@ When a trigger fires, it starts a **run** with some **data**: a Chat !command gi
 
 - **Edit Data** adds or overwrites keys, e.g. `text` = `{{user}} just followed!`.
 - **Map Value** swaps a key's value through a "from" → "to" list.
+- **Word Filter** masks bad words, see below.
 - A widget adds its result once it has stopped, e.g. the lottery's `{{winner}}`.
+
+### Bad words
+
+A **Word Filter** node checks a key's text (`message` by default) before a Text-to-Speech node reads it or a widget shows it. It masks each bad word (`f***`, `****` or a text of yours) or stops the run, and adds `{{censored}}` (true or false) and `{{badWords}}` (how many) for an If / Else after it, e.g. to time the viewer out.
+
+- **Word lists**: pick as many languages as you like (28, from the [LDNOOBW](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) lists, CC BY 4.0); they're used together. Each is downloaded once, when the workflow is saved with it.
+- **Extra words** adds your own, **Allowed words** keeps some unmasked: a word bad in one language can be ordinary in another (French *con* is Spanish for "with").
+
+It ignores case and accents and sees through `sh1t`, `fuuuck` and `f.u.c.k`, but only takes whole words: *Scunthorpe* stays. Japanese, Thai and Chinese have no spaces between words, so theirs are found anywhere.
 
 ## Variables
 

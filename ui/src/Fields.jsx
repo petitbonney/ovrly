@@ -27,7 +27,7 @@
 // { hue: 'devices' } a Hue light, room or zone.
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
-  ActionIcon, Anchor, Autocomplete, Button, Chip, ColorInput, ColorPicker, CopyButton, Group, Image, JsonInput, Menu, Modal, NumberInput, PasswordInput, Popover, SegmentedControl,
+  ActionIcon, Anchor, Autocomplete, Button, Chip, ColorInput, ColorPicker, CopyButton, Group, Image, JsonInput, Menu, Modal, MultiSelect, NumberInput, PasswordInput, Popover, SegmentedControl,
   Select, Slider, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip, UnstyledButton,
 } from '@mantine/core'
 import { IconArrowsMaximize, IconBraces, IconCheck, IconCopy, IconGripVertical, IconInfoCircle, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX } from '@tabler/icons-react'
@@ -595,6 +595,10 @@ function CodeField({ label, description, vars, value, onChange }) {
 function Field({ name, f, fallback, value, set, change, values, context }) {
   const vars = context.trigger ? null : context.vars ?? []
   const props = { label: <Label text={f.label ?? humanize(name)} info={f.info} />, description: f.hint, size: 'xs' }
+  // Several of a list of options: chips, or a searchable select when they're many.
+  if (Array.isArray(fallback) && f.options?.length > 8) {
+    return <MultiSelect {...props} data={labelled(f.options)} value={value} onChange={set} searchable hidePickedOptions />
+  }
   if (Array.isArray(fallback) && f.options) {
     return (
       <Stack gap={4}>

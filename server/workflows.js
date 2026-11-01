@@ -1,10 +1,11 @@
 // Saving and deleting workflows, with what follows: a workflow switched off stops what it runs, Merge Widgets pages
-// follow their canvas, Stream Deck keys their Control Pad buttons, and the widget instances no workflow uses anymore
-// are deleted.
+// follow their canvas, Stream Deck keys their Control Pad buttons, Word Filter nodes get their lists, and the widget
+// instances no workflow uses anymore are deleted.
 import * as store from './store.js'
 import { cancel } from './engine.js'
 import * as merge from './merge.js'
 import * as streamdeck from './integrations/streamdeck.js'
+import * as wordLists from './integrations/word-lists.js'
 import * as widgets from './widgets.js'
 import { httpError } from './errors.js'
 
@@ -40,6 +41,7 @@ async function write(workflow) {
   if (workflow.enabled === false) cancel(item.id) // switched off: stop what is running
   merge.push(item) // widgets moved on a Merge Widgets canvas
   streamdeck.push() // buttons changed, or the workflow switched on or off (faded keys)
+  wordLists.prefetch(item) // lists just picked are downloaded before the first run
   await dropUnusedWidgets(widgetRefs(old))
   return item
 }

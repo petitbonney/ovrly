@@ -37,5 +37,5 @@ The **Text-to-Speech** node speaks a text, made on this computer: no account or 
 Pick the text's language (31 of them, French included: it sets how words are read), one of 10 voices and a speed. The text takes data, e.g. `{{user}} says {{message}}`, up to 500 characters. **Play** in its settings speaks it in the editor.
 
 ::: tip Viewers' messages
-A Text-to-Speech node reading chat says whatever viewers type: put a Filter or a Cooldown before it.
+A Text-to-Speech node reading chat says whatever viewers type: put a [Word Filter](./data#bad-words) and a Cooldown before it.
 :::
