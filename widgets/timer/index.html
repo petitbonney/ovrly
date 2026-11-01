@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Timer</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<script type="importmap">{ "imports": { "animejs": "/vendor/animejs/index.js" } }</script>
+<style>
+  /* The text across the page, vertically centered, aligned by the align setting. */
+  #page { position: fixed; inset: 0; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box; }
+  #text { max-width: 100%; overflow-wrap: anywhere; white-space: pre-wrap; font-variant-numeric: tabular-nums; }
+</style>
+<div id="page"><div id="text"></div></div>
+<script type="module">
+  import { mount } from '/widgets/clock-page.js'
+  import { clock } from '/widgets/clock.js'
+  import { elapsed } from '/widgets/timer/widget.js'
+  mount((state) => ({ text: state.text.replaceAll('{time}', clock(elapsed(state), state.format)) }))
+</script>

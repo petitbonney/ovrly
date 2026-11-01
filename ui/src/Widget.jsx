@@ -209,7 +209,9 @@ function WidgetPreview({ widget, type, state, save }) {
       setError(err.message)
     }
   }
-  const startButton = <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => press(type.onStart, sent(type.actions[type.onStart]?.inputs, start))}>{humanize(type.onStart)}</Button>
+  // Start saves the settings first: an action changing the state (Countdown's end) would push it back without an edit
+  // the autosave hasn't sent yet.
+  const startButton = <Button size="xs" leftSection={<IconPlayerPlay size={14} />} onClick={() => save(state).then(() => press(type.onStart, sent(type.actions[type.onStart]?.inputs, start)), (err) => setFailed(`${humanize(type.onStart)} failed: ${err.message}`))}>{humanize(type.onStart)}</Button>
   return (
     <>
       <Group gap={6} mb="xs" wrap="nowrap">

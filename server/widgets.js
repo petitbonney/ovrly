@@ -35,7 +35,7 @@ export function normalize(def) {
 }
 
 // Types are kept in the library's order: most used first (unlisted ones last).
-const order = ['alerts', 'label', 'voting', 'sound', 'image', 'video', 'lottery', 'roulette', 'dice', 'twitch-plays']
+const order = ['alerts', 'label', 'voting', 'countdown', 'timer', 'sound', 'image', 'video', 'lottery', 'roulette', 'dice', 'twitch-plays']
 const rank = (name) => (order.includes(name) ? order.indexOf(name) : order.length)
 const folders = (await fs.readdir(dir, { withFileTypes: true })).filter((e) => e.isDirectory())
 const bundled = await Promise.all(folders.map(async (e) => ({
@@ -84,6 +84,7 @@ const writes = {} // widget id -> its last file write
 const clients = {} // widget id -> Set of open SSE responses
 const waiting = new Map() // run id -> resolve, until a page reports that action finished
 const playing = {} // widget id -> Map of run id -> settle, for the actions still playing on it (one, unless it queues)
+const timers = new Map() // run id -> { action, timer }, for the runs ending after their playTime
 let runs = 0
 
 // Emits 'state' with the widget after an action or a bus handler changed its state, once its file is written.
@@ -176,7 +177,8 @@ function push(widget, run, end) {
 // snap), e.g. alerts shown one after another, or votes while a vote is open): then both play. A type's over(snap) says
 // when what plays is over before its time (e.g. a vote closed on Twitch): those runs stop there, as finished. An action
 // that returns nothing new did nothing (e.g. an invalid vote): it replaces nothing and its own run stops.
-// playTime(action, snap) may depend on the new state and runtime. onStop and onCancel end what plays instead (end()).
+// playTime(action, snap) may depend on the new state and runtime, and is worked out again after each change for a type
+// with retime: true (see retime()). onStop and onCancel end what plays instead (end()).
 // An action may be async (e.g. it starts a Twitch poll); if it throws, nothing changes and update rejects: with the
 // error's status if it has one (e.g. Twitch's), else 400, the action having refused its inputs.
 export async function update(id, request) {
@@ -206,6 +208,7 @@ async function apply(widget, { action, input = {} }) {
   if (!def.queues?.(name, snap)) settleAll(widget.id, false)
   const saved = commit(widget, next)
   if (def.over?.(next)) settleAll(widget.id, true)
+  retime(widget)
   const run = ++runs
   const ms = def.playTime?.(name, next)
   const done = new Promise((resolve) => {
@@ -215,10 +218,12 @@ async function apply(widget, { action, input = {} }) {
     const settle = (played) => {
       runs.delete(run)
       waiting.delete(run)
+      clearTimeout(timers.get(run)?.timer)
+      timers.delete(run)
       resolve(played)
     }
     runs.set(run, settle)
-    if (ms !== undefined) setTimeout(settle, ms, true)
+    if (ms !== undefined) arm(widget.id, run, name, ms)
     else if (pages(widget)) {
       waiting.set(run, () => settle(true))
       setTimeout(() => finish(run), 60_000)
@@ -257,6 +262,23 @@ async function end(widget, how, input = {}, run) {
   record('sse', 'widget', { widget: widget.state.name, action, pages: pages(widget) })
   if (error) throw error
   return snapshot(widget)
+}
+
+// Ends a run, as played, once its playTime (ms) is up.
+function arm(id, run, action, ms) {
+  clearTimeout(timers.get(run)?.timer)
+  timers.set(run, { action, timer: setTimeout(() => playing[id]?.get(run)?.(true), ms) })
+}
+
+// A type with retime: true says when its runs end again after each change, as it may have moved their end (Countdown's
+// add). Other types keep the end worked out when the run began (an alert doesn't last as long as the next).
+function retime(widget) {
+  const def = types[widget.type]
+  if (!def.retime) return
+  for (const run of playing[widget.id]?.keys() ?? []) {
+    const { action } = timers.get(run) ?? {}
+    if (action) arm(widget.id, run, action, def.playTime(action, snapshot(widget)))
+  }
 }
 
 // Ends every run playing on a widget at once: played (true), they go on; otherwise they stop there.
@@ -305,6 +327,7 @@ function follow() {
             if (!next) continue
             const saved = commit(widget, next)
             if (def.over?.(next)) settleAll(widget.id, true)
+            retime(widget)
             await saved
             push(widget)
           }

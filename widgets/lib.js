@@ -25,6 +25,21 @@ export function subscribe(render, end = {}) {
   if (last) onMessage({ data: JSON.stringify({ ...JSON.parse(last), run: undefined, end: undefined }) })
 }
 
+// Page side: loads a Google Fonts family, bold (the pages' weight) when it has it, else its regular (Google answers 400
+// for a weight a family lacks). Offline, or for a name that isn't a family, the page's font shows.
+let font
+export function loadFont(family) {
+  font ??= document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'stylesheet' }))
+  if (!family || font.dataset.family === family) return
+  const css = (bold) => `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}${bold ? ':wght@700' : ''}&display=block`
+  font.dataset.family = family
+  font.onerror = () => {
+    font.onerror = null
+    font.href = css(false)
+  }
+  font.href = css(true)
+}
+
 // Page side: a promise that resolves after ms, for render to return while an animation plays.
 export const wait = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(ms, 0)))
 

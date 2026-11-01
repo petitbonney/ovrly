@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Countdown</title>
+<link rel="stylesheet" href="/widgets/base.css">
+<script type="importmap">{ "imports": { "animejs": "/vendor/animejs/index.js" } }</script>
+<style>
+  /* The text across the page, vertically centered, aligned by the align setting. */
+  #page { position: fixed; inset: 0; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box; }
+  #text { max-width: 100%; overflow-wrap: anywhere; white-space: pre-wrap; font-variant-numeric: tabular-nums; }
+</style>
+<div id="page"><div id="text"></div></div>
+<script type="module">
+  import { mount } from '/widgets/clock-page.js'
+  import { clock } from '/widgets/clock.js'
+  import { remaining } from '/widgets/countdown/widget.js'
+  // The text with the time left, rounded up (0:00 until started); once over, the ended text if any. The last 10 seconds
+  // beat.
+  mount((state) => {
+    const ms = remaining(state)
+    if (!ms && state.end && state.ended) return { text: state.ended, pulse: true }
+    return { text: state.text.replaceAll('{time}', clock(ms, state.format, Math.ceil)), pulse: state.pulse && ms > 0 && ms <= 10_000 }
+  })
+</script>
