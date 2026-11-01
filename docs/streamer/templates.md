@@ -9,7 +9,7 @@
 | Template | What it does |
 | --- | --- |
 | Event alerts | Follows, subs, cheers and raids, each with its own text, shown one after another. |
-| Last follower | Keeps the last follower on screen. |
+| Cheer to speech | A 100+ bits cheer is read aloud, bad words bleeped, with an alert; cheers wait their turn. Needs the [voice model](./hue-giphy#text-to-speech). |
 | !roll dice | Chat rolls a die with `!roll`, once a minute per viewer; rolls wait their turn. |
 | !sound soundboard | Chat plays a MyInstants sound with `!sound airhorn` (no word: a trending one). |
 | !gif on screen | Chat shows a GIPHY GIF with `!gif cats` (no word: a trending one). Needs a [Giphy key](./hue-giphy#giphy). |
@@ -19,11 +19,12 @@
 | Template | What it does |
 | --- | --- |
 | Chat reminders | Every 15 minutes while live, announces the next of three messages, in turn. |
-| Death counter | [Control Pad](./stream-deck) buttons count deaths on screen; chat asks with `!deaths`. |
+| Death counter | [Control Pad](./stream-deck) buttons count deaths on screen, with the time since the last; chat asks with `!deaths`. |
 | !clip for VIPs | VIPs and mods clip the moment with `!clip`, marked in the VOD; the link goes to chat. |
 | Raid welcome | A raid of 3 viewers or more gets a shoutout, an announcement and an alert. |
 | Gift sub bomb | Thanks the gifter in chat and welcomes each recipient on screen, one after another. |
-| BRB + ad break | A Control Pad button warns chat, then runs a 90 s ad on the "BRB" scene and switches back. |
+| Starting soon | A Control Pad button shows the "Starting soon" scene with a 5-minute countdown, then switches to "Main". |
+| BRB + ad break | A Control Pad button warns chat, then runs a 90 s ad on the "BRB" scene, counting down, and switches back. |
 | Going live | Going live sets the lights and posts the stream to a Discord webhook; ending turns the lights off. |
 
 ## Engagement and games
@@ -38,8 +39,8 @@
 
 | Template | What it does |
 | --- | --- |
-| Bits chaos roulette | A 100+ bits cheer spins a slot of challenges; some toggle OBS sources for a minute. |
+| Subathon | Control Pad buttons start and pause a 4-hour countdown; each sub adds 5 minutes, each 100 bits 1 minute. |
 | Hype Train mood | A Hype Train pulses the lights and shows its level; its end celebrates in gold and in chat. |
-| Link guard | Deletes links from viewers who have followed for less than a week, with a 60 s timeout. |
+| Chat guard | Deletes bad words, and links from viewers who have followed for less than a week (with a 60 s timeout). |
 
 Many of them use Twitch features that need [Streamer mode](./twitch#guest-or-streamer): the nodes that need something not ready yet show a plug icon.

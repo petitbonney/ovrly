@@ -35,11 +35,16 @@ export default [
     instance('alerts', 'alerts', 'Event alerts', { layout: 'flap', duration: 6 }, { text: '{{text}}' }),
   ]),
 
-  template('Last follower', 'Keeps the last follower on screen.', [
-    node('follow', 'follow', 0, 0),
-    widget('label', 1, 0),
-  ], links('follow>label'), [
-    instance('label', 'label', 'Last follower', { size: 36 }, { text: 'Last follower: {{user}}' }),
+  template('Cheer to speech', 'A 100+ bits cheer is read aloud, bad words bleeped, with an alert; cheers wait their turn.', [
+    node('cheer', 'cheer', 0, 0, { minBits: 100 }),
+    node('words', 'word-filter', 1, 0, { mask: 'text', text: 'bleep' }),
+    node('queue', 'queue', 2, 0),
+    node('speech', 'speech', 3, 0, { text: '{{user}} cheered {{bits}} bits. {{message}}' }),
+    widget('sound', 4, -0.5),
+    widget('alert', 4, 0.5),
+  ], links('cheer>words', 'words>queue', 'queue>speech', 'speech>sound', 'speech>alert'), [
+    instance('sound', 'sound', 'Cheer speech', {}, { sound: '{{sound}}' }),
+    instance('alert', 'alerts', 'Cheer alert', { duration: 8 }, { text: '{{user}} cheered {{bits}} bits: {{message}}' }),
   ]),
 
   template('!roll dice', 'Chat rolls a die with !roll, once a minute per viewer; rolls wait their turn.', [
@@ -83,7 +88,7 @@ export default [
   ], links('every>next', 'next>message', 'message>announce')),
 
   // Everyday stream tools
-  template('Death counter', 'Control Pad buttons count deaths on screen; chat asks with !deaths.', [
+  template('Death counter', 'Control Pad buttons count deaths on screen, with the time since the last; chat asks with !deaths.', [
     node('pad', 'deck', 0, 0, { buttons: [
       { id: 'add', icon: 'skull', name: 'Death +1', color: '#e03131' },
       { id: 'undo', icon: 'arrow-back-up', name: 'Undo', color: '#ffb400' },
@@ -93,10 +98,16 @@ export default [
     node('undo', 'edit-variable', 1, 0, { name: 'deaths', operation: 'set', value: '{{ Math.max(0, (Number($vars.deaths) || 0) - 1) }}' }),
     node('reset', 'edit-variable', 1, 1, { name: 'deaths', operation: 'set', value: '0' }),
     widget('label', 2, 0),
+    // A death resets the timer, then starts it a second later (a Widget Action takes a step more to reach it).
+    node('zero', 'widget-action', 2, 1, { action: 'reset' }),
+    node('wait', 'delay', 2, 2),
+    widget('timer', 3, 1.5),
     node('command', 'chat-command', 0, 2, { command: '!deaths' }),
     node('reply', 'twitch-chat', 1, 2, { message: 'Deaths so far: {{ $vars.deaths || 0 }}', replyTo: '{{messageId}}' }),
-  ], links('pad:add>add', 'pad:undo>undo', 'pad:reset>reset', 'add>label', 'undo>label', 'reset>label', 'command>reply'), [
+  ], links('pad:add>add', 'pad:undo>undo', 'pad:reset>reset', 'add>label', 'undo>label', 'reset>label', 'add>zero', 'add>wait',
+    'reset>zero', 'zero>timer', 'wait>timer', 'command>reply'), [
     instance('label', 'label', 'Death counter', {}, { text: 'Deaths: {{value}}' }),
+    instance('timer', 'timer', 'Since last death', { text: 'Since last death: {time}', size: 36 }),
   ]),
 
   template('!clip for VIPs', 'VIPs and mods clip the moment with !clip, marked in the VOD; the link goes to chat.', [
@@ -128,13 +139,29 @@ export default [
     instance('alert', 'alerts', 'Gift welcome', { layout: 'ticket', duration: 4 }, { text: 'Welcome {{item}}, gifted by {{user}}!' }),
   ]),
 
-  template('BRB + ad break', 'A Control Pad button warns chat, then runs a 90 s ad on the "BRB" scene and switches back.', [
+  template('Starting soon', 'A Control Pad button shows the "Starting soon" scene with a 5-minute countdown, then switches to "Main".', [
+    node('pad', 'deck', 0, 0, { buttons: [{ id: 'soon', icon: 'hourglass', name: 'Starting soon', color: '#9147ff' }] }),
+    node('scene', 'obs-scene', 1, -1, { scene: 'Starting soon' }),
+    // The countdown is reset first, then started a second later (a Widget Action takes a step more to reach it).
+    node('zero', 'widget-action', 1, 0, { action: 'reset' }),
+    node('wait', 'delay', 1, 1),
+    widget('countdown', 2, 0.5),
+    node('main', 'obs-scene', 3, 0.5, { scene: 'Main' }),
+  ], links('pad:soon>scene', 'pad:soon>zero', 'pad:soon>wait', 'zero>countdown', 'wait>countdown', 'countdown>main'), [
+    instance('countdown', 'countdown', 'Starting soon', { text: 'Starting in {time}', ended: 'Starting now!' }, { mode: 'for', duration: '5:00' }),
+  ]),
+
+  template('BRB + ad break', 'A Control Pad button warns chat, then runs a 90 s ad on the "BRB" scene, counting down, and switches back.', [
     node('pad', 'deck', 0, 0, { buttons: [{ id: 'brb', icon: 'coffee', name: 'BRB', color: '#ff7a00' }] }),
     node('warn', 'twitch-announce', 1, 0, { message: 'Quick break! Ads start in 30 seconds, back in about 2 minutes.', color: 'orange' }),
+    node('zero', 'widget-action', 1, 1, { action: 'reset' }), // the countdown from the last break, back to 1:30
     node('wait', 'delay', 2, 0, { seconds: 30 }),
-    node('ad', 'twitch-ad', 3, -0.5, { length: 90 }),
-    node('scene', 'obs-scene', 3, 0.5, { scene: 'BRB', back: 90 }),
-  ], links('pad:brb>warn', 'warn>wait', 'wait>ad', 'wait>scene')),
+    node('ad', 'twitch-ad', 3, -1, { length: 90 }),
+    node('scene', 'obs-scene', 3, 0, { scene: 'BRB', back: 90 }),
+    widget('countdown', 3, 1),
+  ], links('pad:brb>warn', 'pad:brb>zero', 'zero>countdown', 'warn>wait', 'wait>ad', 'wait>scene', 'wait>countdown'), [
+    instance('countdown', 'countdown', 'Back in', { text: 'Back in {time}', ended: 'Back now!' }, { mode: 'for', duration: '1:30' }),
+  ]),
 
   template('Going live', 'Going live sets the lights and posts the stream to a Discord webhook; ending turns the lights off.', [
     node('stream', 'stream-status', 0, 0),
@@ -190,27 +217,23 @@ export default [
   ]),
 
   // Original
-  template('Bits chaos roulette', 'A 100+ bits cheer spins a slot of challenges; some toggle OBS sources for a minute.', [
-    node('cheer', 'cheer', 0, 0, { minBits: 100 }),
-    node('queue', 'queue', 1, 0),
-    widget('slot', 2, 0),
-    widget('alert', 3, -1),
-    node('pick', 'switch', 3, 0.5, { value: '{{winner}}', cases: ['Mirror cam', 'Mute music'] }),
-    node('mirror', 'obs-source', 4, 0, { scene: 'Main', source: 'Mirrored camera', visible: 'show' }),
-    node('mirrorWait', 'delay', 5, 0, { seconds: 60 }),
-    node('unmirror', 'obs-source', 6, 0, { scene: 'Main', source: 'Mirrored camera', visible: 'hide' }),
-    node('mute', 'obs-source', 4, 1, { scene: 'Main', source: 'Music', visible: 'hide' }),
-    node('muteWait', 'delay', 5, 1, { seconds: 60 }),
-    node('unmute', 'obs-source', 6, 1, { scene: 'Main', source: 'Music', visible: 'show' }),
-  ], links('cheer>queue', 'queue>slot', 'slot>alert', 'slot>pick', 'pick:1>mirror', 'mirror>mirrorWait', 'mirrorWait>unmirror',
-    'pick:2>mute', 'mute>muteWait', 'muteWait>unmute'), [
-    instance('slot', 'lottery', 'Chaos roulette', { layout: 'slots', duration: 5, options: [
-      { label: 'Mirror cam', weight: 1 },
-      { label: 'Mute music', weight: 1 },
-      { label: '10 squats', weight: 1 },
-      { label: 'Talk like a pirate', weight: 1 },
+  template('Subathon', 'Control Pad buttons start and pause a 4-hour countdown; each sub adds 5 minutes, each 100 bits 1 minute.', [
+    node('pad', 'deck', 0, 0, { buttons: [
+      { id: 'start', icon: 'player-play', name: 'Start', color: '#2f9e44' },
+      { id: 'pause', icon: 'player-pause', name: 'Pause', color: '#ffb400' },
     ] }),
-    instance('alert', 'alerts', 'Chaos alert', { layout: 'neon', duration: 5 }, { text: "{{user}}'s bits picked: {{winner}}" }),
+    node('pause', 'widget-action', 1, 0.5),
+    node('sub', 'subscription', 0, 1.5),
+    node('subTime', 'widget-action', 1, 1.5, { action: 'add', input: { time: '+5m' } }),
+    node('cheer', 'cheer', 0, 2.5, { minBits: 100 }),
+    node('bitsTime', 'widget-action', 1, 2.5, { action: 'add', input: { time: '+{{ Math.floor(bits / 100) }}m' } }),
+    widget('countdown', 2, 0.5),
+    // Pause lets the workflow waiting on the countdown go on too: only its end is announced.
+    node('over', 'filter', 3, 0.5, { value: '{{remaining}}', operator: 'equals', compare: '0:00' }),
+    node('end', 'twitch-announce', 4, 0.5, { message: 'The subathon is over! Thank you all!', color: 'purple' }),
+  ], links('pad:start>countdown', 'pad:pause>pause', 'pause>countdown', 'sub>subTime', 'subTime>countdown', 'cheer>bitsTime',
+    'bitsTime>countdown', 'countdown>over', 'over>end'), [
+    instance('countdown', 'countdown', 'Subathon', { text: 'Subathon ends in {time}', ended: 'Subathon over!' }, { mode: 'for', duration: '4h' }),
   ]),
 
   template('Hype Train mood', 'A Hype Train pulses the lights and shows its level; its end celebrates in gold and in chat.', [
@@ -225,14 +248,18 @@ export default [
     instance('label', 'label', 'Hype Train', {}, { text: 'Hype Train level {{level}}: {{ Math.round(progress / goal * 100) || 0 }}%' }),
   ]),
 
-  template('Link guard', 'Deletes links from viewers who have followed for less than a week, with a 60 s timeout.', [
+  template('Chat guard', 'Deletes bad words, and links from viewers who have followed for less than a week (with a 60 s timeout).', [
     node('chat', 'chat-message', 0, 0),
-    node('link', 'filter', 1, 0, { value: '{{message}}', operator: 'matches', compare: 'https?://|www\\.|\\b[a-z0-9-]+\\.(com|net|org|gg|tv|io|ly)\\b' }),
-    node('viewer', 'filter', 2, 0, { value: '{{ mod || vip || broadcaster }}', operator: 'equals', compare: 'false' }),
-    node('info', 'twitch-user', 3, 0),
-    node('new', 'filter', 4, 0, { value: '{{ followDays >= 7 }}', operator: 'equals', compare: 'false' }),
-    node('delete', 'twitch-delete-message', 5, -1),
-    node('timeout', 'twitch-ban', 5, 0, { reason: 'Link before following for a week' }),
-    node('warn', 'twitch-chat', 5, 1, { message: '@{{user}} links are for followers of a week or more. Ask a mod to share one.' }),
-  ], links('chat>link', 'link>viewer', 'viewer>info', 'info>new', 'new>delete', 'new>timeout', 'new>warn')),
+    node('viewer', 'filter', 1, 0, { value: '{{ mod || vip || broadcaster }}', operator: 'equals', compare: 'false' }),
+    node('words', 'word-filter', 2, 0),
+    node('bad', 'if-else', 3, 0, { value: '{{censored}}', operator: 'equals', compare: 'true' }),
+    node('delete', 'twitch-delete-message', 7, 0),
+    node('warnWords', 'twitch-chat', 4, -1, { message: '@{{user}} please keep it clean.' }),
+    node('link', 'filter', 4, 1, { value: '{{message}}', operator: 'matches', compare: 'https?://|www\\.|\\b[a-z0-9-]+\\.(com|net|org|gg|tv|io|ly)\\b' }),
+    node('info', 'twitch-user', 5, 1),
+    node('new', 'filter', 6, 1, { value: '{{ followDays >= 7 }}', operator: 'equals', compare: 'false' }),
+    node('timeout', 'twitch-ban', 7, 1, { reason: 'Link before following for a week' }),
+    node('warnLink', 'twitch-chat', 7, 2, { message: '@{{user}} links are for followers of a week or more. Ask a mod to share one.' }),
+  ], links('chat>viewer', 'viewer>words', 'words>bad', 'bad:true>delete', 'bad:true>warnWords', 'bad:false>link', 'link>info',
+    'info>new', 'new>delete', 'new>timeout', 'new>warnLink')),
 ]
