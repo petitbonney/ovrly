@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: macos-14, name: macos-arm64, node: darwin-arm64 }
+          - { os: macos-15, name: macos-arm64, node: darwin-arm64 }
           - { os: macos-15-intel, name: macos-x64, node: darwin-x64 }
           - { os: windows-latest, name: windows-x64, node: win-x64 }
     runs-on: ${{ matrix.os }}
