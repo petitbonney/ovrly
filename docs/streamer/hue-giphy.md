@@ -1,4 +1,4 @@
-# Philips Hue and Giphy
+# Philips Hue, Giphy and Text-to-Speech
 
 ## Philips Hue
 
@@ -26,3 +26,16 @@ The **GIPHY** node and the GIF picker need a Giphy API key:
 Clips (GIFs with sound, for the Video widget) need a key approved for clips.
 
 Sounds from [Myinstants](https://www.myinstants.com) need no key.
+
+## Text-to-Speech
+
+The **Text-to-Speech** node speaks a text, made on this computer: no account or key. Its voice model (Supertonic 3, 145 MB) is downloaded once:
+
+1. Open **Settings → Text-to-Speech** and click **Download**.
+2. Add a **Text-to-Speech** node, then a **Sound** widget that plays its `{{sound}}`.
+
+Pick the text's language (31 of them, French included: it sets how words are read), one of 10 voices and a speed. The text takes data, e.g. `{{user}} says {{message}}`, up to 500 characters. **Play** in its settings speaks it in the editor.
+
+::: tip Viewers' messages
+A Text-to-Speech node reading chat says whatever viewers type: put a Filter or a Cooldown before it.
+:::

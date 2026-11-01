@@ -44,7 +44,7 @@ export default defineConfig({
           { text: 'Twitch', link: '/streamer/twitch' },
           { text: 'OBS', link: '/streamer/obs' },
           { text: 'Stream Deck', link: '/streamer/stream-deck' },
-          { text: 'Philips Hue and Giphy', link: '/streamer/hue-giphy' },
+          { text: 'Hue, Giphy and Text-to-Speech', link: '/streamer/hue-giphy' },
         ] },
         { text: 'More', items: [
           { text: 'Files, LAN and safety', link: '/streamer/files' },

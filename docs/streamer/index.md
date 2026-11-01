@@ -43,4 +43,4 @@ Try it without going live: the **⚡** beside a trigger fires it, and its settin
 - [The editor](./editor): the graph, the library, the settings pane.
 - [Templates](./templates): what each one does.
 - [Nodes](./nodes) and [Widgets](./widgets): everything you can put in a workflow.
-- [Twitch](./twitch), [OBS](./obs), [Stream Deck](./stream-deck), [Philips Hue and Giphy](./hue-giphy): connect your tools.
+- [Twitch](./twitch), [OBS](./obs), [Stream Deck](./stream-deck), [Hue, Giphy and Text-to-Speech](./hue-giphy): connect your tools.

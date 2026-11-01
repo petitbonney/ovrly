@@ -16,7 +16,8 @@ export function Value({ name, value }) {
   if (value && typeof value === 'object') return <Code block mah={240} style={{ overflow: 'auto' }}>{JSON.stringify(value, null, 2)}</Code>
   if (value === '') return <Text size="xs" c="dimmed">Empty</Text>
   const Media = media[name]
-  if (Media) return <Media src={value} controls={Media !== 'img'} style={{ display: 'block', maxWidth: '100%', maxHeight: 160 }} />
+  // A file on disk (e.g. Text-to-Speech's {{sound}}) plays through /file, as in a widget.
+  if (Media) return <Media src={/^([a-z]:[\\/]|[\\/])/i.test(value) ? `/file?path=${encodeURIComponent(value)}` : value} controls={Media !== 'img'} style={{ display: 'block', maxWidth: '100%', maxHeight: 160 }} />
   if (/^https?:\/\//.test(value)) return <Anchor size="xs" href={value} target="_blank" display="block" truncate>{value}</Anchor>
   return <Text size="xs">{String(value)}</Text>
 }

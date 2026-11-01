@@ -59,6 +59,9 @@ importers:
       react-dom:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
+      sherpa-onnx:
+        specifier: 2.0.1
+        version: 2.0.1
       three:
         specifier: 0.186.1
         version: 0.186.1
@@ -2208,6 +2211,9 @@ packages:
   shebang-regex@1.0.0:
     resolution: {integrity: sha512-wpoSFAxys6b2a2wHZ1XpDSgD7N9iVjg29Ph9uV/uaP9Ex/KXlkTZTeddxDPSYQpgvzKLGJke2UU0AzoGCjNIvQ==}
     engines: {node: '>=0.10.0'}
+
+  sherpa-onnx@2.0.1:
+    resolution: {integrity: sha512-MlcZOKglIO+U+PL635cWjLYVgW9PwGTAZ5vgGIWHchw7MC1bHyEy5428chj15K00EF5SF0jp3KgGOHUbiGj2/g==}
 
   shiki@2.5.0:
     resolution: {integrity: sha512-mI//trrsaiCIPsja5CNfsyNOqgAZUb6VpJA+340toL42UpzQlXpwRV9nch69X6gaUxrr9kaOOa6e3y3uAkGFxQ==}
@@ -4662,6 +4668,8 @@ snapshots:
       shebang-regex: 1.0.0
 
   shebang-regex@1.0.0: {}
+
+  sherpa-onnx@2.0.1: {}
 
   shiki@2.5.0:
     dependencies:

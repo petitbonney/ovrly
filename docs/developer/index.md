@@ -59,6 +59,7 @@ server/
     hue.js          Philips Hue bridge: pairing, paced commands, routines playing
     giphy.js        Giphy search
     myinstants.js   Myinstants search
+    speech.js       Text-to-Speech: the voice model's download, and speech made in a worker (speech-worker.js)
     fonts.js        Google Fonts families
 ui/               React app (Vite); starter workflows in ui/src/templates.js
 widgets/          one folder per widget type (index.html + widget.js)

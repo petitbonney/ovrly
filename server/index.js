@@ -13,6 +13,7 @@ import * as giphy from './integrations/giphy.js'
 import * as hue from './integrations/hue.js'
 import * as streamdeck from './integrations/streamdeck.js'
 import * as myinstants from './integrations/myinstants.js'
+import * as speech from './integrations/speech.js'
 import * as fonts from './integrations/fonts.js'
 import * as files from './files.js'
 import * as merge from './merge.js'
@@ -204,7 +205,7 @@ app.post('/api/browse-:kind', files.browse)
 app.get('/file', files.serve)
 
 // Each integration's routes (Settings panes, node pickers), in its module (server/integrations/).
-app.use(twitch.routes, obs.routes, giphy.routes, hue.routes, streamdeck.routes, myinstants.routes, fonts.routes, windows.routes)
+app.use(twitch.routes, obs.routes, giphy.routes, hue.routes, streamdeck.routes, myinstants.routes, speech.routes, fonts.routes, windows.routes)
 
 // Widget types for the UI: metadata, and each action's description, inputs and only (no functions).
 app.get('/api/widget-types', (req, res) => res.json(Object.values(widgets.types).map(({ actions, output, playTime, stopTime, on, queues, over, page, ...meta }) => ({

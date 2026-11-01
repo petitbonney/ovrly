@@ -31,7 +31,7 @@ export default {
 | `fields` | Per-setting hints: `{ options: [...] }`, `{ vars: true }` for `{{key}}` placeholders, `{ type: 'json' }`, a short `hint`, a longer `info` (an ⓘ), a `section` heading, `only: { otherSetting: value }` to show it only then. See `ui/src/Fields.jsx`. |
 | `outputs` | Several outputs, e.g. `['true', 'false']`; `run` returns `{ [output]: data }` to pick which continue. |
 | `event` | For a trigger: the bus event it listens to, or a list; `run` gets the one that fired as `event`. |
-| `needs` | Requirement keys: `twitch`, `obs`, `streamdeck`, `giphy`, `hue`, or `chat`. The UI marks the node when one isn't ready. |
+| `needs` | Requirement keys: `twitch`, `obs`, `streamdeck`, `giphy`, `hue`, `speech`, or `chat`. The UI marks the node when one isn't ready. |
 | `play` | `true` (or `{ only: { … } }`) gives its settings a Play button and the result, to try it. |
 | `manual` | For a trigger: how it fires by hand (below). |
 | `iconRotate` | Degrees, for an icon that needs turning. |

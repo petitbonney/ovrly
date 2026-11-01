@@ -120,6 +120,11 @@ const giphyInfo = (s) => !s ? checking
   : s.connected ? { state: 'ok', text: 'API key accepted' }
   : !s.key ? { state: 'off', text: 'No API key set' }
   : { state: 'error', text: s.error || 'Checking…' }
+const speechInfo = (s) => !s ? checking
+  : s.ready ? { state: 'ok', text: 'Voice model ready' }
+  : s.progress !== null ? { state: 'off', text: `Downloading… ${Math.floor(s.progress * 100)}%` }
+  : s.error ? { state: 'error', text: s.error }
+  : { state: 'off', text: 'Voice model not downloaded' }
 
 // Twitch: Guest reads any channel's chat with no sign-in; Streamer signs in as the channel owner, which the
 // Twitch features of nodes and widgets (polls, predictions…) need. Until signed in, it keeps reading the Guest channel.
@@ -171,6 +176,19 @@ function Giphy({ status, setStatus, info }) {
         Create an app of type API at <Anchor size="xs" href="https://developers.giphy.com/dashboard/" target="_blank">developers.giphy.com</Anchor>, then paste its API key.
       </Text>
       <PasswordInput size="xs" label="API key" value={key} onChange={(e) => setKey(e.target.value)} data-autofocus />
+    </Pane>
+  )
+}
+
+// Text-to-Speech: the node's voice model, downloaded once (the status polls follow its progress).
+function Speech({ status, setStatus, info }) {
+  const download = async () => setStatus(await (await fetch('/api/speech/download', { method: 'POST' })).json())
+  return (
+    <Pane onSave={!status.ready && status.progress === null ? download : undefined} button="Download" status={info}>
+      <Text size="xs" c="dimmed">
+        The Text-to-Speech node speaks text in 31 languages with 10 voices, made on this computer: no account, and no internet once
+        its voice model (<Anchor size="xs" href="https://huggingface.co/Supertone/supertonic-3" target="_blank">Supertonic 3</Anchor>, {status.size}) is downloaded.
+      </Text>
     </Pane>
   )
 }
@@ -414,6 +432,7 @@ export const integrations = [
   { key: 'streamdeck', label: 'Stream Deck', path: '/api/streamdeck', info: streamdeckInfo, Pane: StreamDeck, ready: (s) => s.connected, needs: 'the Ovrly Stream Deck plugin connected' },
   { key: 'hue', label: 'Philips Hue', path: '/api/hue', info: hueInfo, Pane: Hue, ready: (s) => s.connected, needs: 'the Hue bridge paired' },
   { key: 'giphy', label: 'Giphy', path: '/api/giphy', info: giphyInfo, Pane: Giphy, ready: (s) => s.connected, needs: 'Giphy connected (API key)' },
+  { key: 'speech', label: 'Text-to-Speech', path: '/api/speech', info: speechInfo, Pane: Speech, ready: (s) => s.ready, needs: 'the voice model downloaded' },
 ]
 // What a node, a widget type or a setting option can need (`needs`): an integration ready, or 'chat': the Twitch chat
 // read, in Guest or Streamer mode (set up in the Twitch pane).

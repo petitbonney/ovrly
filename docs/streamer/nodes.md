@@ -58,6 +58,7 @@ Subs, gift subs, cheers and raids work in Guest mode too, from what chat announc
 | Log | Prints the data to the events view, and shows the last one in its settings. | |
 | GIPHY | Finds a GIF, sticker or clip and adds its URL (`{{gif}}`, `{{sticker}}`, `{{clip}}`). | [Giphy](./hue-giphy#giphy) |
 | MyInstants | Finds a sound on Myinstants and adds its URL as `{{sound}}`. | |
+| Text-to-Speech | Speaks a text in a language and voice, and adds the sound as `{{sound}}`. | [Text-to-Speech](./hue-giphy#text-to-speech) |
 | Hue Lights | Toggles, sets or turns off lights, or plays a routine of colors. | [Hue](./hue-giphy#philips-hue) |
 | Switch Scene | Switches the OBS program scene, and back after a while if set. | [OBS](./obs) |
 | Toggle Source | Shows, hides or toggles a source in an OBS scene. | [OBS](./obs) |
