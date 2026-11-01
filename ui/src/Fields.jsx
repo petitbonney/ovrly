@@ -556,6 +556,19 @@ function Copy({ text }) {
   )
 }
 
+// A Control Pad node's buttons; on Companion mode, each with its URL to copy at this computer's network address, even
+// in an editor opened at localhost: browser-based callers (the Stream Deck's Web Requests plugin) are refused there as
+// cross-site (server/access.js), but not at the network address, with Open to LAN on.
+function DeckList({ props, value, set, companion }) {
+  const [origin, setOrigin] = useState(location.origin)
+  useEffect(() => {
+    if (companion) get('/api/network').then((n) => n.addresses[0] && setOrigin(`http://${n.addresses[0]}:${n.port}`), () => {})
+  }, [companion])
+  return <ListInput label={props.label} description={props.description} value={value} onChange={set}
+    defaults={[{ id: '', icon: 'star', name: '', color: swatches[0] }]} columns={{ id: { type: 'id' }, icon: { type: 'icon' } }}
+    extra={companion ? (b) => <Copy text={origin + deckUrl(b)} /> : undefined} />
+}
+
 // A label with its info (f.info) in an ⓘ tooltip beside it.
 function Label({ text, info }) {
   if (!info) return text
@@ -609,11 +622,7 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
       </Stack>
     )
   }
-  if (f.type === 'deck') {
-    return <ListInput label={props.label} description={props.description} value={value} onChange={set}
-      defaults={[{ id: '', icon: 'star', name: '', color: swatches[0] }]} columns={{ id: { type: 'id' }, icon: { type: 'icon' } }}
-      extra={values.mode === 'companion' ? (b) => <Copy text={location.origin + deckUrl(b)} /> : undefined} />
-  }
+  if (f.type === 'deck') return <DeckList props={props} value={value} set={set} companion={values.mode === 'companion'} />
   if (f.type === 'hue-steps') {
     return <HueSteps label={props.label} description={props.description} value={value} defaults={fallback} columns={f.columns} limits={f.limits}
       device={values.device ?? ''} transition={Number(values.transition) || 0} restore={values.restore} onChange={set} />

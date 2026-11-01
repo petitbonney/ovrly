@@ -171,6 +171,10 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
     )
   const notices = [
     ...missing.map((r) => <Notice key={r.key} settings={r.pane ?? r.key}>Needs {r.needs}.</Notice>),
+    // Not a `needs` on the Companion option: it would be disabled while LAN is off (see DeckList in Fields.jsx for why).
+    def.type === 'deck' && config.mode === 'companion' && off.includes('lan') && (
+      <Notice key="lan" settings="network">Companion URLs need Open to LAN on: they use this computer's network address, as localhost refuses some callers (the Stream Deck's Web Requests plugin).</Notice>
+    ),
     def.type === 'widget-action' && !widget && <Notice key="link">Link this node to a widget node to pick its action.</Notice>,
     isWidget && !type && (widget
       ? <Notice key="unknown" color="red" settings="widgets">Unknown widget type "{widget.type}": a custom widget that isn't loaded. Its settings are kept.</Notice>

@@ -13,7 +13,7 @@ export default {
     mode: {
       options: [{ value: 'companion', label: 'Companion' }, { value: 'streamdeck', label: 'Stream Deck', needs: 'streamdeck' }],
       hint: 'How the buttons fire',
-      info: 'Companion: a URL per button, for Companion or anything that sends HTTP. Stream Deck: keys paired with the Ovrly plugin (Settings → Stream Deck).',
+      info: 'Companion: a URL per button, for Companion or anything that sends HTTP, at this computer\'s network address (Settings → LAN: Open to LAN). Stream Deck: keys paired with the Ovrly plugin (Settings → Stream Deck).',
     },
     buttons: { type: 'deck' },
   },

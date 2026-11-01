@@ -434,11 +434,12 @@ export const integrations = [
   { key: 'giphy', label: 'Giphy', path: '/api/giphy', info: giphyInfo, Pane: Giphy, ready: (s) => s.connected, needs: 'Giphy connected (API key)' },
   { key: 'speech', label: 'Text-to-Speech', path: '/api/speech', info: speechInfo, Pane: Speech, ready: (s) => s.ready, needs: 'the voice model downloaded' },
 ]
-// What a node, a widget type or a setting option can need (`needs`): an integration ready, or 'chat': the Twitch chat
-// read, in Guest or Streamer mode (set up in the Twitch pane).
+// What a node, a widget type or a setting option can need (`needs`): an integration ready, 'chat': the Twitch chat
+// read, in Guest or Streamer mode (set up in the Twitch pane), or 'lan': Open to LAN on.
 export const requirements = [
   ...integrations,
   { key: 'chat', label: 'Twitch', path: '/api/twitch', ready: (s) => s.connected, needs: 'the Twitch chat connected', pane: 'twitch' },
+  { key: 'lan', label: 'LAN', path: '/api/network', ready: (s) => s.lan, needs: 'Open to LAN on', pane: 'network' },
 ]
 // The requirement keys not met now (none while the statuses load).
 export const unmet = (statuses) => requirements.filter((r) => statuses[r.path] && !r.ready(statuses[r.path])).map((r) => r.key)
