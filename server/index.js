@@ -300,6 +300,7 @@ if (process.env.NODE_ENV === 'production') {
   app.use(vite.middlewares)
 }
 
+await workflows.migrate()
 await twitchAuth.load()
 twitch.apply((await store.get('settings', 'twitch')) ?? {})
 obs.connect((await store.get('settings', 'obs')) ?? {})

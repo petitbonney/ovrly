@@ -14,7 +14,7 @@ export default {
   state: { duration: 0, volume: 100 },
   fields: {
     duration: { label: 'Max duration', unit: 's', presets: [5, 10, 15, 30], hint: 'Cut with a short fade-out; 0 plays all of it' },
-    volume: { unit: '%', slider: true, hint: 'Myinstants sounds are often loud' },
+    volume: { unit: '%', slider: true, hint: 'MyInstants sounds are often loud', info: 'Tick "Control audio via OBS" on the browser source to mix it in OBS.' },
   },
   runtime: { url: '' },
   // No playTime: the server can't know a sound's length, so the page tells when it has ended (or been cut).

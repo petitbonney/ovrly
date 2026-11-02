@@ -15,8 +15,8 @@ export default {
   state: { dice: ['1', '2', '3', '4', '5', '6'], diceColor: '#9147ff', dotColor: '#ffffff' },
   fields: {
     dice: { label: 'Faces', fixed: true, hint: 'A number from 1 to 6 shows as dots' },
-    diceColor: { label: 'Dice color' },
-    dotColor: { label: 'Dots color', hint: 'Also the text of faces that are not 1 to 6' },
+    diceColor: { label: 'Die color' },
+    dotColor: { label: 'Dot color', hint: 'Also the text of faces that are not 1 to 6' },
   },
   ...draw(choices, playMs),
 }

@@ -43,10 +43,10 @@ export default {
   description: 'A poll or a prediction, by chat or with Twitch; shows the results live and who guessed right.',
   state: { kind: 'poll', mode: 'chat', title: 'Who wins?', options: ['Yes', 'No'], duration: 60 },
   fields: {
-    kind: { label: 'Vote', options: [{ value: 'poll', label: 'Poll' }, { value: 'prediction', label: 'Prediction' }] },
+    kind: { label: 'Type', options: [{ value: 'poll', label: 'Poll' }, { value: 'prediction', label: 'Prediction' }] },
     mode: { options: [{ value: 'chat', label: 'Chat' }, { value: 'twitch', label: 'Twitch', streamer: true }] },
-    title: {},
-    options: { hint: 'Twitch takes 2 to 5 (poll) or 2 to 10 (prediction)', info: 'A Twitch poll takes 2 to 5 options, a prediction 2 to 10, each up to 25 characters.' },
+    title: { hint: 'Twitch takes 60 characters (prediction: 45)' },
+    options: { info: 'A Twitch poll takes 2 to 5 options, a prediction 2 to 10, each up to 25 characters.' },
     duration: { unit: 's', presets: [30, 60, 120, 300], hint: 'How long voting stays open after "start", 30 to 1800 s' },
   },
   // votes: user -> option index (chat); counts: voters per option; endsAt: when voting closes (ms); winner: the
@@ -82,7 +82,7 @@ export default {
     vote: {
       description: "Counts a viewer's vote while voting is open; a new vote from the same viewer replaces theirs.",
       only: { mode: 'chat' },
-      inputs: { option: { vars: true, hint: 'Option number or name, e.g. {{args}}' }, user: { vars: true, default: '{{user}}', hint: 'Who votes' } },
+      inputs: { option: { vars: true, default: '{{args}}', hint: 'Option number or name' }, user: { vars: true, default: '{{user}}', hint: 'Who votes' } },
       run({ state, runtime, input: { option, user } }) {
         const i = pick(state.options, option)
         if (runtime.twitch || state.mode === 'twitch' || !runtime.open || Date.now() > runtime.endsAt || i < 0) return

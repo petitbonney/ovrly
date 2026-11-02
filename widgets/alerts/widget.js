@@ -31,15 +31,16 @@ export default {
   state: { layout: 'banner', color: '#ffb400', metal: 'gold', duration: 5, volume: 100 },
   fields: {
     layout: { options: Object.entries(LAYOUTS).map(([value, { label }]) => ({ value, label })) },
-    duration: { unit: 's', presets: [3, 5, 8, 10], hint: 'How long an alert stays on screen (the marquee: one pass)' },
     color: {
+      label: 'Accent color',
       only: { layout: ['neon', 'ticket', 'bubble', 'arcade', 'sticky', 'marquee', 'particles'] },
-      hint: 'The neon tube, the note, the burst behind the bubble, the glow…',
+      info: 'The neon tube, the ticket, the burst behind the bubble, the note, the glow…',
     },
     metal: {
       only: { layout: 'trophy' },
       options: [{ value: 'gold', label: 'Gold' }, { value: 'silver', label: 'Silver' }, { value: 'bronze', label: 'Bronze' }],
     },
+    duration: { unit: 's', presets: [3, 5, 8, 10], hint: 'How long an alert stays on screen', info: 'On the marquee: one pass across the screen.' },
     volume: {
       unit: '%', slider: true, only: { layout: Object.keys(LAYOUTS).filter((name) => LAYOUTS[name].sound) },
       hint: '0 mutes the sounds',

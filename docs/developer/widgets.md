@@ -10,7 +10,7 @@ export default {
   icon: 'number',
   description: 'Shows a count.',
   state: { title: 'Count', count: 0 }, // saved in the widget's file: settings, and data kept across restarts
-  fields: { title: {}, count: { hidden: true } }, // the settings form, as for nodes
+  fields: { title: {}, count: { hidden: true } }, // the settings form, as for nodes, in the state's order
   runtime: { shown: 0 }, // in memory only: what plays now, reset on restart
   playTime: () => 0, // the workflow goes on at once
   actions: {
@@ -30,14 +30,14 @@ Each is `{ description, inputs, only, run }`.
 
 - `run({ state, runtime, input })` returns the parts it changes, `{ state?, runtime? }` (nothing: it did nothing). It may be async (e.g. a Twitch call); throwing refuses the action.
 - `inputs` says what it asks for on the node, as node fields, filled from the data when it runs: e.g. `{ option: { vars: true, hint }, user: { vars: true, default: '{{user}}' } }`, `{ image: { type: 'image' } }` for a file picker (`image`, `sound` or `video`), or `{ type: 'list' }` for a list.
-- `only` shows an action only with some settings, as for fields (Voting's `vote`: `{ mode: 'chat' }`).
+- `only` shows an action only with some settings, as for fields (Voting's `vote`: `{ mode: 'chat' }`). An exposed one the settings no longer allow keeps its port, which does nothing: its tab says so.
 - `description` and `inputs` are listed in the node's ⓘ tooltip.
 
-A state also holds `name` (the widget's) and `input` (the inputs set on its node), filled in by Ovrly.
+A state also holds `name` (the widget's) and `input` (each action's inputs, `{ start: { text } }`, set in its node's tabs or last run with from the editor), filled in by Ovrly.
 
 ## Running in a workflow
 
-The widget node runs its `start` action, or the one named by `onSignal` (TwitchPlays: `'push'`); Widget Action nodes in front of it run the others. Every type has `stop` (ends what plays, the workflow goes on) and `cancel` (cuts it, the workflow stops there): give them a `run` to do more (Voting closes the vote), or bind other actions with `onStart`, `onStop` and `onCancel` (the lottery's `onCancel: 'reset'`).
+A link into the widget node's main port runs its `start` action, or the one named by `onSignal` (TwitchPlays: `'push'`), with the inputs saved in its state. The others get a port each when added in the node's settings (`config.ports`): a link into one (`targetHandle`: the action) runs it with its inputs saved in the state too, and the flow stops there. Every type has `stop` (ends what plays, the workflow goes on) and `cancel` (cuts it, the workflow stops there): give them a `run` to do more (Voting closes the vote), or bind other actions with `onStart`, `onStop` and `onCancel` (the lottery's `onCancel: 'reset'`).
 
 The node waits until what it started has stopped:
 

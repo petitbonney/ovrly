@@ -2,7 +2,7 @@
 // and each column is ordered by where its links come from, to keep crossings down. Each node sits level with the
 // output it comes from (so a chain of links is straight), pushed down only as much as needed for the nodes above it,
 // by their real height (a switch grows with its cases); links skipping columns get nodes out of their way. Returns { id: { x, y } }.
-import { nodeHeight, outputsOf } from './FlowNode.jsx'
+import { nodeHeight, outputsOf, portSlots, slotCount } from './FlowNode.jsx'
 
 const CAPTION = 50 // the two caption lines under a node
 const GAP = 20 // between a caption and the next node
@@ -11,7 +11,14 @@ const COLUMN = 90 + CAPTION + GAP // node box (90px) plus the same space as betw
 // defs: node types, for node heights and output order (if/else's "true" goes above "false", a switch's cases in order).
 export default function layout(nodes, edges, defs) {
   const def = (n) => defs.find((d) => d.type === n?.data.type)
-  const height = (n) => nodeHeight(def(n), n.data.config, edges.filter((e) => e.target === n.id).length)
+  // A widget node's inputs: its ports' slots (see portSlots), as many as its links into each.
+  const inputs = (n) => {
+    const into = edges.filter((e) => e.target === n.id)
+    if (n.data.type !== 'widget') return into.length
+    const counts = into.reduce((c, e) => ({ ...c, [e.targetHandle ?? '']: (c[e.targetHandle ?? ''] ?? 0) + 1 }), {})
+    return slotCount(portSlots([null, ...(n.data.config.ports ?? [])], counts))
+  }
+  const height = (n) => nodeHeight(def(n), n.data.config, inputs(n))
   // Longest path from a root; relaxing at most once per node also stops on a loop.
   const depth = Object.fromEntries(nodes.map((n) => [n.id, 0]))
   for (let i = 0; i < nodes.length; i++) {

@@ -67,6 +67,8 @@
 .flow-node .react-flow__handle.out { width: 14px; height: 14px; right: -1px; }
 .flow-node .port { position: absolute; left: 18px; top: -3px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--ovrly-sub); pointer-events: none; }
 .flow-node .port svg { vertical-align: -1px; margin-right: 2px; } /* a Control Pad button's icon */
+/* A widget node's action port: its name left of its bar, over the links coming in. */
+.flow-node .in-bar .in-port { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); padding: 0 3px; border-radius: 3px; background: var(--ovrly-canvas); font-size: 11px; color: var(--ovrly-sub); white-space: nowrap; }
 /* Control Pad node: square keys in the button's color (Deck.jsx). */
 .deck-button { position: relative; aspect-ratio: 1; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #fff; font-size: 11px; font-weight: 600; text-align: center; padding: 4px; overflow: hidden; text-shadow: 0 1px 2px #0006; }
 .deck-button:disabled { opacity: 0.35; cursor: not-allowed; }

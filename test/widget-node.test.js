@@ -1,4 +1,5 @@
-// The widget node: a signal runs the widget's onSignal action with its saved inputs; a Widget Action runs its own.
+// The widget node: a link into its main port runs the widget's onSignal action with its saved inputs; one into an
+// action port runs that action with its saved inputs too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
@@ -19,9 +20,16 @@ test('a signal runs onSignal with the saved inputs', async () => {
   assert.equal((await read(id)).runtime.last, 'bob')
 })
 
-test('a Widget Action with no action runs onStop and stops the flow', async () => {
+test('a link into an action port runs it with its saved inputs and stops the flow', async () => {
+  const { id } = await create('greeter', { input: { add: { n: '{{n}}' } } })
+  const from = { type: 'manual', config: {}, port: 'add' }
+  assert.equal(await node.run({ config: { widget: id, ports: ['add'] }, data: { n: 3 }, from, signal }), null)
+  assert.equal((await read(id)).state.total, 3)
+})
+
+test('a link into the stop port ends the widget', async () => {
   const { id } = await create('greeter')
-  const from = { type: 'widget-action', config: { action: '', input: {} } }
-  assert.equal(await node.run({ config: { widget: id }, data: {}, from, signal }), null)
+  const from = { type: 'manual', config: {}, port: 'stop' }
+  assert.equal(await node.run({ config: { widget: id, ports: ['stop'] }, data: {}, from, signal }), null)
   assert.equal((await read(id)).runtime.ended, true)
 })

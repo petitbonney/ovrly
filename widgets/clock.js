@@ -9,7 +9,7 @@ export const fields = {
     options: [{ value: 'auto', label: 'Auto' }, { value: 'hh:mm:ss', label: 'hh:mm:ss' }, { value: 'mm:ss', label: 'mm:ss' }],
     info: 'Auto shows hours only when there are some: 1:05:03, then 4:59. mm:ss counts the minutes past 60: 65:03.',
   },
-  font: { type: 'font', hint: 'A Google Fonts family' },
+  font: { type: 'font', section: 'Style', hint: 'A Google Fonts family' },
   color: {},
   size: { unit: 'px', presets: [36, 48, 72, 96] },
   align: { options: ['left', 'center', 'right'] },

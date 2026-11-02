@@ -4,7 +4,7 @@ A widget is an overlay: a web page you add to OBS as a **Browser Source**. Drop 
 
 ![A Dice widget node: its settings, with its OBS link, live preview and Start, Stop, Cancel](/screenshots/widget-node.png)
 
-Its settings have the inputs of the action it runs (e.g. **Start**: the text to show), then **Widget**: its name and look, shared by every node that uses it. The live column has its **OBS browser source** link, a preview, and **Start**, **Stop** and **Cancel**.
+Its settings have tabs: **Widget** first, its look, shared by every node that uses it, then a tab per port with its action's inputs (e.g. **Start**: the text to show). Double-click its name, at the top of its settings, to rename it; the **⋯** beside it copies the node (to paste a new widget with the same settings) or its instance ID. The live column has its **OBS browser source** link, a preview, and **Start**, **Stop** and **Cancel**.
 
 ## In a workflow
 
@@ -16,7 +16,11 @@ When the flow reaches a widget node, the widget **starts** (an alert shows, the 
 
 ### More actions
 
-To run another action, e.g. `!stop` to stop the wheel or `!vote` to vote, link a **Widget Action** node in front of the widget node. Its settings pick the action and ask for its inputs (`vote`: the option and who votes). The ⓘ next to a widget node's name lists its actions.
+A widget node has one input, its main **port**: a link into it runs the start action. To run another action, e.g. `!stop` to stop the wheel or `!vote` to vote, click **+** beside its settings' tabs and pick it (in the Basic view, which shows the start action alone, this switches to the Graph view): the node gets a port named after it, and a link into that port runs that action (the workflow stops there). Its **×** takes the port off again, with its links. Drag the tabs to reorder the ports on the node (the start one stays first).
+
+Each port has a tab, with what its action does and its inputs (`vote`: the option and who votes; a countdown's `add`: the time). Every link into a port runs its action with these inputs, so to give two links different ones, set a data key on the way and use it: the Subathon template's **Edit Data** nodes set `time` to `+5m` for a sub and `+{{ Math.floor(bits / 100) }}m` for a cheer, and `add` takes `{{time}}`.
+
+Workflows made with the former **Widget Action** node are turned into links into ports when Ovrly starts.
 
 ## Widget types
 

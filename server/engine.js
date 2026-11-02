@@ -19,7 +19,7 @@ const order = [
   'twitch-chat', 'twitch-announce', 'twitch-shoutout', 'twitch-ban', 'twitch-delete-message', 'twitch-clip', 'twitch-user', 'twitch-channel-info',
   'twitch-redemption', 'twitch-marker', 'twitch-stream-info', 'twitch-ad', 'twitch-chat-mode', 'twitch-reward', 'twitch-raid',
   'obs-scene', 'obs-source', 'giphy', 'myinstants', 'hue',
-  'widget-action', 'log', 'http-request', 'key-press', 'websocket-send',
+  'log', 'http-request', 'key-press', 'websocket-send',
 ]
 const rank = (type) => (order.includes(type) ? order.indexOf(type) : order.length)
 const dir = new URL('./nodes/', import.meta.url)
@@ -68,7 +68,8 @@ let lastRun = 0
 
 // Runs one node, then the nodes connected to its outputs. A null result stops the branch.
 // `run` is the state of one trigger firing: its abort signal, the node outputs so far, its history record.
-// `from` is the node the data came from, { type, config, edge }: a widget node runs the action of a Widget Action node.
+// `from` is the node the data came from, { type, config, edge, port }: port is the link's target handle (a widget node's
+// action port, see server/nodes/widget.js).
 async function walk(workflow, node, data, run, from) {
   if (run.signal.aborted) return
   const def = nodes[node.data.type]
@@ -208,7 +209,7 @@ async function step(workflow, node, data, run, { def, config, id, status, from }
   await Promise.all(next.flatMap((e) => {
     const target = workflow.nodes.find((n) => n.id === e.target)
     if (target) activity.emit('activity', { workflow: workflow.id, edge: e.id, target: e.target })
-    return target ? items.map((item) => walk(workflow, target, multi ? out[e.sourceHandle] : item, run, { type: def.type, config, edge: e.id })) : []
+    return target ? items.map((item) => walk(workflow, target, multi ? out[e.sourceHandle] : item, run, { type: def.type, config, edge: e.id, port: e.targetHandle })) : []
   }))
 }
 

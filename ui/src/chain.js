@@ -1,12 +1,12 @@
 // Basic view helpers: a workflow's nodes in order when its graph is one line (chainOf), and the links that make a
 // list of nodes one line again (relink). Pure, so the node tests can import them.
 
-// Node types the Basic view's library leaves out: they make branches, take several inputs, or link to a widget node.
-export const graphOnly = ['if-else', 'switch', 'fan-out', 'fan-in', 'wait-all', 'merge', 'widget-action']
+// Node types the Basic view's library leaves out: they make branches or take several inputs.
+export const graphOnly = ['if-else', 'switch', 'fan-out', 'fan-in', 'wait-all', 'merge']
 
 // The nodes in order from the head, or null when the graph isn't one line: a node with several links in or out, a
-// node off the line, a trigger after the head, or a link from an output other than the node's first (If/else's
-// "false", Cooldown's "blocked": the others just stop there). Empty is a line.
+// node off the line, a trigger after the head, a link from an output other than the node's first (If/else's
+// "false", Cooldown's "blocked": the others just stop there), or one into a widget node's action port. Empty is a line.
 // isTrigger(node); firstOutput(node): its first output's id, or null for a node with one output.
 export function chainOf(nodes, edges, { isTrigger, firstOutput }) {
   const out = {}
@@ -15,7 +15,7 @@ export function chainOf(nodes, edges, { isTrigger, firstOutput }) {
     ;(out[e.source] ??= []).push(e)
     ;(into[e.target] ??= []).push(e)
   }
-  if (nodes.some((n) => out[n.id]?.length > 1 || into[n.id]?.length > 1)) return null
+  if (nodes.some((n) => out[n.id]?.length > 1 || into[n.id]?.length > 1) || edges.some((e) => e.targetHandle)) return null
   const heads = nodes.filter((n) => !into[n.id])
   if (nodes.length && heads.length !== 1) return null
   const list = []

@@ -36,7 +36,7 @@ export default {
   },
   fields: {
     mode: { options: [{ value: 'anarchy', label: 'Anarchy' }, { value: 'democracy', label: 'Democracy' }] },
-    title: {},
+    title: { hint: 'The heading on screen' },
     commands: {
       hint: 'A chat message that is exactly a command presses its keys',
       info: 'In any case. A command\'s keys are pressed together.',
@@ -46,7 +46,7 @@ export default {
       label: 'Vote window', unit: 's', presets: [3, 5, 10, 20], only: { mode: 'democracy' }, hint: 'Votes are counted in loops this long, from start',
       info: "Each loop's most voted command goes on (a tie: the first in the list).",
     },
-    max: { label: 'Inputs shown', only: { mode: 'anarchy' } },
+    max: { label: 'Inputs shown', only: { mode: 'anarchy' }, hint: 'How many of the latest commands are listed' },
   },
   // listening: between "start" and "stop" or "cancel"; since: when the loops began (ms); loop: the loop the votes are
   // for (-1: none, e.g. in anarchy); log: latest commands, newest first, { user, command, at }; votes: user -> command
@@ -70,7 +70,7 @@ export default {
     },
     push: {
       description: "A chat message, while listening. Anarchy: a command goes on at once, with {{command}} and {{keys}}. Democracy: it is a vote, and the loop's winner goes on when the loop ends. Anything else stops there.",
-      inputs: { text: { vars: true, hint: 'The chat text, e.g. {{message}}' }, user: { vars: true, default: '{{user}}', hint: 'Who sent it' } },
+      inputs: { text: { vars: true, default: '{{message}}', hint: 'The chat text' }, user: { vars: true, default: '{{user}}', hint: 'Who sent it' } },
       run({ state, runtime, input: { text, user } }) {
         const i = find(state, text)
         if (!runtime.listening || i < 0) return

@@ -1,8 +1,8 @@
 // Workflow editor: ReactFlow graph (center) and selected node settings (bottom), autosaved. A one-line workflow can
 // also be shown as a list of steps (the Basic view, Basic.jsx), picked in the toolbar and saved with it as `view`.
 // Nodes are dropped from the library: node types, or widget types (each drop creates a widget instance and its widget
-// node). A widget node starts its widget (or runs the action its type binds to signals instead); a Widget Action node linked in
-// front of it makes it run another one, picked in its settings. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; a
+// node). A link into a widget node's main port starts its widget (or runs the action its type binds to signals instead);
+// one into another of its ports (those its settings expose) runs that action, with the link's inputs. Ctrl/Cmd+C and Ctrl/Cmd+V copy nodes, also into another workflow; a
 // pasted widget node is a new instance with a copy of the widget's state. Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y) undo and redo graph edits.
 // Canvas rule: the view never moves on its own, except to keep the selected node in sight. Shift+1 fits the graph,
 // Escape closes the node settings.
@@ -25,7 +25,7 @@ import {
 } from '@tabler/icons-react'
 import Fields, { applies } from './Fields.jsx'
 import DeckGrid from './Deck.jsx'
-import WidgetPane, { ActionsInfo } from './Widget.jsx'
+import WidgetPane, { ActionsInfo, WidgetMenu, WidgetName } from './Widget.jsx'
 import QueueLine from './QueueLine.jsx'
 import JoinLinks from './JoinLinks.jsx'
 import Play from './Play.jsx'
@@ -35,7 +35,7 @@ import Fire from './Fire.jsx'
 import CodeTest from './CodeTest.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
-import FlowNode, { colors, outputsOf } from './FlowNode.jsx'
+import FlowNode, { colors, outputsOf, slotCount, widgetPorts } from './FlowNode.jsx'
 import layout from './layout.js'
 import Basic from './Basic.jsx'
 import { chainOf, relink } from './chain.js'
@@ -44,9 +44,6 @@ import { get, json } from './api.js'
 import { requirements } from './Settings.jsx'
 
 const findWidget = (widgets, id) => widgets.find((w) => w.id === id)
-// The widget instance a node points to: a widget node's own, or a Widget Action node's linked widget node's.
-const widgetRef = (node, nodes, edges) => node?.data.type !== 'widget-action' ? node?.data.config.widget
-  : nodes.find((n) => n.data.type === 'widget' && edges.some((e) => e.source === node.id && e.target === n.id))?.data.config.widget
 // Copied nodes and the edges between them; kept in memory so they can be pasted into another workflow.
 let clipboard = null
 // A workflow's last view (pan and zoom), kept by this browser: it reopens where it was left, even after a refresh.
@@ -100,12 +97,10 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
 }
 
 // A link is allowed if it doesn't close a loop: the target must not already lead back to the source (or be the
-// source itself). Only widget nodes link into a Merge Widgets node, and a Widget Action node links to one widget node at most.
+// source itself). Only widget nodes link into a Merge Widgets node.
 function isValidConnection(c, edges, nodes) {
   const type = (id) => nodes.find((n) => n.id === id)?.data.type
   if (type(c.target) === 'merge' && type(c.source) !== 'widget') return false
-  if (type(c.source) === 'widget-action' && type(c.target) === 'widget'
-    && edges.some((e) => e.source === c.source && e.target !== c.target && type(e.target) === 'widget')) return false
   const seen = new Set()
   const queue = [c.target]
   while (queue.length) {
@@ -139,7 +134,7 @@ function boundsOf(list) {
 }
 
 // Settings of the selected node, laid out the same for every node (see AGENTS.md): a header (icon, name, ⓘ for a
-// widget's actions, close), the description, notices (needs not met, a widget to link or deleted, the last run's
+// widget's actions and its ⋯ menu, close), the description, notices (needs not met, a widget to link or deleted, the last run's
 // error), then the settings column, with a live column on its right when the node has something to watch or press: a
 // widget's preview with Start, Stop and Cancel, a Control Pad's buttons, a Queue's line, a Wait For All's links with
 // Force and Cancel, an action's Play and result (Play.jsx), a Log's last data (LogResult.jsx), a Cooldown's, Delay's
@@ -175,7 +170,6 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
     def.type === 'deck' && config.mode === 'companion' && off.includes('lan') && (
       <Notice key="lan" settings="network">Companion URLs need Open to LAN on: they use this computer's network address, as localhost refuses some callers (the Stream Deck's Web Requests plugin).</Notice>
     ),
-    def.type === 'widget-action' && !widget && <Notice key="link">Link this node to a widget node to pick its action.</Notice>,
     isWidget && !type && (widget
       ? <Notice key="unknown" color="red" settings="widgets">Unknown widget type "{widget.type}": a custom widget that isn't loaded. Its settings are kept.</Notice>
       : <Notice key="deleted" color="red">This widget was deleted. Drop a new one from the library.</Notice>),
@@ -187,11 +181,13 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
       <div className={isWidget && !type ? 'pane' : 'pane split'}>
         <Group gap="xs" mb={4} wrap="nowrap">
           <Icon size={20} color={colors[def.category]} style={{ flexShrink: 0 }} />
-          <Text fw={600} truncate>{isWidget ? widget?.state.name ?? 'Missing widget' : def.label}</Text>
+          {isWidget && widget ? <WidgetName key={widget.id} widget={widget} onChange={onWidgetChange} />
+            : <Text fw={600} truncate>{isWidget ? 'Missing widget' : def.label}</Text>}
           {/* The widget's actions, as its settings allow them now (e.g. Voting's "win" only for a prediction). */}
           {isWidget && type && (
             <ActionsInfo key={widget.id} type={type} state={{ ...type.state, ...widget.state }} />
           )}
+          {isWidget && widget && <WidgetMenu widget={widget} onCopy={onCopy} />}
           <CloseButton size="sm" ml="auto" aria-label="Close settings" onClick={onClose} />
         </Group>
         <Text size="xs" c="dimmed" mb="sm">{def.description}</Text>
@@ -199,7 +195,8 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
         {isMerge ? (
           <Merge workflow={workflow} node={node.id} config={config} widgets={context.inputs} types={context.types} onChange={onChange} />
         ) : isWidget ? (
-          type && <WidgetPane key={widget.id} widget={widget} type={type} context={context} off={off} onChange={onWidgetChange} onCopy={onCopy} onError={onError} />
+          type && <WidgetPane key={widget.id} widget={widget} type={type} context={context} off={off} config={config} onConfig={onChange}
+            onChange={onWidgetChange} onError={onError} />
         ) : (
           // Two equal halves, the right one empty when there's nothing live.
           <SimpleGrid className="widget-split" cols={2} spacing="xl">
@@ -224,6 +221,10 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   const { screenToFlowPosition, getNodes, getViewport, setViewport, fitView, zoomIn, zoomOut } = useReactFlow()
   // A node's type, from the library's node types.
   const defOf = (n) => defs.find((d) => d.type === n?.data.type)
+  // A widget node's widget type.
+  const typeOf = (n) => types.find((t) => t.type === findWidget(widgets, n?.data.config.widget)?.type)
+  // The links into each port of a widget node: port id ('' for the main one) -> how many.
+  const portLinks = (id, list = edges) => list.reduce((c, e) => (e.target === id ? { ...c, [e.targetHandle ?? '']: (c[e.targetHandle ?? ''] ?? 0) + 1 } : c), {})
   const firstOutput = (n) => outputsOf(defOf(n), n.data.config)[0]?.id ?? null
   // Basic view: the nodes in order while the graph is one line (else null, and the graph is shown).
   const chain = chainOf(nodes, edges, { isTrigger: (n) => defOf(n)?.category === 'trigger', firstOutput })
@@ -301,8 +302,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
       timers.forEach(clearTimeout)
     }
   }, [])
-  // A link being pulled snaps to the node under the pointer, anywhere on it: to its input when pulled from an output,
-  // to its nearest output when pulled from an input. p is in flow coordinates.
+  // A link being pulled snaps to the node under the pointer, anywhere on it: to its input when pulled from an output
+  // (a widget node's port nearest the pointer), to its nearest output when pulled from an input. p is in flow coordinates.
   const linkAt = (c, p) => {
     const node = nodes.find((n) => n.id !== c.fromNode.id && p.x >= n.position.x && p.x <= n.position.x + (n.measured?.width ?? 0)
       && p.y >= n.position.y && p.y <= n.position.y + (n.measured?.height ?? 0))
@@ -310,15 +311,21 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     let link
     if (c.fromHandle.type === 'source') {
       if (defOf(node)?.category === 'trigger') return null
-      link = { source: c.fromNode.id, sourceHandle: c.fromHandle.id ?? null, target: node.id }
+      const ports = node.data.type === 'widget' ? widgetPorts(typeOf(node), node.data.config, portLinks(node.id)) : [{ id: null, first: 0, slots: 1 }]
+      const middle = (slotCount(ports) - 1) / 2
+      const y = (i) => node.position.y + node.measured.height / 2 + (ports[i].first + (ports[i].slots - 1) / 2 - middle) * 18 // as placed by FlowNode
+      const i = ports.reduce((best, _, i) => (Math.abs(y(i) - p.y) < Math.abs(y(best) - p.y) ? i : best), 0)
+      link = { source: c.fromNode.id, sourceHandle: c.fromHandle.id ?? null, target: node.id, targetHandle: ports[i].id }
     } else {
       const outs = outputsOf(defOf(node), node.data.config)
       const y = (i) => node.position.y + ((i + 1) * node.measured.height) / (outs.length + 1) // as placed by FlowNode
       const i = outs.reduce((best, o, i) => (Math.abs(y(i) - p.y) < Math.abs(y(best) - p.y) ? i : best), 0)
-      link = { source: node.id, sourceHandle: outs[i]?.id ?? null, target: c.fromNode.id }
+      link = { source: node.id, sourceHandle: outs[i]?.id ?? null, target: c.fromNode.id, targetHandle: c.fromHandle.id?.split('#')[0] || null } // a port's slot: "add#1"
     }
-    const exists = edges.some((e) => e.source === link.source && (e.sourceHandle ?? null) === link.sourceHandle && e.target === link.target)
-    return !exists && isValidConnection(link, edges, nodes) ? { ...link, targetHandle: null } : null // the input handle is picked on display
+    // Only a widget node's port is kept; other nodes' input handles are picked on display.
+    if (nodes.find((n) => n.id === link.target)?.data.type !== 'widget') link.targetHandle = null
+    const same = (e) => ['source', 'sourceHandle', 'target', 'targetHandle'].every((k) => (e[k] ?? null) === link[k])
+    return !edges.some(same) && isValidConnection(link, edges, nodes) ? link : null
   }
   const onConnectEnd = (event, c) => {
     const { clientX, clientY } = event.changedTouches?.[0] ?? event
@@ -332,24 +339,32 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     JSON.stringify(c.inProgress && linkAt(c, { x: (c.pointer.x - tx) / zoom, y: (c.pointer.y - ty) / zoom }))))
   const allEdges = preview ? [...edges, { ...preview, id: 'preview', selectable: false, focusable: false }] : edges
 
-  // Each link into a node gets its own input handle, in the order of its source's height so links don't cross.
+  // Each link into a node gets its own input handle, in the order of its source's height so links don't cross; into a
+  // widget node, its own slot of its port ("add#0", "#0" for the main one).
   const inputOf = {}
   const incoming = {}
   for (const e of allEdges) (incoming[e.target] ??= []).push(e)
+  const isWidgetNode = (id) => nodes.find((n) => n.id === id)?.data.type === 'widget'
   for (const list of Object.values(incoming)) {
     const y = (e) => nodes.find((n) => n.id === e.source)?.position.y ?? 0
-    list.sort((a, b) => y(a) - y(b)).forEach((e, i) => (inputOf[e.id] = `in${i}`))
+    const taken = {} // port -> slots given
+    list.sort((a, b) => y(a) - y(b)).forEach((e) => {
+      const port = isWidgetNode(e.target) ? e.targetHandle ?? '' : ''
+      const i = (taken[port] = (taken[port] ?? -1) + 1)
+      inputOf[e.id] = isWidgetNode(e.target) ? `${port}#${i}` : `in${i}`
+    })
   }
   // Each node gets what FlowNode draws (see there), and its name for screen readers.
   const shownNodes = nodes.map((n) => {
     const def = defOf(n)
-    const widget = findWidget(widgets, widgetRef(n, nodes, edges))
+    const widget = findWidget(widgets, n.data.config.widget)
     const widgetType = types.find((t) => t.type === widget?.type)
     const isWidget = n.data.type === 'widget'
     const needs = needsOf(def, { ...def?.config, ...n.data.config }, isWidget && widgetType, { ...widgetType?.state, ...widget?.state })
     const missing = requirements.filter((r) => off.includes(r.key) && needs.includes(r.key)).map((r) => r.needs)
     const context = { def, widget, widgetType, missing, fire: () => fireNode(n.id) }
-    const shown = { ...n, ariaLabel: (isWidget ? widget?.state.name : def?.label) ?? n.data.label, data: { ...n.data, ...context, inputs: incoming[n.id]?.length } }
+    const shown = { ...n, ariaLabel: (isWidget ? widget?.state.name : def?.label) ?? n.data.label, data: { ...n.data, ...context, inputs: incoming[n.id]?.length,
+      ...(isWidget && { portLinks: portLinks(n.id, allEdges) }) } }
     return live.nodes[n.id] ? { ...shown, className: `run-${live.nodes[n.id]}` } : shown
   })
   const shownEdges = allEdges.map((e) => ({ ...e, targetHandle: inputOf[e.id] })).map((e) => (live.edges[e.id] ? { ...e, animated: true, className: 'run-flow', markerEnd: { ...edgeOptions.markerEnd, color: '#4dabf7' } } : e))
@@ -695,9 +710,13 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     })
   }
   // Links follow switch cases: a moved case keeps its links, a renamed one too, and a removed one takes them along.
-  // Items with an id (Control Pad buttons) are their own output id: only a removed one has links to drop.
+  // Items with an id (Control Pad buttons) are their own output id: only a removed one has links to drop. A widget
+  // node's port no longer exposed takes its links along too.
   const setConfig = (config) => {
     setNodes((ns) => ns.map((n) => (n.id === selected.id ? { ...n, data: { ...n.data, config } } : n)))
+    if (selected.data.type === 'widget') {
+      return setEdges((es) => es.filter((e) => e.target !== selected.id || !e.targetHandle || config.ports?.includes(e.targetHandle)))
+    }
     const def = defOf(selected)
     const key = def?.outputsFrom
     const before = selected.data.config[key] ?? def?.config[key]
@@ -841,7 +860,9 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
         context={{
           vars: selected ? upstreamKeys(selected.id, { nodes, edges, defs, widgets, types }) : [],
           trigger: defOf(selected)?.category === 'trigger',
-          widget: findWidget(widgets, widgetRef(selected, nodes, edges)),
+          basic, // a widget node shows its main action's tab alone in the Basic view
+          graph: () => pickView('graph'), // to expose a widget's action as a port
+          widget: findWidget(widgets, selected?.data.config.widget),
           // The widgets linked into the selected node (for a Merge Widgets node), in link order.
           inputs: [...new Set(edges.filter((e) => e.target === selected?.id).map((e) => nodes.find((n) => n.id === e.source))
             .filter((n) => n?.data.type === 'widget').map((n) => n.data.config.widget))].map((ref) => findWidget(widgets, ref)).filter(Boolean),

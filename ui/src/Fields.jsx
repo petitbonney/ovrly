@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults (shown in their order), plus optional per-field hints from the node
-// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'id' | 'workflow' | 'secret' | 'var' | 'list' | 'tags' | 'action' | 'inputs' | 'palette' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' | 'font' }.
+// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'id' | 'workflow' | 'secret' | 'var' | 'list' | 'tags' | 'palette' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' | 'font' }.
 // hint: one short line under the label; info: anything longer, in an ⓘ tooltip beside the label. section: a heading
 // shown before this field, starting a group (for nodes with many settings). A field shown only while a switch is on
 // (only: { someSwitch: true }) is indented under it. Plain-text options show with a capital first letter; a '-' among
@@ -637,26 +637,14 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
     return <TagsInput {...props} styles={{ input: TAG_SCROLL }} data={f.options} splitChars={TAG_SPLIT} value={tags} onChange={(v) => set(v.join('+'))}
       rightSection={<VarMenu vars={vars} onPick={(k) => set([...tags, `{{${k}}}`].join('+'))} />} />
   }
-  // A widget's actions come from its type: those that apply with the widget's settings. Short option lists are buttons.
-  const type = context.types?.find((t) => t.type === context.widget?.type)
-  // A Widget Action node's inputs, as their own settings: the fields its widget type asks for the action picked (its
-  // stop action by default; none: nothing shown).
-  if (f.type === 'inputs') {
-    const fields = type?.actions[values.action || type.onStop]?.inputs ?? {}
-    if (!Object.keys(fields).length) return null
-    const defaults = Object.fromEntries(Object.entries(fields).map(([key, f]) => [key, f.default ?? '']))
-    return <Fields defaults={defaults} values={value} fields={fields} context={context} onChange={set} />
-  }
   // Options needing a requirement not met (Twitch features without Streamer mode, an integration not ready) can't be
-  // picked, and say why on hover; one picked earlier is noted at the top of the settings pane.
-  const state = { ...type?.state, ...context.widget?.state }
-  const options = f.type === 'action' ? Object.keys(type?.actions ?? {}).filter((a) => applies(type.actions[a], state)) : f.options
+  // picked, and say why on hover; one picked earlier is noted at the top of the settings pane. Short lists are buttons.
+  const options = f.options
   const line = options?.indexOf('-') ?? -1
   const choices = labelled(options?.filter((o) => o !== '-'))?.map(({ streamer, needs, ...option }) => {
     const unmet = requirements.find((r) => (r.key === needs || (streamer && r.key === 'twitch')) && context.off?.includes(r.key))
     return unmet ? { ...option, disabled: true, why: `Needs ${unmet.needs} (Settings → ${unmet.label})` } : option
   })
-  if (f.type === 'action' && !options.length) return null
   if (f.slider && typeof fallback === 'number') {
     return <SliderInput {...props} unit={f.unit} min={f.min} max={f.max} mute={name === 'volume'} value={value} onChange={set} />
   }
@@ -673,14 +661,12 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
       </Stack>
     )
   }
-  // A Widget Action node with no action set runs its widget's stop action.
-  const picked = f.type === 'action' ? value || type?.onStop : value
   if (choices?.length <= 4) {
     return (
       <Stack gap={4}>
         <Text size="xs" fw={500}>{props.label}</Text>
         {props.description && <Text size="xs" c="dimmed">{props.description}</Text>}
-        <SegmentedControl size="xs" fullWidth value={picked} onChange={set}
+        <SegmentedControl size="xs" fullWidth value={value} onChange={set}
           data={choices.map(({ why, ...o }) => (why ? { ...o, label: <Tooltip label={why} withinPortal><span>{o.label}</span></Tooltip> } : o))} />
       </Stack>
     )
@@ -690,7 +676,7 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
   if (choices) {
     const data = choices.map(({ why, ...o }) => (why ? { ...o, label: `${o.label} (${why})` } : o))
     const grouped = line < 0 ? data : [{ group: '', items: data.slice(0, line) }, { group: '', items: data.slice(line) }]
-    return <Select {...props} data={grouped} value={picked} onChange={set} allowDeselect={false} />
+    return <Select {...props} data={grouped} value={value} onChange={set} allowDeselect={false} />
   }
   // A data key's name: the "{}" menu sets it (the bare key, not a placeholder).
   if (f.type === 'var') return <Autocomplete {...props} data={vars ?? []} value={value} onChange={set} rightSection={<VarMenu vars={vars} onPick={set} />} />

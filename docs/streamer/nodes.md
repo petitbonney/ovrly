@@ -52,7 +52,6 @@ Subs, gift subs, cheers and raids work in Guest mode too, from what chat announc
 
 | Node | What it does | Needs |
 | --- | --- | --- |
-| Widget Action | Runs another action on a widget (stop, vote, spin…): see [Widgets](./widgets#more-actions). | |
 | Key Press | Presses a key combo on this computer, optionally only while a given window is focused. | |
 | HTTP Request | Sends an HTTP request, e.g. a Discord webhook. | |
 | WebSocket Send | Opens a WebSocket, sends one message, then closes. | |

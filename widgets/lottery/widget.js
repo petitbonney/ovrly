@@ -74,7 +74,7 @@ export default {
     },
     options: { hint: 'A bigger weight is a likelier winner' },
     palette: {
-      options: ['custom', '-', ...Object.keys(PALETTES)],
+      options: [...Object.keys(PALETTES), '-', 'custom'],
     },
     colors: { type: 'palette', text: 'textColor', only: { palette: 'custom' } },
     textColor: { hidden: true }, // picked in colors' grid

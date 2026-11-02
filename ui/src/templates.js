@@ -3,16 +3,18 @@
 
 // A node at column x, row y; its config only needs the settings that differ from its type's defaults.
 const node = (id, type, x, y, config = {}) => ({ id, type: 'step', position: { x: x * 180, y: y * 140 }, data: { type, config } })
-// A widget node for the template's widget of the same id.
-const widget = (id, x, y) => node(id, 'widget', x, y, { widget: id })
-// Links written "from>to", or "from:output>to" for a node with several outputs.
+// A widget node for the template's widget of the same id, with the action ports it shows besides its main one.
+const widget = (id, x, y, ports = []) => node(id, 'widget', x, y, { widget: id, ports })
+// Links written "from>to", "from:output>to" for a node with several outputs, "from>to:port" into a widget node's action
+// port.
 const links = (...list) => list.map((link, i) => {
-  const [from, target] = link.split('>')
+  const [from, to] = link.split('>')
   const [source, sourceHandle] = from.split(':')
-  return { id: `e${i + 1}`, source, target, ...(sourceHandle && { sourceHandle }) }
+  const [target, targetHandle] = to.split(':')
+  return { id: `e${i + 1}`, source, target, ...(sourceHandle && { sourceHandle }), ...(targetHandle && { targetHandle }) }
 })
-// A widget instance: its type, name, settings and the inputs of its start action (or of `action`).
-const instance = (id, type, name, settings, input, action = 'start') => ({ id, type, state: { name, ...settings, input: input ? { [action]: input } : {} } })
+// A widget instance: its type, name, settings and its actions' inputs ({ start: { text } }).
+const instance = (id, type, name, settings, input = {}) => ({ id, type, state: { name, ...settings, input } })
 const template = (name, description, nodes, edges, widgets = []) => ({ name, description, widgets, workflows: [{ name, enabled: false, nodes, edges }] })
 
 // Hue routine steps: a color pulsing between full and low brightness.
@@ -32,7 +34,7 @@ export default [
     widget('alerts', 2, 1.5),
   ], links('follow>followText', 'sub>subText', 'cheer>cheerText', 'raid>raidText',
     'followText>alerts', 'subText>alerts', 'cheerText>alerts', 'raidText>alerts'), [
-    instance('alerts', 'alerts', 'Event alerts', { layout: 'flap', duration: 6 }, { text: '{{text}}' }),
+    instance('alerts', 'alerts', 'Event alerts', { layout: 'flap', duration: 6 }, { start: { text: '{{text}}' } }),
   ]),
 
   template('Cheer to speech', 'A 100+ bits cheer is read aloud, bad words bleeped, with an alert; cheers wait their turn.', [
@@ -43,8 +45,8 @@ export default [
     widget('sound', 4, -0.5),
     widget('alert', 4, 0.5),
   ], links('cheer>words', 'words>queue', 'queue>speech', 'speech>sound', 'speech>alert'), [
-    instance('sound', 'sound', 'Cheer speech', {}, { sound: '{{sound}}' }),
-    instance('alert', 'alerts', 'Cheer alert', { duration: 8 }, { text: '{{user}} cheered {{bits}} bits: {{message}}' }),
+    instance('sound', 'sound', 'Cheer speech', {}, { start: { sound: '{{sound}}' } }),
+    instance('alert', 'alerts', 'Cheer alert', { duration: 8 }, { start: { text: '{{user}} cheered {{bits}} bits: {{message}}' } }),
   ]),
 
   template('!roll dice', 'Chat rolls a die with !roll, once a minute per viewer; rolls wait their turn.', [
@@ -55,7 +57,7 @@ export default [
     widget('alert', 4, 0),
   ], links('command>cooldown', 'cooldown:pass>queue', 'queue>dice', 'dice>alert'), [
     instance('dice', 'dice', 'Dice'),
-    instance('alert', 'alerts', 'Roll result', { layout: 'arcade', duration: 4 }, { text: '{{user}} rolled a {{winner}}!' }),
+    instance('alert', 'alerts', 'Roll result', { layout: 'arcade', duration: 4 }, { start: { text: '{{user}} rolled a {{winner}}!' } }),
   ]),
 
   template('!sound soundboard', 'Chat plays a MyInstants sound with !sound airhorn (no word: a trending one).', [
@@ -64,7 +66,7 @@ export default [
     node('search', 'myinstants', 2, 0, { pick: 'random', search: "{{ args.join(' ') }}" }),
     widget('sound', 3, 0),
   ], links('command>cooldown', 'cooldown:pass>search', 'search>sound'), [
-    instance('sound', 'sound', 'Soundboard', { duration: 8, volume: 60 }, { sound: '{{sound}}' }),
+    instance('sound', 'sound', 'Soundboard', { duration: 8, volume: 60 }, { start: { sound: '{{sound}}' } }),
   ]),
 
   template('!gif on screen', 'Chat shows a GIPHY GIF with !gif cats (no word: a trending one).', [
@@ -73,7 +75,7 @@ export default [
     node('search', 'giphy', 2, 0, { pick: 'random', search: "{{ args.join(' ') }}" }),
     widget('image', 3, 0),
   ], links('command>cooldown', 'cooldown:pass>search', 'search>image'), [
-    instance('image', 'image', 'Chat GIF', { duration: 6 }, { image: '{{gif}}' }),
+    instance('image', 'image', 'Chat GIF', { duration: 6 }, { start: { image: '{{gif}}' } }),
   ]),
 
   template('Chat reminders', 'Every 15 minutes while live, announces the next of three messages, in turn.', [
@@ -98,15 +100,14 @@ export default [
     node('undo', 'edit-variable', 1, 0, { name: 'deaths', operation: 'set', value: '{{ Math.max(0, (Number($vars.deaths) || 0) - 1) }}' }),
     node('reset', 'edit-variable', 1, 1, { name: 'deaths', operation: 'set', value: '0' }),
     widget('label', 2, 0),
-    // A death resets the timer, then starts it a second later (a Widget Action takes a step more to reach it).
-    node('zero', 'widget-action', 2, 1, { action: 'reset' }),
-    node('wait', 'delay', 2, 2),
-    widget('timer', 3, 1.5),
+    // A death resets the timer, then starts it a second later (at once, the start could come first).
+    node('wait', 'delay', 2, 1.5),
+    widget('timer', 3, 1.5, ['reset']),
     node('command', 'chat-command', 0, 2, { command: '!deaths' }),
     node('reply', 'twitch-chat', 1, 2, { message: 'Deaths so far: {{ $vars.deaths || 0 }}', replyTo: '{{messageId}}' }),
-  ], links('pad:add>add', 'pad:undo>undo', 'pad:reset>reset', 'add>label', 'undo>label', 'reset>label', 'add>zero', 'add>wait',
-    'reset>zero', 'zero>timer', 'wait>timer', 'command>reply'), [
-    instance('label', 'label', 'Death counter', {}, { text: 'Deaths: {{value}}' }),
+  ], links('pad:add>add', 'pad:undo>undo', 'pad:reset>reset', 'add>label', 'undo>label', 'reset>label', 'add>timer:reset', 'add>wait',
+    'reset>timer:reset', 'wait>timer', 'command>reply'), [
+    instance('label', 'label', 'Death counter', {}, { start: { text: 'Deaths: {{value}}' } }),
     instance('timer', 'timer', 'Since last death', { text: 'Since last death: {time}', size: 36 }),
   ]),
 
@@ -127,7 +128,7 @@ export default [
     node('announce', 'twitch-announce', 2, 0, { message: 'Welcome {{user}} and their {{viewers}} raiders! They were playing {{game}}: twitch.tv/{{login}}', color: 'green' }),
     widget('alert', 2, 1),
   ], links('raid>info', 'info>shoutout', 'info>announce', 'info>alert'), [
-    instance('alert', 'alerts', 'Raid alert', { layout: 'trophy', duration: 8 }, { text: '{{user}} is raiding with {{viewers}} viewers!' }),
+    instance('alert', 'alerts', 'Raid alert', { layout: 'trophy', duration: 8 }, { start: { text: '{{user}} is raiding with {{viewers}} viewers!' } }),
   ]),
 
   template('Gift sub bomb', 'Thanks the gifter in chat and welcomes each recipient on screen, one after another.', [
@@ -136,31 +137,29 @@ export default [
     node('each', 'fan-out', 1, 1, { list: '{{recipients}}' }),
     widget('alert', 2, 1),
   ], links('gift>thanks', 'gift>each', 'each>alert'), [
-    instance('alert', 'alerts', 'Gift welcome', { layout: 'ticket', duration: 4 }, { text: 'Welcome {{item}}, gifted by {{user}}!' }),
+    instance('alert', 'alerts', 'Gift welcome', { layout: 'ticket', duration: 4 }, { start: { text: 'Welcome {{item}}, gifted by {{user}}!' } }),
   ]),
 
   template('Starting soon', 'A Control Pad button shows the "Starting soon" scene with a 5-minute countdown, then switches to "Main".', [
     node('pad', 'deck', 0, 0, { buttons: [{ id: 'soon', icon: 'hourglass', name: 'Starting soon', color: '#9147ff' }] }),
     node('scene', 'obs-scene', 1, -1, { scene: 'Starting soon' }),
-    // The countdown is reset first, then started a second later (a Widget Action takes a step more to reach it).
-    node('zero', 'widget-action', 1, 0, { action: 'reset' }),
-    node('wait', 'delay', 1, 1),
-    widget('countdown', 2, 0.5),
+    // The countdown is reset first, then started a second later (at once, the start could come first).
+    node('wait', 'delay', 1, 0.5),
+    widget('countdown', 2, 0.5, ['reset']),
     node('main', 'obs-scene', 3, 0.5, { scene: 'Main' }),
-  ], links('pad:soon>scene', 'pad:soon>zero', 'pad:soon>wait', 'zero>countdown', 'wait>countdown', 'countdown>main'), [
-    instance('countdown', 'countdown', 'Starting soon', { text: 'Starting in {time}', ended: 'Starting now!' }, { mode: 'for', duration: '5:00' }),
+  ], links('pad:soon>scene', 'pad:soon>countdown:reset', 'pad:soon>wait', 'wait>countdown', 'countdown>main'), [
+    instance('countdown', 'countdown', 'Starting soon', { text: 'Starting in {time}', ended: 'Starting now!' }, { start: { mode: 'for', duration: '5:00' } }),
   ]),
 
   template('BRB + ad break', 'A Control Pad button warns chat, then runs a 90 s ad on the "BRB" scene, counting down, and switches back.', [
     node('pad', 'deck', 0, 0, { buttons: [{ id: 'brb', icon: 'coffee', name: 'BRB', color: '#ff7a00' }] }),
     node('warn', 'twitch-announce', 1, 0, { message: 'Quick break! Ads start in 30 seconds, back in about 2 minutes.', color: 'orange' }),
-    node('zero', 'widget-action', 1, 1, { action: 'reset' }), // the countdown from the last break, back to 1:30
     node('wait', 'delay', 2, 0, { seconds: 30 }),
     node('ad', 'twitch-ad', 3, -1, { length: 90 }),
     node('scene', 'obs-scene', 3, 0, { scene: 'BRB', back: 90 }),
-    widget('countdown', 3, 1),
-  ], links('pad:brb>warn', 'pad:brb>zero', 'zero>countdown', 'warn>wait', 'wait>ad', 'wait>scene', 'wait>countdown'), [
-    instance('countdown', 'countdown', 'Back in', { text: 'Back in {time}', ended: 'Back now!' }, { mode: 'for', duration: '1:30' }),
+    widget('countdown', 3, 1, ['reset']), // reset by the button: the countdown from the last break, back to 1:30
+  ], links('pad:brb>warn', 'pad:brb>countdown:reset', 'warn>wait', 'wait>ad', 'wait>scene', 'wait>countdown'), [
+    instance('countdown', 'countdown', 'Back in', { text: 'Back in {time}', ended: 'Back now!' }, { start: { mode: 'for', duration: '1:30' } }),
   ]),
 
   template('Going live', 'Going live sets the lights and posts the stream to a Discord webhook; ending turns the lights off.', [
@@ -180,11 +179,10 @@ export default [
   template('Chat poll', 'Mods start the poll with !poll; chat votes with !vote 1 or !vote yes; the result is announced.', [
     node('poll', 'chat-command', 0, 0, { command: '!poll', from: 'mod' }),
     node('vote', 'chat-command', 0, 1, { command: '!vote' }),
-    node('count', 'widget-action', 1, 1, { action: 'vote', input: { option: '{{args.0}}', user: '{{user}}' } }),
-    widget('voting', 2, 0),
+    widget('voting', 2, 0, ['vote']),
     node('result', 'twitch-announce', 3, 0, { message: 'Poll closed: {{winner}} wins ({{votes}} votes)' }),
-  ], links('poll>voting', 'vote>count', 'count>voting', 'voting>result'), [
-    instance('voting', 'voting', 'Chat poll', { title: 'Who wins?', options: ['Yes', 'No'], duration: 60 }),
+  ], links('poll>voting', 'vote>voting:vote', 'voting>result'), [
+    instance('voting', 'voting', 'Chat poll', { title: 'Who wins?', options: ['Yes', 'No'], duration: 60 }, { vote: { option: '{{args.0}}', user: '{{user}}' } }),
   ]),
 
   template('Channel points wheel', 'Redeeming "Spin the wheel" spins a wheel of challenges; spins wait their turn.', [
@@ -207,13 +205,11 @@ export default [
       { id: 'start', icon: 'player-play', name: 'Start', color: '#2f9e44' },
       { id: 'stop', icon: 'player-stop', name: 'Stop', color: '#e03131' },
     ] }),
-    node('start', 'widget-action', 1, -0.5, { action: 'start' }),
-    node('stop', 'widget-action', 1, 0.5),
-    node('chat', 'chat-message', 1, 1.5),
-    widget('plays', 2, 0.5),
-    node('keys', 'key-press', 3, 0.5, { keys: '{{keys}}' }),
-  ], links('pad:start>start', 'pad:stop>stop', 'start>plays', 'stop>plays', 'chat>plays', 'plays>keys'), [
-    instance('plays', 'twitch-plays', 'Twitch Plays', {}, { text: '{{message}}', user: '{{user}}' }, 'push'),
+    node('chat', 'chat-message', 0, -1), // above the pad: "push", its port, is the widget node's first
+    widget('plays', 1, 0, ['start', 'stop']),
+    node('keys', 'key-press', 2, 0, { keys: '{{keys}}' }),
+  ], links('pad:start>plays:start', 'pad:stop>plays:stop', 'chat>plays', 'plays>keys'), [
+    instance('plays', 'twitch-plays', 'Twitch Plays', {}, { push: { text: '{{message}}', user: '{{user}}' } }),
   ]),
 
   // Original
@@ -222,30 +218,32 @@ export default [
       { id: 'start', icon: 'player-play', name: 'Start', color: '#2f9e44' },
       { id: 'pause', icon: 'player-pause', name: 'Pause', color: '#ffb400' },
     ] }),
-    node('pause', 'widget-action', 1, 0.5),
-    node('sub', 'subscription', 0, 1.5),
-    node('subTime', 'widget-action', 1, 1.5, { action: 'add', input: { time: '+5m' } }),
-    node('cheer', 'cheer', 0, 2.5, { minBits: 100 }),
-    node('bitsTime', 'widget-action', 1, 2.5, { action: 'add', input: { time: '+{{ Math.floor(bits / 100) }}m' } }),
-    widget('countdown', 2, 0.5),
+    node('sub', 'subscription', 0, 1),
+    node('cheer', 'cheer', 0, 2, { minBits: 100 }),
+    // Each sets the time its trigger adds, for the countdown's add (its input: {{time}}).
+    node('subTime', 'edit-data', 1, 1, { values: [{ name: 'time', value: '+5m' }] }),
+    node('bitsTime', 'edit-data', 1, 2, { values: [{ name: 'time', value: '+{{ Math.floor(bits / 100) }}m' }] }),
+    widget('countdown', 2, 1, ['add', 'pause']),
     // Pause lets the workflow waiting on the countdown go on too: only its end is announced.
-    node('over', 'filter', 3, 0.5, { value: '{{remaining}}', operator: 'equals', compare: '0:00' }),
-    node('end', 'twitch-announce', 4, 0.5, { message: 'The subathon is over! Thank you all!', color: 'purple' }),
-  ], links('pad:start>countdown', 'pad:pause>pause', 'pause>countdown', 'sub>subTime', 'subTime>countdown', 'cheer>bitsTime',
-    'bitsTime>countdown', 'countdown>over', 'over>end'), [
-    instance('countdown', 'countdown', 'Subathon', { text: 'Subathon ends in {time}', ended: 'Subathon over!' }, { mode: 'for', duration: '4h' }),
+    node('over', 'filter', 3, 1, { value: '{{remaining}}', operator: 'equals', compare: '0:00' }),
+    node('end', 'twitch-announce', 4, 1, { message: 'The subathon is over! Thank you all!', color: 'purple' }),
+  ], links('pad:start>countdown', 'pad:pause>countdown:pause', 'sub>subTime', 'cheer>bitsTime', 'subTime>countdown:add', 'bitsTime>countdown:add',
+    'countdown>over', 'over>end'), [
+    instance('countdown', 'countdown', 'Subathon', { text: 'Subathon ends in {time}', ended: 'Subathon over!' }, {
+      start: { mode: 'for', duration: '4h' },
+      add: { time: '{{time}}' },
+    }),
   ]),
 
   template('Hype Train mood', 'A Hype Train pulses the lights and shows its level; its end celebrates in gold and in chat.', [
     node('train', 'hype-train', 0, 0),
     node('phase', 'switch', 1, 0, { value: '{{phase}}', cases: ['begin', 'progress', 'end'] }),
     node('pulse', 'hue', 2, -1, { mode: 'routine', steps: [...pulse('#9147ff', 600), ...pulse('#ff4f8b', 600)], loop: 'times', times: 10 }),
-    widget('label', 3, 0),
-    node('hide', 'widget-action', 2, 1),
+    widget('label', 3, 0, ['stop']),
     node('gold', 'hue', 2, 2, { mode: 'routine', steps: pulse('#ffb400', 400), loop: 'times', times: 5 }),
     node('thanks', 'twitch-announce', 2, 3, { message: 'The Hype Train reached level {{level}}! Top conductor: {{top}}. Thank you all!', color: 'purple' }),
-  ], links('train>phase', 'phase:1>pulse', 'phase:1>label', 'phase:2>label', 'phase:3>hide', 'hide>label', 'phase:3>gold', 'phase:3>thanks'), [
-    instance('label', 'label', 'Hype Train', {}, { text: 'Hype Train level {{level}}: {{ Math.round(progress / goal * 100) || 0 }}%' }),
+  ], links('train>phase', 'phase:1>pulse', 'phase:1>label', 'phase:2>label', 'phase:3>label:stop', 'phase:3>gold', 'phase:3>thanks'), [
+    instance('label', 'label', 'Hype Train', {}, { start: { text: 'Hype Train level {{level}}: {{ Math.round(progress / goal * 100) || 0 }}%' } }),
   ]),
 
   template('Chat guard', 'Deletes bad words, and links from viewers who have followed for less than a week (with a 60 s timeout).', [
