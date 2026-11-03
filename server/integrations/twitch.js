@@ -24,15 +24,41 @@ export const sentBy = new Map()
 // mode and guestChannel are the settings; channel is the chat being read.
 export const status = { mode: 'guest', guestChannel: '', channel: '', connected: false }
 
+// The data keys of a chat message (both chat triggers' adds), for the { } menu.
+export const chatKeys = {
+  user: 'Display name of who wrote it',
+  message: 'The message, as typed',
+  channel: 'Channel it was sent in (login)',
+  messageId: 'Its id, to reply to it or delete it',
+  login: "Author's login (lowercase name)",
+  userId: "Author's Twitch user id",
+  userColor: "Author's name color, e.g. #1E90FF",
+  timestamp: 'When it was sent (ms since 1970)',
+  broadcaster: 'true if the streamer wrote it',
+  mod: 'true if a mod wrote it',
+  vip: 'true if a VIP wrote it',
+  sub: 'true if a sub wrote it',
+  subMonths: 'Months the author has been subbed',
+  firstMessage: "true for the author's first message ever here",
+  returningChatter: 'true for a returning chatter',
+  emotes: 'The emotes used, as a list of names',
+  meAction: 'true for a /me message',
+  highlighted: 'true for a highlighted message (channel points)',
+  rewardId: 'The channel points reward that sent it, if any',
+  replyToId: 'Id of the message it replies to',
+  replyToUser: 'Who that message was from',
+  replyToMessage: 'That message',
+}
+
 // A chat trigger's manual firing (its bolt): a chat message as tmi.js gives it, from the user and role picked
 // (your channel, {{ $vars.channel }}, when empty). testRoles are the roles to pick from.
 export const testRoles = [{ value: 'everyone', label: 'Viewer' }, { value: 'sub', label: 'Sub' }, { value: 'vip', label: 'VIP' }, { value: 'mod', label: 'Mod' }, { value: 'broadcaster', label: 'Streamer' }]
 export function testChat({ user, role, message, firstMessage = false }) {
   user = user.trim() || vars.channel || ''
   return {
-    user, login: user.toLowerCase(), channel: status.channel, message, messageId: '', userId: '', color: '', timestamp: Date.now(),
+    user, login: user.toLowerCase(), channel: status.channel, message, messageId: '', userId: '', userColor: '', timestamp: Date.now(),
     broadcaster: role === 'broadcaster', mod: role === 'mod', vip: role === 'vip', sub: role === 'sub', subMonths: role === 'sub' ? 1 : 0,
-    firstMessage, returning: false, emotes: [], action: false, highlighted: false, rewardId: '', replyToId: '', replyToUser: '', replyToMessage: '',
+    firstMessage, returningChatter: false, emotes: [], meAction: false, highlighted: false, rewardId: '', replyToId: '', replyToUser: '', replyToMessage: '',
   }
 }
 
@@ -77,11 +103,11 @@ async function connect(channel) {
     const emotes = Object.values(tags.emotes ?? {}).flat().map((range) => { const [from, to] = range.split('-'); return message.slice(from, Number(to) + 1) })
     bus.emit('chat', {
       user: tags['display-name'] || tags.username, message, channel: chan.slice(1), messageId: tags.id,
-      login: tags.username, userId: tags['user-id'], color: tags.color, timestamp: Number(tags['tmi-sent-ts']),
+      login: tags.username, userId: tags['user-id'], userColor: tags.color ?? '', timestamp: Number(tags['tmi-sent-ts']),
       broadcaster: 'broadcaster' in badges, mod: !!tags.mod, vip: 'vip' in badges, sub: !!tags.subscriber,
       subMonths: Number(tags['badge-info']?.subscriber) || 0,
-      firstMessage: tags['first-msg'] === '1', returning: tags['returning-chatter'] === '1',
-      emotes, action: tags['message-type'] === 'action', highlighted: tags['msg-id'] === 'highlighted-message', rewardId: tags['custom-reward-id'] ?? '',
+      firstMessage: tags['first-msg'] === '1', returningChatter: tags['returning-chatter'] === '1',
+      emotes, meAction: tags['message-type'] === 'action', highlighted: tags['msg-id'] === 'highlighted-message', rewardId: tags['custom-reward-id'] ?? '',
       replyToId: tags['reply-parent-msg-id'] ?? '', replyToUser: tags['reply-parent-display-name'] ?? '', replyToMessage: tags['reply-parent-msg-body'] ?? '',
     })
   })

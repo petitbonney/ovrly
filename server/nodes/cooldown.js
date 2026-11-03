@@ -1,5 +1,5 @@
 // Logic: lets data through, then blocks for a while; optionally also per value of a data key (e.g. per viewer).
-// Blocked data goes to "blocked" with {{remaining}} seconds, e.g. to reply "on cooldown". Cooldowns live in memory:
+// Blocked data goes to "blocked" with {{cooldownLeft}} seconds, e.g. to reply "on cooldown". Cooldowns live in memory:
 // they reset when the server restarts. Its settings show the cooldowns running (`live`), each with a cross to drop it.
 const cooldowns = {} // node id -> { until: time it lets data through again, keys: { [key value]: same, for that value } }
 
@@ -17,14 +17,14 @@ export default {
     keySeconds: { label: 'Cooldown per key', unit: 's', presets: [5, 10, 30, 60, 300], only: { byKey: true } },
   },
   outputs: ['pass', 'blocked'],
-  adds: ['remaining'],
+  adds: { cooldownLeft: 'Seconds until it lets through again (on blocked)' },
   config: { seconds: 30, byKey: false, key: 'user', keySeconds: 60 },
   run({ config, data, id }) {
     const c = (cooldowns[id] ??= { until: 0, keys: {} })
     const value = config.byKey ? data[config.key] : undefined
     const keyed = value != null && value !== ''
     const left = Math.max(c.until, keyed ? c.keys[value] ?? 0 : 0) - Date.now()
-    if (left > 0) return { blocked: { ...data, remaining: Math.ceil(left / 1000) } }
+    if (left > 0) return { blocked: { ...data, cooldownLeft: Math.ceil(left / 1000) } }
     c.until = Date.now() + config.seconds * 1000
     if (keyed) c.keys[value] = Date.now() + config.keySeconds * 1000
     return { pass: data }

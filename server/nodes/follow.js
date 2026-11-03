@@ -7,7 +7,7 @@ export default {
   group: 'Twitch',
   needs: ['twitch'],
   description: 'Fires when someone follows the channel.',
-  adds: ['user'],
+  adds: { user: 'Who followed' },
   event: 'channel.follow',
   config: {},
   manual: { config: { user: '{{ $vars.channel }}' }, event: ({ user }) => ({ data: { user_name: user } }) },

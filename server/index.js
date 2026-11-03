@@ -177,7 +177,7 @@ app.post('/api/stop', async (req, res) => {
 // API call trigger: any request to /hooks/<path> fires the matching nodes; the query and JSON body become data.
 // /hooks/<path>/<button> is a Control Pad node's button (path "<path>/<button>", which no API Call node matches).
 app.all('/hooks/:path{/:button}', (req, res) => {
-  bus.emit('webhook', { ...req.query, ...req.body, path: [req.params.path, req.params.button].filter(Boolean).join('/') })
+  bus.emit('webhook', { ...req.query, ...req.body, hookPath: [req.params.path, req.params.button].filter(Boolean).join('/') })
   res.sendStatus(204)
 })
 

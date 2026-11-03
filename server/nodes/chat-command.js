@@ -1,6 +1,6 @@
 // Trigger: fires on a chat message starting with one of its commands, e.g. "!spin red", from viewers of at least the
 // role set. Adds { command (as typed), args }.
-import { sentBy, testChat, testRoles } from '../integrations/twitch.js'
+import { chatKeys, sentBy, testChat, testRoles } from '../integrations/twitch.js'
 
 // Each role includes those above it, as in chat bots: VIPs also lets mods and the streamer in.
 const roles = ['everyone', 'sub', 'vip', 'mod', 'broadcaster']
@@ -12,7 +12,7 @@ export default {
   needs: ['chat'],
   group: 'Chat',
   description: 'Fires when a chat message starts with a command, e.g. "!spin red".',
-  adds: ['user', 'message', 'channel', 'messageId', 'login', 'userId', 'color', 'timestamp', 'broadcaster', 'mod', 'vip', 'sub', 'subMonths', 'firstMessage', 'returning', 'emotes', 'action', 'highlighted', 'rewardId', 'replyToId', 'replyToUser', 'replyToMessage', 'command', 'args'],
+  adds: { ...chatKeys, command: 'The command, as typed, e.g. !spin', args: 'The words after it, a list: {{args.0}} is the first' },
   fields: {
     command: { type: 'tags', hint: 'One or more, with or without the "!", e.g. !spin, wheel' },
     from: {

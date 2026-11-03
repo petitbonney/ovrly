@@ -45,7 +45,7 @@ The node waits until what it started has stopped:
 - `retime: true` works `playTime` out again for the runs playing after each change, for an end that moves (Countdown's `add`).
 - `stopTime({ state, runtime })` (ms, 0 by default): after "stop", the workflow goes on once the outro has played.
 - An action arriving while another plays replaces it (that run stops there), unless `queues(action, snap)` says so (alerts in some layouts, votes while a vote is open): then both play. `over(snap)` ends what plays early, as stopped (a vote closed on Twitch).
-- `output({ state, runtime })` gives data back to the workflow once it has stopped, e.g. `{ winner: 'Red' }`, and `adds: ['winner']` lists those keys for the `{ }` menu.
+- `output({ state, runtime })` gives data back to the workflow once it has stopped, e.g. `{ winner: 'Red' }`, and `adds: { winner: 'The option drawn' }` lists those keys, with what they hold, for the `{ }` menu.
 - `on: { 'channel.poll.progress': (snap, data) => ({ runtime }) }` updates its widgets from bus events, such as Twitch EventSub notifications.
 
 ## The page

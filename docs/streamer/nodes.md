@@ -13,12 +13,12 @@ A workflow starts at a trigger. Its **⚡** fires it by hand, to try the workflo
 | Chat Message | any chat message | chat |
 | Channel Points | a viewer redeems a channel points reward | Twitch |
 | Follow | someone follows the channel | Twitch |
-| Subscription | someone gets a sub: new, resub or gifted (`kind` says which) | chat |
+| Subscription | someone gets a sub: new, resub or gifted (`subKind` says which) | chat |
 | Raid | another channel raids yours | chat |
 | Cheer | someone cheers bits | chat |
 | Gift Subs | someone gifts subs, once, with how many and to whom | chat |
 | Hype Train | a Hype Train starts, moves on or ends | Twitch |
-| Stream On/Off | the stream goes live or ends (`status` says which) | Twitch |
+| Stream On/Off | the stream goes live or ends (`streamStatus` says which) | Twitch |
 | Schedule | every so often, while the workflow is on | |
 | API Call | a request reaches `http://localhost:6875/hooks/<path>`; its query and JSON body become data | |
 | Control Pad | a button is pressed: a [Stream Deck](./stream-deck) key, or a URL per button for Companion | |
@@ -39,12 +39,12 @@ Subs, gift subs, cheers and raids work in Guest mode too, from what chat announc
 | Queue | Runs what follows one firing at a time; the next wait in line. Its settings show the line. |
 | Wait For All | Continues once every incoming link has delivered, with their data merged. Force or Cancel from its settings. |
 | Fan Out | Runs what follows once per item of a list, e.g. a gift's recipients. |
-| Fan In | Collects firings into one `{{items}}` list with `{{count}}`, released after a duration, a quiet period or a limit. Optionally one entry per key, e.g. `!join` sign-ups. |
+| Fan In | Collects firings into one `{{items}}` list with `{{itemCount}}`, released after a duration, a quiet period or a limit. Optionally one entry per key, e.g. `!join` sign-ups. |
 | Pipe | Passes its input on unchanged (to tidy up links). |
 | Execute Workflow | Runs another workflow (from its Called By Workflow trigger) and waits for its result. |
 | Edit Data | Adds or overwrites data keys, for this run only. |
 | Map Value | Replaces a key's value using a "from" → "to" list. |
-| Word Filter | Masks the [bad words](./data#bad-words) in a key's text, or stops; adds `{{censored}}` and `{{badWords}}`. |
+| Word Filter | Masks the [bad words](./data#bad-words) in a key's text, or stops; adds `{{hasBadWords}}` and `{{badWordCount}}`. |
 | Edit Variable | Sets, adds to or deletes a [variable](./data#variables). |
 | Code | Runs JavaScript on the data; its live column tests it on a recent input. |
 
@@ -56,7 +56,7 @@ Subs, gift subs, cheers and raids work in Guest mode too, from what chat announc
 | HTTP Request | Sends an HTTP request, e.g. a Discord webhook. | |
 | WebSocket Send | Opens a WebSocket, sends one message, then closes. | |
 | Log | Prints the data to the events view, and shows the last one in its settings. Listed in [developer mode](./editor#developer-mode) only. | |
-| GIPHY | Finds a GIF, sticker or clip and adds its URL (`{{gif}}`, `{{sticker}}`, `{{clip}}`). | [Giphy](./hue-giphy#giphy) |
+| GIPHY | Finds a GIF, sticker or clip and adds its URL as `{{giphyUrl}}`. | [Giphy](./hue-giphy#giphy) |
 | MyInstants | Finds a sound on Myinstants and adds its URL as `{{sound}}`. | |
 | Text-to-Speech | Speaks a text in a language and voice, and adds the sound as `{{sound}}`. | [Text-to-Speech](./hue-giphy#text-to-speech) |
 | Hue Lights | Toggles, sets or turns off lights, or plays a routine of colors. | [Hue](./hue-giphy#philips-hue) |

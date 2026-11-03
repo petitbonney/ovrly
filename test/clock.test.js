@@ -38,16 +38,16 @@ test('the clock: auto shows hours only when there are some; a countdown rounds u
 test('countdown: before its start, it shows what its Start is set to; the start run ends at 0, later for added time', async (t) => {
   clock0(t)
   const { id } = await create('countdown', { input: { start: { duration: '1m' } } })
-  assert.equal(types.countdown.output(await read(id)).remaining, '1:00')
+  assert.equal(types.countdown.output(await read(id)).countdownLeft, '1:00')
   const { done } = await update(id, { action: 'start', input: { mode: 'for', duration: '1m' } })
   await update(id, { action: 'add', input: { time: '+30s' } })
   t.mock.timers.tick(60_000)
   assert.equal(await settled(done), false)
   await update(id, { action: 'add', input: { time: '-10s' } })
-  assert.equal(types.countdown.output(await read(id)).remaining, '0:20')
+  assert.equal(types.countdown.output(await read(id)).countdownLeft, '0:20')
   t.mock.timers.tick(20_000)
   assert.equal(await done, true)
-  assert.equal(types.countdown.output(await read(id)).remaining, '0:00')
+  assert.equal(types.countdown.output(await read(id)).countdownLeft, '0:00')
 })
 
 test('countdown: start only from before its start or paused: counting or over, it does nothing until reset', async (t) => {
@@ -59,7 +59,7 @@ test('countdown: start only from before its start or paused: counting or over, i
   await update(id, { action: 'add', input: { time: '-3h' } }) // all of it: over
   assert.equal(await (await update(id, { action: 'start', input: { duration: '5:00' } })).done, false)
   await update(id, { action: 'reset' })
-  assert.equal(types.countdown.output(await read(id)).remaining, '5:00') // Start's default
+  assert.equal(types.countdown.output(await read(id)).countdownLeft, '5:00') // Start's default
   await assert.rejects(update(id, { action: 'start', input: { mode: 'for', duration: 'soon' } }), /isn't a duration/)
   await assert.rejects(update(id, { action: 'add', input: { time: '+lots' } }), /isn't a duration/)
   assert.equal(await (await update(id, { action: 'add', input: { time: '30s' } })).done, false) // nothing to add to
@@ -76,7 +76,7 @@ test('countdown: pause (Stop) holds it and the workflow goes on; start resumes; 
   assert.deepEqual([(await read(id)).state.end, (await read(id)).state.left], [0, 45_000])
   const second = await update(id, { action: 'start', input: { duration: '1h' } })
   t.mock.timers.tick(5_000)
-  assert.equal(types.countdown.output(await read(id)).remaining, '0:40')
+  assert.equal(types.countdown.output(await read(id)).countdownLeft, '0:40')
   await update(id, { action: 'onCancel' })
   t.mock.timers.tick(0)
   assert.equal(await second.done, false)
@@ -91,15 +91,15 @@ test('timer: start from 0 or paused only, pause (Stop) holds it, reset (Cancel) 
   t.mock.timers.tick(65_000)
   await update(id, { action: 'onStop' })
   t.mock.timers.tick(10_000)
-  assert.deepEqual(await elapsed(), { elapsed: '1:05', seconds: 65 })
+  assert.deepEqual(await elapsed(), { timerElapsed: '1:05', timerSeconds: 65 })
   await update(id, { action: 'start' })
   t.mock.timers.tick(5_000)
   assert.equal(await (await update(id, { action: 'start' })).done, false) // counting already: nothing
-  assert.deepEqual(await elapsed(), { elapsed: '1:10', seconds: 70 })
+  assert.deepEqual(await elapsed(), { timerElapsed: '1:10', timerSeconds: 70 })
   await update(id, { action: 'onCancel' })
   t.mock.timers.tick(3_000)
-  assert.equal((await elapsed()).seconds, 0)
+  assert.equal((await elapsed()).timerSeconds, 0)
   await update(id, { action: 'start' })
   t.mock.timers.tick(3_000)
-  assert.equal((await elapsed()).seconds, 3)
+  assert.equal((await elapsed()).timerSeconds, 3)
 })

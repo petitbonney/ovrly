@@ -13,7 +13,7 @@ import Settings, { StatusIcon, integrations, requirements, unmet, useStatuses } 
 import Heading from './Heading.jsx'
 import { colors, withIcon } from './FlowNode.jsx'
 import { graphOnly } from './chain.js'
-import templates from './templates.js'
+import templates, { arranged } from './templates.js'
 import { importBundle, importFile } from './share.js'
 import { get, json } from './api.js'
 // The wordmark, kept with the docs' (light and dark versions).
@@ -221,8 +221,8 @@ function Choice({ title, description, icon: Icon, onClick }) {
 }
 
 // "New workflow" modal: blank or imported from a JSON file side by side, then the templates (if any) in two columns. Calls onDone
-// with { kind, id }.
-function NewWorkflow({ opened, onDone, onClose }) {
+// with { kind, id }. defs: node types, to arrange templates.
+function NewWorkflow({ defs, opened, onDone, onClose }) {
   const blank = { workflows: [{ name: 'New workflow', nodes: [], edges: [], view: 'basic' }] }
   return (
     <Modal opened={opened} onClose={onClose} title="New workflow" size="xl">
@@ -239,7 +239,7 @@ function NewWorkflow({ opened, onDone, onClose }) {
             <ScrollArea.Autosize mah="calc(100dvh - 20rem)" offsetScrollbars>
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
                 {templates.map((t) => (
-                  <Choice key={t.name} title={t.name} description={t.description} onClick={() => importBundle(t).then(onDone)} />
+                  <Choice key={t.name} title={t.name} description={t.description} onClick={() => importBundle(arranged(t, defs)).then(onDone)} />
                 ))}
               </SimpleGrid>
             </ScrollArea.Autosize>
@@ -490,7 +490,7 @@ export default function App({ theme, onTheme }) {
         opened={settings.opened} item={settings.item} onItem={(item) => setSettings({ opened: true, item })} onClose={() => setSettings((s) => ({ ...s, opened: false }))}
         statuses={statuses} setStatus={setStatus} theme={theme} onTheme={onTheme}
       />
-      <NewWorkflow opened={modal} onDone={onCreate} onClose={() => setModal(false)} />
+      <NewWorkflow defs={defs} opened={modal} onDone={onCreate} onClose={() => setModal(false)} />
     </AppShell>
   )
 }

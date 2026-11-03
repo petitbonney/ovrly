@@ -1,5 +1,5 @@
 // Trigger: fires when another channel raids this one. From EventSub in Streamer mode, from chat otherwise.
-// data = { user (the raiding channel), viewers }.
+// data = { user (the raiding channel), raidViewers }.
 export default {
   type: 'raid',
   label: 'Raid',
@@ -8,7 +8,7 @@ export default {
   needs: ['chat'],
   group: 'Twitch',
   description: 'Fires when another channel raids this one.',
-  adds: ['user', 'viewers'],
+  adds: { user: 'The raiding channel', raidViewers: 'Viewers they brought' },
   fields: { minViewers: { label: 'Minimum viewers', presets: [1, 3, 10, 25, 50] } },
   event: 'channel.raid',
   config: { minViewers: 1 },
@@ -19,6 +19,6 @@ export default {
   },
   run({ config, data }) {
     if (data.viewers < Number(config.minViewers)) return null
-    return { user: data.from_broadcaster_user_name, viewers: data.viewers }
+    return { user: data.from_broadcaster_user_name, raidViewers: data.viewers }
   },
 }

@@ -39,11 +39,11 @@ A text that stays on screen until it changes or stops: the last follower, the cu
 A clock as a text around `{time}`, e.g. `Starting in {time}`, in any Google Fonts family. Its format: **Auto** (`1:05:03`, then `4:59`), `hh:mm:ss` or `mm:ss`. Both stay on screen (hide them in OBS) and go on across a restart of Ovrly. Their Stop pauses them, their Cancel resets them, and Start only starts one that is paused or reset.
 
 - **Countdown**: Start counts down **for** a duration (`5m`, `1h30m`, `1:30`, or `{{args}}` from a chat command) or **until** a time of day (`20:00`, `8pm`); before that, it shows that time. The workflow goes on once it reaches 0, when the **ended text** shows instead (e.g. `Starting now!`; empty, `0:00` stays). `add` adds time or takes some off (`+30s` per sub for a subathon, `-1m`), and its end follows. **Pause** holds it, and the workflow waiting on it goes on; **Reset** brings it back to before its start, and that workflow stops there. The last 10 seconds beat (**Pulse**). It outputs `{{remaining}}`.
-- **Timer**: counts up from 0, for a speedrun or a challenge, like a stopwatch: **Pause** holds it, **Reset** stops it at 0. The workflow goes on at once. Every action outputs `{{elapsed}}` (as shown) and `{{seconds}}`, e.g. for a `!time` command to answer in chat.
+- **Timer**: counts up from 0, for a speedrun or a challenge, like a stopwatch: **Pause** holds it, **Reset** stops it at 0. The workflow goes on at once. Every action outputs `{{timerElapsed}}` (as shown) and `{{timerSeconds}}`, e.g. for a `!time` command to answer in chat.
 
 ### Image/GIF, Sound, Video
 
-Show an image or GIF, play a sound, or play a short video (mp4 or webm), then fade out. Each takes a file on disk (**Browse files**), a URL, or a URL from an earlier node, e.g. `{{gif}}` from GIPHY or `{{sound}}` from MyInstants. Sound and video have a max duration and a volume.
+Show an image or GIF, play a sound, or play a short video (mp4 or webm), then fade out. Each takes a file on disk (**Browse files**), a URL, or a URL from an earlier node, e.g. `{{giphyUrl}}` from GIPHY or `{{sound}}` from MyInstants. Sound and video have a max duration and a volume.
 
 ::: tip Sound in OBS
 Tick **Control audio via OBS** on the browser source, so the sound reaches your stream.
@@ -58,7 +58,7 @@ A **poll** (the most voted option leads) or a **prediction** (viewers bet, then 
 - **Chat** mode: viewers vote through the `vote` action, e.g. `!vote 2` or `!vote red`, one vote per viewer. Works in Guest or Streamer mode.
 - **Twitch** mode (Streamer mode, Affiliates and Partners): a native Twitch poll or prediction with channel points, its results live.
 
-It outputs `{{winner}}`, `{{votes}}` and `{{winners}}` (who bet right).
+It outputs `{{winner}}`, `{{voteCount}}` and `{{voteWinners}}` (who bet right).
 
 ### Lottery, Roulette, Dice Roll
 
@@ -71,7 +71,7 @@ They draw a `{{winner}}`:
 
 ### TwitchPlays
 
-Turns chat into key presses through a list of keys and the commands that press them (`Up` ← `up`, `u`; any of a row's commands); a Key Press node set to `{{keys}}` presses them. **Anarchy** passes on every command; **democracy** counts one vote per viewer in rounds, and passes on each round's winner. The overlay fits its source: anarchy lists as many of the latest commands as fit, democracy shrinks its vote so every command shows. Use Key Press's "Only when focused" so keys only reach the game window.
+Turns chat into key presses through a list of keys and the commands that press them (`Up` ← `up`, `u`; any of a row's commands); a Key Press node set to `{{playsKeys}}` presses them. **Anarchy** passes on every command; **democracy** counts one vote per viewer in rounds, and passes on each round's winner. The overlay fits its source: anarchy lists as many of the latest commands as fit, democracy shrinks its vote so every command shows. Use Key Press's "Only when focused" so keys only reach the game window.
 
 ## Merge Widgets
 

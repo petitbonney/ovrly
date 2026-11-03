@@ -1,5 +1,5 @@
 // Action: presses a key combo on this machine via nut.js, e.g. "LeftControl+F1" (names from nut.js Key enum), or keys
-// from data ("{{keys}}" after a TwitchPlays widget). With a window set, presses only while that window is focused.
+// from data ("{{playsKeys}}" after a TwitchPlays widget). With a window set, presses only while that window is focused.
 // Keys are held a while: games that read input once a frame miss shorter taps. macOS: the terminal running Ovrly needs
 // the Accessibility permission.
 import { keyboard, Key } from '@nut-tree-fork/nut-js'
@@ -19,7 +19,7 @@ export default {
     keys: {
       type: 'tags',
       options: Object.keys(Key).filter((k) => isNaN(k)), // the enum also maps numbers back to names
-      hint: 'Pressed together, e.g. LeftControl + F1, or {{keys}} from data',
+      hint: 'Pressed together, e.g. LeftControl + F1, or {{playsKeys}} from data',
       info: process.platform === 'darwin' ? 'macOS needs the Accessibility permission (System Settings → Privacy & Security).' : undefined,
     },
     window: { type: 'window', label: 'Only when focused', hint: 'An app or window (or part of its name); empty: any' },
@@ -32,7 +32,7 @@ export default {
       if (typeof key !== 'number') throw new Error(`Unknown key: ${name}`)
       return key
     })
-    if (!keys.length) return null // e.g. {{keys}} with nothing in data
+    if (!keys.length) return null // e.g. {{playsKeys}} with nothing in data
     if (config.window && !(await focused()).toLowerCase().includes(config.window.toLowerCase())) return null // not focused: skip
     await keyboard.pressKey(...keys)
     await new Promise((resolve) => setTimeout(resolve, config.hold))

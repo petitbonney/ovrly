@@ -15,7 +15,8 @@ export default {
   needs: ['chat'],
   group: 'Twitch',
   description: 'Fires when someone receives a sub: new, resub or gifted; "kind" says which.',
-  adds: ['kind', 'user', 'tier', 'months', 'streak', 'message'],
+  adds: { subKind: 'sub, resub or gifted', user: 'Who got the sub', subTier: 'Tier: 1, 2 or 3', subMonths: 'Months subbed in all (resub)',
+    subStreak: 'Months in a row, if shared (resub)', message: 'Their message (resub)' },
   fields: { kinds: { label: 'Fires on', options: kinds } },
   event: ['channel.subscribe', 'channel.subscription.message'],
   config: { kinds: ['sub', 'resub', 'gifted'] },
@@ -34,7 +35,7 @@ export default {
   run({ config, data, event }) {
     const kind = event === 'channel.subscription.message' ? 'resub' : data.is_gift ? 'gifted' : 'sub'
     if (!config.kinds.includes(kind)) return null
-    return { kind, user: data.user_name, tier: Number(data.tier) / 1000 || 1, months: data.cumulative_months ?? '',
-      streak: data.streak_months ?? '', message: data.message?.text ?? '' }
+    return { subKind: kind, user: data.user_name, subTier: Number(data.tier) / 1000 || 1, subMonths: data.cumulative_months ?? '',
+      subStreak: data.streak_months ?? '', message: data.message?.text ?? '' }
   },
 }

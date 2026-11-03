@@ -8,7 +8,7 @@ export default {
   needs: ['chat'],
   group: 'Twitch',
   description: 'Fires when someone cheers bits.',
-  adds: ['user', 'bits', 'message'],
+  adds: { user: 'Who cheered (Anonymous when hidden)', bits: 'Bits cheered', message: 'Their message' },
   fields: { minBits: { label: 'Minimum bits', presets: [1, 100, 500, 1000, 5000] } },
   event: 'channel.cheer',
   config: { minBits: 1 },

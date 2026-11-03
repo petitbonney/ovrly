@@ -1,5 +1,5 @@
 // Trigger: fires when a Hype Train starts, moves on or ends (Twitch EventSub, Streamer mode).
-// data = { phase: begin | progress | end, level, total, progress, goal, top (top contributor) }.
+// data = { hypePhase: begin | progress | end, hypeLevel, hypeTotal, hypeProgress, hypeGoal, hypeTopUser }.
 export default {
   type: 'hype-train',
   label: 'Hype Train',
@@ -8,7 +8,8 @@ export default {
   group: 'Twitch',
   needs: ['twitch'],
   description: 'Fires when a Hype Train starts, moves on or ends.',
-  adds: ['phase', 'level', 'total', 'progress', 'goal', 'top'],
+  adds: { hypePhase: 'begin, progress or end', hypeLevel: 'Its level', hypeTotal: 'Points in all', hypeProgress: 'Points toward this level',
+    hypeGoal: 'Points this level needs', hypeTopUser: 'Top contributor' },
   fields: { phase: { options: ['any', 'begin', 'progress', 'end'] } },
   event: ['channel.hype_train.begin', 'channel.hype_train.progress', 'channel.hype_train.end'],
   config: { phase: 'any' },
@@ -24,7 +25,7 @@ export default {
     const phase = event.split('.')[2]
     if (config.phase !== 'any' && config.phase !== phase) return null
     const top = [...(data.top_contributions ?? [])].sort((a, b) => b.total - a.total)[0]
-    return { phase, level: data.level, total: data.total, progress: data.progress ?? '', goal: data.goal ?? '',
-      top: top?.user_name ?? '' }
+    return { hypePhase: phase, hypeLevel: data.level, hypeTotal: data.total, hypeProgress: data.progress ?? '', hypeGoal: data.goal ?? '',
+      hypeTopUser: top?.user_name ?? '' }
   },
 }

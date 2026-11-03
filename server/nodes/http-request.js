@@ -1,5 +1,5 @@
-// Action: sends an HTTP request ({{key}} placeholders filled from data). Adds { status, response, json } (json: the
-// response parsed, if it is JSON, e.g. {{json.items.0.name}}). Each request is
+// Action: sends an HTTP request ({{key}} placeholders filled from data). Adds { httpStatus, httpBody, httpJson } (httpJson:
+// the response parsed, if it is JSON, e.g. {{httpJson.items.0.name}}). Each request is
 // recorded as an `http-request` event (GET /api/events).
 import { fill, fillJson, fillUrl } from '../template.js'
 import { record } from '../bus.js'
@@ -12,7 +12,7 @@ export default {
   group: 'System',
   play: true,
   description: 'Sends an HTTP request.',
-  adds: ['status', 'response', 'json'],
+  adds: { httpStatus: 'Status code, e.g. 200', httpBody: 'The response, as text', httpJson: 'The response parsed, if JSON, e.g. {{httpJson.items.0.name}}' },
   fields: {
     method: { options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] },
     url: { label: 'URL', vars: true },
@@ -40,6 +40,6 @@ export default {
     const response = await res.text()
     let json
     try { json = JSON.parse(response) } catch {}
-    return { ...data, status: res.status, response, json }
+    return { ...data, httpStatus: res.status, httpBody: response, httpJson: json }
   },
 }

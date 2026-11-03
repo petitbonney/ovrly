@@ -11,7 +11,7 @@ When a trigger fires, it starts a **run** with some **data**: a Chat !command gi
 
 ### Bad words
 
-A **Word Filter** node checks a key's text (`message` by default) before a Text-to-Speech node reads it or a widget shows it. It masks each bad word (`f***`, `****` or a text of yours) or stops the run, and adds `{{censored}}` (true or false) and `{{badWords}}` (how many) for an If / Else after it, e.g. to time the viewer out.
+A **Word Filter** node checks a key's text (`message` by default) before a Text-to-Speech node reads it or a widget shows it. It masks each bad word (`f***`, `****` or a text of yours) or stops the run, and adds `{{hasBadWords}}` (true or false) and `{{badWordCount}}` (how many) for an If / Else after it, e.g. to time the viewer out.
 
 - **Word lists**: pick as many languages as you like (28, from the [LDNOOBW](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) lists, CC BY 4.0); they're used together. Each is downloaded once, when the workflow is saved with it.
 - **Extra words** adds your own, **Allowed words** keeps some unmasked: a word bad in one language can be ordinary in another (French *con* is Spanish for "with").
@@ -32,12 +32,12 @@ Any text setting takes `{{ ... }}`:
 | --- | --- |
 | `{{user}}` | a data key |
 | `{{args.0}}` | the first word after the command |
-| `{{json.items.0.name}}` | a path into nested data |
+| `{{httpJson.items.0.name}}` | a path into nested data |
 | `{{$vars.score}}` | a variable |
-| `{{$node.http-request.status}}` | the output of an earlier node, by its type or id |
+| `{{$node.http-request.httpStatus}}` | the output of an earlier node, by its type or id |
 | `{{ score * 2 }}` | a JavaScript expression |
 
-The **{ }** menu in a setting lists the keys the earlier nodes add.
+The **{ }** menu in a setting lists the keys the earlier nodes add, under each node's name, with what each holds (e.g. `{{user}} – Display name of who wrote it`). Keys are named after what they come from (`raidViewers`, `subTier`, `httpStatus`), so a later node doesn't overwrite an earlier one's.
 
 ::: danger Only import workflows you trust
 Expressions and the Code node run as code on your computer.

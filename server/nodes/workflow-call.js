@@ -4,7 +4,7 @@ export default {
   label: 'Called By Workflow',
   icon: 'arrow-bar-to-right',
   category: 'trigger',
-  group: 'Other',
+  group: 'System',
   description: 'Fires when another workflow runs this one (Execute Workflow node).',
   event: 'call',
   fields: { id: { type: 'id', label: 'ID', hint: 'Execute Workflow nodes pick it by this name' } },

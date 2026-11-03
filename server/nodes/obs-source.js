@@ -1,4 +1,4 @@
-// Action: shows, hides or toggles a source in an OBS scene, through the OBS integration (sidebar). Adds { visible }.
+// Action: shows, hides or toggles a source in an OBS scene, through the OBS integration (sidebar). Adds { sourceVisible }.
 import { request } from '../integrations/obs.js'
 import { fill } from '../template.js'
 
@@ -11,7 +11,7 @@ export default {
   play: true,
   needs: ['obs'],
   description: 'Shows, hides or toggles a source in an OBS scene.',
-  adds: ['visible'],
+  adds: { sourceVisible: 'true if the source shows now' },
   fields: {
     scene: { vars: true, obs: 'scenes' },
     source: { vars: true, obs: 'sources' }, // the sources of the scene above
@@ -24,6 +24,6 @@ export default {
     let enabled = config.visible === 'show'
     if (config.visible === 'toggle') enabled = !(await request('GetSceneItemEnabled', { sceneName, sceneItemId })).sceneItemEnabled
     await request('SetSceneItemEnabled', { sceneName, sceneItemId, sceneItemEnabled: enabled })
-    return { ...data, visible: enabled }
+    return { ...data, sourceVisible: enabled }
   },
 }

@@ -1,4 +1,4 @@
-// Logic: the mirror of Fan Out. Collects several firings into one list, then goes on once with { items, count }.
+// Logic: the mirror of Fan Out. Collects several firings into one list, then goes on once with { items, itemCount }.
 // The first firing waits here; the others add their entry and stop. It releases at the first condition met: a
 // duration from the first entry, a quiet period with no new event, or a limit of entries. Buckets live in memory; its
 // settings show the one filling (`live`), with Force and Cancel.
@@ -25,7 +25,7 @@ export default {
     key: { type: 'var', label: 'Key', only: { byKey: true } },
     keep: { label: 'Keep', options: ['first', 'last'], only: { byKey: true } },
   },
-  adds: ['items', 'count'],
+  adds: { items: 'The entries collected, a list', itemCount: 'How many' },
   config: { duration: 10, quiet: 0, limit: 0, item: '', byKey: false, key: 'user', keep: 'first' },
   async run({ config, data, id, signal }) {
     const { duration, quiet, limit } = config
@@ -60,7 +60,7 @@ export default {
     await released
     if (signal.aborted || bucket.cancelled) return null
     const items = [...bucket.entries.values()]
-    return { items, count: items.length }
+    return { items, itemCount: items.length }
   },
   // The bucket filling, if any: { items, left } with left the ms until it's released (null: only at the limit).
   live(id) {

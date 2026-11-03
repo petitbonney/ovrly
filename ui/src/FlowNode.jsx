@@ -40,17 +40,17 @@ export function outputsOf(def, config) {
 }
 
 // Places a widget node's ports (ids, null for the main one) like a node's inputs: each gets one slot per link into it
-// (counts: port id, '' for the main one -> links; one slot at least), 18px apart, with a slot's room between two
-// ports. Returns [{ id, first, slots }].
+// (counts: port id, '' for the main one -> links; one slot at least), PORT apart, a port's first slot right after the
+// previous port's last. Returns [{ id, first, slots }].
 export function portSlots(ids, counts = {}) {
   let at = 0
   return ids.map((id) => {
     const slots = Math.max(1, counts[id ?? ''] ?? 0)
-    at += slots + 1
-    return { id, first: at - slots - 1, slots }
+    at += slots
+    return { id, first: at - slots, slots }
   })
 }
-// The slots placed ports take, the gaps between them included.
+// The slots placed ports take.
 export const slotCount = (ports) => ports.at(-1).first + ports.at(-1).slots
 
 // A widget node's input ports as [{ id, label, first, slots }] (see portSlots): its main one (id null: the action
@@ -61,11 +61,18 @@ export function widgetPorts(type, config, counts) {
   return portSlots([null, ...ids], counts).map((p) => ({ ...p, label: p.id ?? type?.onSignal }))
 }
 
-// A node's height: 90px, taller with more outputs or inputs (18px apart, the same gap for both), keeping a gap of 18px
-// between the end outputs and the corners, and about as much between the ends of the input bars (11px past their end
-// handles) and the corners.
+// A node box is NODE square; its ports (inputs and outputs alike) are PORT apart around its middle. Heights are whole
+// PORTs, so on a node snapped to the 10px grid (Workflow.jsx) every port is on a grid line: a link between two level
+// ports is straight.
+export const NODE = 80
+export const PORT = 20
+// Port i of n: its height from the node's middle.
+export const portY = (i, n) => (i - (n - 1) / 2) * PORT
+
+// A node's height: NODE, taller with more outputs or inputs, keeping a PORT between the end outputs and the corners,
+// and about as much between the ends of the input bars (8px past their end handles) and the corners.
 export function nodeHeight(def, config, inputs = 0) {
-  return Math.max(90, (outputsOf(def, config).length + 1) * 18, (inputs + 2) * 18)
+  return Math.max(NODE, (outputsOf(def, config).length + 1) * PORT, (inputs + 2) * PORT)
 }
 
 // Field types too long or too secret for the subtitle.
@@ -109,7 +116,7 @@ export default function FlowNode({ id, data, selected }) {
   // One input handle per incoming link, so their ends don't overlap; on a widget node, per link into each port.
   const ports = isWidget && widgetPorts(type, data.config, data.portLinks)
   const inputs = ports ? slotCount(ports) : Math.max(1, data.inputs ?? 0)
-  const at = (slot) => `calc(50% + ${(slot - (inputs - 1) / 2) * 18}px)`
+  const at = (slot) => `calc(50% + ${portY(slot, inputs)}px)`
   const handles = outputs.map((o) => o.id).join() + inputs + (ports ? ports.map((p) => `${p.id}:${p.slots}`).join() : '')
   useEffect(() => updateNodeInternals(id), [handles])
   const Icon = (isWidget ? type : def)?.Icon ?? IconBox
@@ -122,7 +129,7 @@ export default function FlowNode({ id, data, selected }) {
         : missing.length > 0 && <span className="needs" title={missing.map((m) => `Needs ${m}.`).join(' ')}><IconPlugOff size={12} /></span>}
       {ports ? ports.map((p) => (
         <Fragment key={p.id ?? ''}>
-          <div className="in-bar" style={{ top: at(p.first + (p.slots - 1) / 2), height: (p.slots - 1) * 18 + 22 }}>
+          <div className="in-bar" style={{ top: at(p.first + (p.slots - 1) / 2), height: (p.slots - 1) * PORT + 16 }}>
             {ports.length > 1 && <span className="in-port">{p.label}</span>}
           </div>
           {Array.from({ length: p.slots }, (_, j) => (
@@ -131,13 +138,13 @@ export default function FlowNode({ id, data, selected }) {
         </Fragment>
       )) : !trigger && (
         <>
-          <div className="in-bar" style={{ height: (inputs - 1) * 18 + 22 }} />
+          <div className="in-bar" style={{ height: (inputs - 1) * PORT + 16 }} />
           {Array.from({ length: inputs }, (_, i) => <Handle key={i} id={`in${i}`} type="target" position="left" className="in" style={{ top: at(i) }} />)}
         </>
       )}
       <Icon size={40} stroke={1.5} color={colors[def?.category]} />
       {outputs.length ? outputs.map((o, i) => (
-        <Handle key={o.id} id={o.id} type="source" position="right" className="out" style={{ top: `calc(50% + ${(i - (outputs.length - 1) / 2) * 18}px)` }}>
+        <Handle key={o.id} id={o.id} type="source" position="right" className="out" style={{ top: `calc(50% + ${portY(i, outputs.length)}px)` }}>
           <span className="port">{o.icon && <o.icon size={10} color={o.color} />}{o.label}</span>
         </Handle>
       )) : <Handle type="source" position="right" className="out" />}

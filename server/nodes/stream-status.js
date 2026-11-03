@@ -1,5 +1,5 @@
-// Trigger: fires when the stream goes live or ends (Twitch EventSub, Streamer mode). "status" says which;
-// "type" (live, rerun, premiere…) is empty when it ends.
+// Trigger: fires when the stream goes live or ends (Twitch EventSub, Streamer mode). "streamStatus" says which;
+// "streamType" (live, rerun, premiere…) is empty when it ends.
 import { status as twitch } from '../integrations/twitch.js'
 
 const statuses = [
@@ -15,7 +15,7 @@ export default {
   group: 'Twitch',
   needs: ['twitch'],
   description: 'Fires when the stream goes live or ends; "status" says which.',
-  adds: ['status', 'type', 'channel'],
+  adds: { streamStatus: 'online or offline', streamType: 'live, rerun or premiere (empty when it ends)', channel: 'The channel' },
   fields: { statuses: { label: 'Fires on', options: statuses } },
   event: ['stream.online', 'stream.offline'],
   config: { statuses: ['online', 'offline'] },
@@ -27,6 +27,6 @@ export default {
   run({ config, data, event }) {
     const status = event === 'stream.online' ? 'online' : 'offline'
     if (!config.statuses.includes(status)) return null
-    return { status, type: data.type ?? '', channel: data.broadcaster_user_name }
+    return { streamStatus: status, streamType: data.type ?? '', channel: data.broadcaster_user_name }
   },
 }

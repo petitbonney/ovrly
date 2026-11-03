@@ -1,5 +1,5 @@
 // Trigger: fires when a viewer redeems a channel points reward (Twitch EventSub, Streamer mode).
-// data = { user, reward, cost, input, redemptionId, rewardId } (the IDs for Channel Points Redemption).
+// data = { user, rewardTitle, rewardCost, rewardInput, redemptionId, rewardId } (the IDs for Channel Points Redemption).
 export default {
   type: 'redeem',
   label: 'Channel Points',
@@ -8,7 +8,8 @@ export default {
   group: 'Twitch',
   needs: ['twitch'],
   description: 'Fires when a viewer redeems a channel points reward.',
-  adds: ['user', 'reward', 'cost', 'input', 'redemptionId', 'rewardId'],
+  adds: { user: 'Who redeemed it', rewardTitle: 'The reward', rewardCost: 'Its cost in points', rewardInput: 'The text they typed, if it asks for one',
+    redemptionId: 'This redemption, to fulfill or refund it', rewardId: 'The reward, for Channel Points Reward' },
   fields: { reward: { rewards: true, hint: 'Empty for any reward' } },
   event: 'channel.channel_points_custom_reward_redemption.add',
   config: { reward: '' },
@@ -22,7 +23,7 @@ export default {
   run({ config, data }) {
     const reward = config.reward.trim().toLowerCase()
     if (reward && data.reward.title.toLowerCase() !== reward) return null
-    return { user: data.user_name, reward: data.reward.title, cost: data.reward.cost, input: data.user_input ?? '',
+    return { user: data.user_name, rewardTitle: data.reward.title, rewardCost: data.reward.cost, rewardInput: data.user_input ?? '',
       redemptionId: data.id, rewardId: data.reward.id }
   },
 }

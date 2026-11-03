@@ -52,11 +52,11 @@ export default {
   // votes: user -> option index (chat); counts: voters per option; endsAt: when voting closes (ms); winner: the
   // prediction's outcome; twitch, ids: the Twitch poll or prediction and its options' ids; points, top: Twitch only.
   runtime: { open: false, votes: {}, counts: [], endsAt: 0, winner: -1, twitch: '', ids: [], points: [], top: [] },
-  adds: ['winner', 'votes', 'winners'],
+  adds: { winner: 'The option that won', voteCount: 'Votes cast in all', voteWinners: 'Who guessed right (prediction)' },
   output({ state, runtime }) {
     const i = poll(state) ? leader(runtime.counts) : runtime.winner
     const winners = runtime.twitch ? runtime.top[i] ?? [] : Object.keys(runtime.votes).filter((user) => runtime.votes[user] === i)
-    return { winner: state.options[i] ?? '', votes: runtime.counts.reduce((a, b) => a + b, 0), winners: winners.join(', ') }
+    return { winner: state.options[i] ?? '', voteCount: runtime.counts.reduce((a, b) => a + b, 0), voteWinners: winners.join(', ') }
   },
   // "start" plays while voting is open; a Twitch vote, until Twitch says it is over (its final results), 10s late at most.
   playTime: (action, { runtime }) => (action !== 'start' ? 0 : Math.max(0, runtime.endsAt - Date.now()) + (runtime.twitch ? 10_000 : 0)),
@@ -64,7 +64,7 @@ export default {
   over: ({ runtime }) => !runtime.open,
   actions: {
     start: {
-      description: 'Clears the votes and opens voting for the set duration (in Twitch mode, a Twitch poll or prediction); the workflow goes on once voting has ended, with {{winner}}, {{votes}} and {{winners}}.',
+      description: 'Clears the votes and opens voting for the set duration (in Twitch mode, a Twitch poll or prediction); the workflow goes on once voting has ended, with {{winner}}, {{voteCount}} and {{voteWinners}}.',
       async run({ state }) {
         const duration = Math.min(1800, Math.max(30, state.duration))
         const fresh = { open: true, votes: {}, counts: state.options.map(() => 0), endsAt: Date.now() + duration * 1000,

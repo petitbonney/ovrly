@@ -61,6 +61,6 @@ test('a Control Pad fires its first button the way its mode does', async () => {
   const buttons = [{ id: 'ab12', name: 'Go' }, { id: 'cd34', name: 'Stop' }]
   for (const mode of ['companion', 'streamdeck']) {
     const { out } = await fireManual(workflow(node('deck', { mode, buttons })), 't')
-    assert.equal(out.button, 'Go')
+    assert.equal(out.buttonName, 'Go')
   }
 })

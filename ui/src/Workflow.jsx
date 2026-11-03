@@ -35,8 +35,8 @@ import Fire from './Fire.jsx'
 import CodeTest from './CodeTest.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
-import FlowNode, { colors, outputsOf, slotCount, widgetPorts } from './FlowNode.jsx'
-import layout from './layout.js'
+import FlowNode, { NODE, colors, outputsOf, portY, slotCount, widgetPorts } from './FlowNode.jsx'
+import layout, { CAPTION, GRID, STEP } from './layout.js'
 import Basic from './Basic.jsx'
 import { chainOf, relink } from './chain.js'
 import { exportWorkflow, download, withWidgetIds } from './share.js'
@@ -69,14 +69,15 @@ function needsOf(def, config, type, widgetState) {
   return type ? [...own, ...(type.needs ?? []), ...picked(type.fields, widgetState)] : own
 }
 
-// Data keys a node can use as {{key}}: what every node upstream of it adds (a manual trigger adds its JSON's keys,
-// a widget node what its widget type outputs).
+// Data keys a node can use as {{key}}, as [{ key, info, node, from }] (from: the name of the node upstream adding it,
+// nearest first): its type's adds ({ key: info }, or { key: { info, only } } while its settings match only), plus a
+// widget node's widget type outputs, an Edit Data node's items, a manual trigger's JSON keys.
 function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
-  const keys = new Set()
+  const keys = []
   const seen = new Set()
   const queue = [id]
   while (queue.length) {
-    const target = queue.pop()
+    const target = queue.shift()
     for (const e of edges.filter((e) => e.target === target)) {
       if (seen.has(e.source)) continue
       seen.add(e.source)
@@ -85,15 +86,20 @@ function upstreamKeys(id, { nodes, edges, defs, widgets, types }) {
       if (!node) continue // a link from a node that isn't there (a workflow file edited by hand) adds nothing
       const def = defs.find((d) => d.type === node.data.type)
       const widget = node.data.config.widget && findWidget(widgets, node.data.config.widget)
-      const adds = types.find((t) => t.type === widget?.type)?.adds ?? []
-      for (const k of [...(def?.adds ?? []), ...adds]) keys.add(k)
-      for (const item of node.data.config[def?.addsFrom] ?? def?.config[def?.addsFrom] ?? []) if (item.name) keys.add(item.name)
+      const type = types.find((t) => t.type === widget?.type)
+      const add = (key, info) => keys.push({ key, info, node: node.id, from: (widget ? widget.state.name : def?.label) ?? node.data.label })
+      // A custom type may still list its keys (adds: ['key']), without what they hold.
+      const entries = (adds = {}) => (Array.isArray(adds) ? adds.map((k) => [k, '']) : Object.entries(adds))
+      for (const [key, spec] of [...entries(def?.adds), ...entries(type?.adds)]) {
+        if (applies(spec, node.data.config, def?.config)) add(key, spec.info ?? spec)
+      }
+      for (const item of node.data.config[def?.addsFrom] ?? def?.config[def?.addsFrom] ?? []) if (item.name) add(item.name, item.value)
       if (def?.type === 'manual') {
-        try { Object.keys(JSON.parse(node.data.config.data ?? def.config.data)).forEach((k) => keys.add(k)) } catch {}
+        try { Object.entries(JSON.parse(node.data.config.data ?? def.config.data)).forEach(([k, v]) => add(k, `e.g. ${JSON.stringify(v)}`)) } catch {}
       }
     }
   }
-  return [...keys]
+  return keys
 }
 
 // A link is allowed if it doesn't close a loop: the target must not already lead back to the source (or be the
@@ -119,10 +125,7 @@ const edgeOptions = { markerEnd: { type: MarkerType.ArrowClosed, color: '' } }
 // Fitting the graph (on open and with the fit view button) never zooms past 100%, so a small graph isn't blown up.
 const MIN_ZOOM = 0.25
 const fitOptions = { maxZoom: 1, padding: 0.3 }
-// Nodes snap to the background's dots. A node box is 90px; its caption (two lines) hangs below it.
-const GRID = 20
-const NODE = 90
-const CAPTION = 50
+// Nodes snap to the 10px grid (the background's dots are every other line), which puts their ports on its lines.
 const snap = ({ x, y }) => ({ x: Math.round(x / GRID) * GRID, y: Math.round(y / GRID) * GRID })
 // Box around nodes, from their positions and measured sizes.
 function boundsOf(list) {
@@ -312,13 +315,12 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     if (c.fromHandle.type === 'source') {
       if (defOf(node)?.category === 'trigger') return null
       const ports = node.data.type === 'widget' ? widgetPorts(typeOf(node), node.data.config, portLinks(node.id)) : [{ id: null, first: 0, slots: 1 }]
-      const middle = (slotCount(ports) - 1) / 2
-      const y = (i) => node.position.y + node.measured.height / 2 + (ports[i].first + (ports[i].slots - 1) / 2 - middle) * 18 // as placed by FlowNode
+      const y = (i) => node.position.y + node.measured.height / 2 + portY(ports[i].first + (ports[i].slots - 1) / 2, slotCount(ports)) // as placed by FlowNode
       const i = ports.reduce((best, _, i) => (Math.abs(y(i) - p.y) < Math.abs(y(best) - p.y) ? i : best), 0)
       link = { source: c.fromNode.id, sourceHandle: c.fromHandle.id ?? null, target: node.id, targetHandle: ports[i].id }
     } else {
       const outs = outputsOf(defOf(node), node.data.config)
-      const y = (i) => node.position.y + ((i + 1) * node.measured.height) / (outs.length + 1) // as placed by FlowNode
+      const y = (i) => node.position.y + node.measured.height / 2 + portY(i, outs.length) // as placed by FlowNode
       const i = outs.reduce((best, o, i) => (Math.abs(y(i) - p.y) < Math.abs(y(best) - p.y) ? i : best), 0)
       link = { source: node.id, sourceHandle: outs[i]?.id ?? null, target: c.fromNode.id, targetHandle: c.fromHandle.id?.split('#')[0] || null } // a port's slot: "add#1"
     }
@@ -503,29 +505,30 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
 
   // A library item is a node type, or a widget type: that creates a new widget instance (with its own id) and a
   // widget node for it.
-  // Where a double-clicked library item goes: right of the node it is linked from (from), below any node already
-  // there; else the canvas center when empty; a trigger goes above the top-right trigger, or left of the leftmost node
-  // when there is none; anything else goes right of the top-right node.
+  // Where a double-clicked library item goes: right of the node it is linked from (from), level with its first output
+  // (where it gets linked), below any node already there; else the canvas center when empty; a trigger goes above the
+  // top-right trigger, or left of the leftmost node when there is none; anything else goes right of the top-right node.
   const spawnPosition = (def, from) => {
     const topRight = (list) => list.reduce((a, b) => (b.position.x > a.position.x || (b.position.x === a.position.x && b.position.y < a.position.y) ? b : a))
     const triggers = nodes.filter((n) => defOf(n)?.category === 'trigger')
     let p
     if (from) {
-      p = { x: from.position.x + (from.measured?.width ?? NODE) + GRID * 3, y: from.position.y }
-      while (nodes.some((n) => Math.abs(n.position.x - p.x) < NODE && Math.abs(n.position.y - p.y) < NODE)) p.y += NODE + CAPTION
+      const outs = outputsOf(defOf(from), from.data.config).length
+      p = { x: from.position.x + STEP, y: from.position.y + (from.measured?.height ?? NODE) / 2 + (outs ? portY(0, outs) : 0) - NODE / 2 }
+      while (nodes.some((n) => Math.abs(n.position.x - p.x) < NODE && Math.abs(n.position.y - p.y) < NODE)) p.y += STEP
     } else if (!nodes.length) {
       const r = flowRef.current.getBoundingClientRect()
       const c = screenToFlowPosition({ x: r.x + r.width / 2, y: r.y + r.height / 2 })
       p = { x: c.x - NODE / 2, y: c.y - NODE / 2 }
     } else if (def.category === 'trigger' && triggers.length) {
       const t = topRight(triggers).position
-      p = { x: t.x, y: t.y - NODE - CAPTION }
+      p = { x: t.x, y: t.y - STEP }
     } else if (def.category === 'trigger') {
       const l = nodes.reduce((a, b) => (b.position.x < a.position.x ? b : a)).position
-      p = { x: l.x - NODE - GRID * 3, y: l.y }
+      p = { x: l.x - STEP, y: l.y }
     } else {
       const t = topRight(nodes)
-      p = { x: t.position.x + (t.measured?.width ?? NODE) + GRID * 3, y: t.position.y }
+      p = { x: t.position.x + STEP, y: t.position.y }
     }
     return snap(p)
   }
@@ -566,7 +569,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const r = flowRef.current.getBoundingClientRect()
     const tl = screenToFlowPosition({ x: r.left, y: r.top })
     const br = screenToFlowPosition({ x: r.right, y: r.bottom })
-    const margin = GRID
+    const margin = 20
     const shift = (lo, hi, from, to) => (lo < from ? lo - from - margin : hi > to ? hi - to + margin : 0)
     const dx = shift(box.x, box.x + box.width, tl.x, br.x)
     const dy = shift(box.y, box.y + box.height, tl.y, br.y)
@@ -576,10 +579,12 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   }
 
   // Basic view edits: the nodes in their new order (selecting one, or none), relinked in a row on the grid where the
-  // line starts, so the graph is tidy too.
+  // line starts, their middles level so the links are straight: the graph is tidy too.
   const setChain = (list, select) => {
     const start = chain[0]?.position ?? { x: 0, y: 0 }
-    setNodes(list.map((n, i) => ({ ...n, selected: n.id === select, position: { x: start.x + i * (NODE + CAPTION + GRID), y: start.y } })))
+    const middle = start.y + (chain[0]?.measured?.height ?? NODE) / 2
+    setNodes(list.map((n, i) => ({ ...n, selected: n.id === select,
+      position: { x: start.x + i * STEP, y: middle - (n.measured?.height ?? NODE) / 2 } })))
     setEdges(relink(list, edges, firstOutput))
   }
   const moveStep = (id, to) => {
@@ -691,12 +696,12 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   // waits for the edit to settle). Nodes stay movable and land on the grid.
   const arrange = () => {
     // The layout is centred on the origin; shift it to keep the top-left corner where the nodes' box is now,
-    // so they don't jump out of the view.
+    // so they don't jump out of the view. It is on the grid already: only the shift is snapped.
     const laid = layout(nodes, edges, defs)
     const min = (ps, k) => Math.min(...Object.values(ps).map((p) => p[k]))
     const now = Object.fromEntries(nodes.map((n) => [n.id, n.position]))
-    const [dx, dy] = [min(now, 'x') - min(laid, 'x'), min(now, 'y') - min(laid, 'y')]
-    const to = Object.fromEntries(Object.entries(laid).map(([id, p]) => [id, snap({ x: p.x + dx, y: p.y + dy })]))
+    const d = snap({ x: min(now, 'x') - min(laid, 'x'), y: min(now, 'y') - min(laid, 'y') })
+    const to = Object.fromEntries(Object.entries(laid).map(([id, p]) => [id, { x: p.x + d.x, y: p.y + d.y }]))
     const from = Object.fromEntries(nodes.map((n) => [n.id, n.position]))
     const move = { t: 0 }
     animate(move, {

@@ -51,8 +51,11 @@ const suggest = ({ options, search }) => (!search || options.some((o) => o.value
 
 const fit = ({ availableHeight, elements }) => { elements.floating.style.maxHeight = `${Math.min(availableHeight, innerHeight / 2)}px` }
 
-// The "{}" button: a menu of the data keys available at this node (vars null: none, on a trigger); onPick(key) gets
-// the one picked.
+// The data keys' names, once each (for suggestions).
+const keyNames = (vars) => [...new Set((vars ?? []).map((v) => v.key))]
+
+// The "{}" button: a menu of the data keys available at this node, [{ key, info, node, from }] (vars null: none, on a
+// trigger), under the name of the node each comes from, with what it holds; onPick(key) gets the one picked.
 function VarMenu({ vars, onPick }) {
   if (!vars) return null
   return (
@@ -65,8 +68,15 @@ function VarMenu({ vars, onPick }) {
       </Menu.Target>
       {/* Scrollable and capped: a long list must scroll itself, not the canvas behind it (nowheel/nopan) */}
       <Menu.Dropdown className="nowheel nopan" style={{ overflowY: 'auto' }}>
-        {vars.length ? vars.map((k) => <Menu.Item key={k} onClick={() => onPick(k)}>{`{{${k}}}`}</Menu.Item>)
-          : <Menu.Label>Connect an input first</Menu.Label>}
+        {vars.length ? vars.map((v, i) => (
+          <Fragment key={`${v.node}:${v.key}`}>
+            {v.node !== vars[i - 1]?.node && <Menu.Label>{v.from}</Menu.Label>}
+            <Menu.Item onClick={() => onPick(v.key)} maw={360}>
+              <Text span size="sm" ff="monospace">{`{{${v.key}}}`}</Text>
+              {v.info && <Text span size="xs" c="dimmed">{` – ${v.info}`}</Text>}
+            </Menu.Item>
+          </Fragment>
+        )) : <Menu.Label>Connect an input first</Menu.Label>}
       </Menu.Dropdown>
     </Menu>
   )
@@ -275,7 +285,7 @@ function SliderInput({ label, description, unit, min = 0, max = 100, mute, value
 }
 
 // An image, sound or video (kind): a preview, and a field to type a URL, a path or
-// {{key}} (e.g. {{gif}} from a GIPHY node), with an icon button beside it to pick a file on disk.
+// {{key}} (e.g. {{giphyUrl}} from a GIPHY node), with an icon button beside it to pick a file on disk.
 const FILE_KINDS = { image: 'an image', sound: 'a sound', video: 'a video' }
 function FileInput({ kind, label, description, value, onChange, vars }) {
   const [error, setError] = useState('')
@@ -539,7 +549,7 @@ function ListField({ label, description, row, columns, vars, value, onChange }) 
         <SegmentedControl size="xs" fullWidth value={v.from} onChange={(from) => set({ from })}
           data={[{ value: 'custom', label: 'Custom' }, { value: 'data', label: 'From data' }]} />
       )}
-      {vars && v.from === 'data' ? <Autocomplete size="xs" data={vars} placeholder="Data key, e.g. items" value={v.key} onChange={(key) => set({ key })} /> : items}
+      {vars && v.from === 'data' ? <Autocomplete size="xs" data={keyNames(vars)} placeholder="Data key, e.g. items" value={v.key} onChange={(key) => set({ key })} /> : items}
     </Stack>
   )
 }
@@ -682,7 +692,7 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
     return <Select {...props} data={grouped} value={value} onChange={set} allowDeselect={false} />
   }
   // A data key's name: the "{}" menu sets it (the bare key, not a placeholder).
-  if (f.type === 'var') return <Autocomplete {...props} data={vars ?? []} value={value} onChange={set} rightSection={<VarMenu vars={vars} onPick={set} />} />
+  if (f.type === 'var') return <Autocomplete {...props} data={keyNames(vars)} value={value} onChange={set} rightSection={<VarMenu vars={vars} onPick={set} />} />
   if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} maxRows={8} />
   if (f.type === 'code') return <CodeField {...props} vars={vars} value={value} onChange={set} />
   if (f.type === 'id') return <TextInput {...props} rightSection={<Copy text={value} />} value={value} onChange={(e) => set(e.target.value)} />

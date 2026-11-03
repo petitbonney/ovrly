@@ -1,6 +1,6 @@
 // Logic: finds bad words in a data key's text, from word lists of any languages (downloaded when first used,
-// integrations/word-lists.js) and words of its own, then masks them or stops. Adds { censored, badWords } for a
-// later If / Else. Matching ignores case and accents, and sees through leetspeak (sh1t), repeats (fuuuck) and
+// integrations/word-lists.js) and words of its own, then masks them or stops. Adds { hasBadWords, badWordCount }
+// for a later If / Else. Matching ignores case and accents, and sees through leetspeak (sh1t), repeats (fuuuck) and
 // dots between letters (f.u.c.k).
 import * as lists from '../integrations/word-lists.js'
 
@@ -50,7 +50,7 @@ export default {
   category: 'logic',
   group: 'Data',
   description: 'Masks the bad words in a data key\'s text, or stops when it has some.',
-  adds: ['censored', 'badWords'],
+  adds: { hasBadWords: 'true if it found some', badWordCount: 'How many it found' },
   fields: {
     key: { type: 'var', label: 'Key' },
     found: { label: 'If found', options: ['mask', 'stop'] },
@@ -84,6 +84,6 @@ export default {
       last = at + match.length
     }
     if (badWords && config.found === 'stop') return null
-    return { ...data, [config.key]: out + text.slice(last), censored: badWords > 0, badWords }
+    return { ...data, [config.key]: out + text.slice(last), hasBadWords: badWords > 0, badWordCount: badWords }
   },
 }

@@ -1,5 +1,5 @@
 // Action: raids another channel and waits until the raid goes out (after Twitch's countdown, or Raid Now on Twitch),
-// adding { viewers }; cancelling the workflow meanwhile cancels the raid. Or cancels the pending raid.
+// adding { raidViewers }; cancelling the workflow meanwhile cancels the raid. Or cancels the pending raid.
 import bus from '../bus.js'
 import { helix, status, user } from '../integrations/twitch-auth.js'
 import { needStreamer } from '../integrations/twitch.js'
@@ -15,7 +15,7 @@ export default {
   group: 'Twitch',
   needs: ['twitch'],
   description: 'Raids another channel and waits until the raid goes out (cancelling the workflow cancels it), or cancels the pending raid.',
-  adds: ['viewers'],
+  adds: { raidViewers: 'Viewers sent with the raid' },
   fields: {
     action: { options: [{ value: 'raid', label: 'Raid' }, { value: 'cancel', label: 'Cancel' }] },
     channel: { vars: true, only: { action: 'raid' }, hint: 'A login or display name' },
@@ -37,7 +37,7 @@ export default {
         signal.removeEventListener('abort', aborted)
         out instanceof Error ? reject(out) : resolve(out)
       }
-      const sent = (event) => event.to_broadcaster_user_id === to.id && done({ ...data, viewers: event.viewers })
+      const sent = (event) => event.to_broadcaster_user_id === to.id && done({ ...data, raidViewers: event.viewers })
       const aborted = () => {
         cancel().catch(() => {})
         done(null)

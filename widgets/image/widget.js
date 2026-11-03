@@ -1,5 +1,5 @@
 // Image/GIF: shows an image for a few seconds, fading in and out. The image is the action's input, set on the node:
-// a file path on disk or a URL, typed or from data (e.g. {{gif}} from a GIPHY node).
+// a file path on disk or a URL, typed or from data (e.g. {{giphyUrl}} from a GIPHY node).
 const ABS = /^([a-z]:[\\/]|[\\/])/i // C:\..., \\server\..., or /...
 const imageUrl = (v) =>
   /^https?:\/\//.test(v) ? v : v && ABS.test(v) ? `/file?path=${encodeURIComponent(v)}` : ''
@@ -20,7 +20,7 @@ export default {
   actions: {
     start: {
       description: 'Shows the image for the set duration, fading in and out; the workflow goes on once it has gone.',
-      inputs: { image: { type: 'image', hint: 'Browse files, or a URL or path, e.g. {{gif}} from a GIPHY node' } },
+      inputs: { image: { type: 'image', hint: 'Browse files, or a URL or path, e.g. {{giphyUrl}} from a GIPHY node' } },
       // A file path is served by /file; an input that isn't an image (e.g. text left in a widget node) shows nothing.
       run: ({ input: { image } }) => ({ runtime: { url: imageUrl(image), at: Date.now() } }),
     },

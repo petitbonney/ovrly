@@ -49,11 +49,11 @@ const completions = (keys) => (ctx) => {
   const word = ctx.matchBefore(/(?:(?:data|\$vars)\.)?[\w$]*/)
   if (!word || (word.from === word.to && !ctx.explicit)) return null
   const [prefix, of] = /^(?:(data|\$vars)\.)?/.exec(word.text)
-  const names = of === 'data' ? keys.current.data : of === '$vars' ? keys.current.vars : ['data', '$vars', 'console']
-  return { from: word.from + prefix.length, options: names.map((label) => ({ label, type: of ? 'property' : 'variable' })), validFor: /^[\w$]*$/ }
+  const options = of === 'data' ? keys.current.data : (of === '$vars' ? keys.current.vars : ['data', '$vars', 'console']).map((label) => ({ label }))
+  return { from: word.from + prefix.length, options: options.map((o) => ({ ...o, type: of ? 'property' : 'variable' })), validFor: /^[\w$]*$/ }
 }
 
-// vars: the data keys from previous nodes.
+// vars: the data keys from previous nodes ([{ key, info }]), offered with what they hold.
 export default function CodeEditor({ value, onChange, vars, autoFocus }) {
   const box = useRef(null)
   const view = useRef(null)
@@ -61,7 +61,7 @@ export default function CodeEditor({ value, onChange, vars, autoFocus }) {
   const keys = useRef({ data: [], vars: [] })
   const [error, setError] = useState(null)
   latest.current = onChange
-  keys.current.data = vars ?? []
+  keys.current.data = [...new Map((vars ?? []).map((v) => [v.key, { label: v.key, detail: v.info }])).values()]
   useEffect(() => {
     get('/api/vars').then((v) => { keys.current.vars = Object.keys(v) }, () => {})
     view.current = new EditorView({

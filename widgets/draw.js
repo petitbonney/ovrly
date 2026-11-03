@@ -9,7 +9,7 @@ const REVEAL = 1000
 export function draw(choices, playMs) {
   return {
     runtime: { winner: -1, at: 0, layout: '', options: null }, // layout: the one the draw was made with (Lottery's wheel or slot)
-    adds: ['winner'],
+    adds: { winner: 'What was drawn' },
     output: ({ runtime }) => ({ winner: runtime.options?.[runtime.winner]?.label ?? '' }),
     playTime: (action, { state }) => (action === 'start' ? playMs(state) : 0), // the workflow waits for the draw to end
     stopTime: () => REVEAL,

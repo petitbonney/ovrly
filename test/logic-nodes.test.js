@@ -76,9 +76,9 @@ test('Cooldown blocks for a while, for everyone and per key, until its time is u
   const pass = (user) => run(cooldown, { seconds: 10, byKey: true, key: 'user', keySeconds: 60 }, { user }, 'cd')
   assert.deepEqual(pass('ana'), { pass: { user: 'ana' } })
   t.mock.timers.tick(9_700)
-  assert.deepEqual(pass('bob'), { blocked: { user: 'bob', remaining: 1 } }) // seconds left, rounded up
+  assert.deepEqual(pass('bob'), { blocked: { user: 'bob', cooldownLeft: 1 } }) // seconds left, rounded up
   t.mock.timers.tick(300)
-  assert.deepEqual(pass('ana'), { blocked: { user: 'ana', remaining: 50 } }) // her own cooldown
+  assert.deepEqual(pass('ana'), { blocked: { user: 'ana', cooldownLeft: 50 } }) // her own cooldown
   assert.deepEqual(pass('bob'), { pass: { user: 'bob' } })
   assert.deepEqual(cooldown.live('cd'), { left: 10_000, keys: [{ key: 'ana', left: 50_000 }, { key: 'bob', left: 60_000 }] })
   assert.equal(cooldown.control('cd', 'drop'), true)
@@ -93,7 +93,7 @@ test('Fan In collects firings into one list, released at its limit; one entry pe
     return first
   }
   assert.deepEqual(await collect({ limit: 3, item: '{{user}}' }, [{ user: 'a' }, { user: 'b' }, { user: 'c' }], 'limit'),
-    { items: ['a', 'b', 'c'], count: 3 })
+    { items: ['a', 'b', 'c'], itemCount: 3 })
   const votes = [{ user: 'a', n: 1 }, { user: 'a', n: 2 }, { user: 'b', n: 3 }]
   const byUser = { limit: 2, byKey: true, key: 'user', item: '{{n}}' }
   assert.deepEqual((await collect(byUser, votes, 'first')).items, [1, 3])
@@ -106,7 +106,7 @@ test('Fan In releases after its duration or a quiet period, and Cancel drops wha
   const timed = run(fanIn, { duration: 10 }, { user: 'a' }, 'timed')
   await run(fanIn, { duration: 10 }, { user: 'b' }, 'timed')
   t.mock.timers.tick(10_000)
-  assert.deepEqual(await timed, { items: [{ user: 'a' }, { user: 'b' }], count: 2 }) // no entry set: the whole data
+  assert.deepEqual(await timed, { items: [{ user: 'a' }, { user: 'b' }], itemCount: 2 }) // no entry set: the whole data
 
   const quiet = { duration: 0, quiet: 2 }
   let released = false
@@ -117,7 +117,7 @@ test('Fan In releases after its duration or a quiet period, and Cancel drops wha
   await new Promise(setImmediate)
   assert.equal(released, false)
   t.mock.timers.tick(500)
-  assert.equal((await calm).count, 2)
+  assert.equal((await calm).itemCount, 2)
 
   const dropped = run(fanIn, { duration: 10 }, {}, 'cancel')
   assert.equal(fanIn.control('cancel', 'cancel'), true)
@@ -126,7 +126,7 @@ test('Fan In releases after its duration or a quiet period, and Cancel drops wha
 })
 
 test('Fan Out gives each item its index and the count, and needs a list', () => {
-  assert.deepEqual(run(fanOut, { list: '{{names}}' }, { names: ['a'] }), [{ names: ['a'], item: 'a', index: 0, count: 1 }])
+  assert.deepEqual(run(fanOut, { list: '{{names}}' }, { names: ['a'] }), [{ names: ['a'], item: 'a', index: 0, itemCount: 1 }])
   assert.throws(() => run(fanOut, { list: ' ' }), /Fan Out: no list set/)
   assert.throws(() => run(fanOut, { list: '{{name}}' }, { name: 'a' }), /"{{name}}" is not a list/)
 })
@@ -147,12 +147,12 @@ test('Code saves the variables it changes', async () => {
 })
 
 test('Edit Variable sets, adds to and deletes a variable, and saves it', async () => {
-  assert.deepEqual(await run(editVariable, { name: 'score', operation: 'set', value: '{{n}}' }, { n: 5 }), { n: 5, value: 5 })
-  assert.equal((await run(editVariable, { name: 'score', operation: 'add', value: '2' })).value, 7)
+  assert.deepEqual(await run(editVariable, { name: 'score', operation: 'set', value: '{{n}}' }, { n: 5 }), { n: 5, variableValue: 5 })
+  assert.equal((await run(editVariable, { name: 'score', operation: 'add', value: '2' })).variableValue, 7)
   assert.equal((await savedVars()).score, 7)
   await run(editVariable, { name: 'word', operation: 'set', value: 'abc' })
-  assert.equal((await run(editVariable, { name: 'word', operation: 'add', value: '1' })).value, 1) // text counts as 0
-  assert.equal((await run(editVariable, { name: 'score', operation: 'delete' })).value, undefined)
+  assert.equal((await run(editVariable, { name: 'word', operation: 'add', value: '1' })).variableValue, 1) // text counts as 0
+  assert.equal((await run(editVariable, { name: 'score', operation: 'delete' })).variableValue, undefined)
   assert.equal('score' in (await savedVars()), false)
   await assert.rejects(run(editVariable, { name: 'a b' }), /the name takes letters, digits/)
   await assert.rejects(run(editVariable, { operation: 'times' }), /unknown operation "times"/)

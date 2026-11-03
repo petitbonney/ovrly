@@ -1,5 +1,5 @@
 // Fills "{{ ... }}" placeholders in node config text from the workflow data. Inside is a path (`user`, `json.items.0.name`,
-// `$vars.score`, `$node.http-request.status` for the output of an earlier node, by type or id) or a JavaScript
+// `$vars.score`, `$node.http-request.httpStatus` for the output of an earlier node, by type or id) or a JavaScript
 // expression with the data keys as variables (`score * 2`). Anything that fails or points at nothing gives ''.
 // Expressions run as code: only import workflows you trust.
 import { vars } from './vars.js'

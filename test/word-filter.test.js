@@ -38,15 +38,15 @@ test('only whole words, unless the language has no spaces', async () => {
   assert.equal(await masked('このばかめ', { lists: ['ja'] }), 'このば*め')
 })
 
-test('adds censored and badWords, masks with stars or a text, stops, and keeps other data', async () => {
+test('adds hasBadWords and badWordCount, masks with stars or a text, stops, and keeps other data', async () => {
   assert.deepEqual(await filter.run({ config: filter.config, data: { message: 'shit shit', user: 'Bob' } }),
-    { message: 's*** s***', user: 'Bob', censored: true, badWords: 2 })
-  assert.deepEqual(await run('hello'), { message: 'hello', censored: false, badWords: 0 })
+    { message: 's*** s***', user: 'Bob', hasBadWords: true, badWordCount: 2 })
+  assert.deepEqual(await run('hello'), { message: 'hello', hasBadWords: false, badWordCount: 0 })
   assert.equal(await masked('oh shit', { mask: 'stars' }), 'oh ****')
   assert.equal(await masked('oh shit', { mask: 'text', text: '[bip]' }), 'oh [bip]')
   assert.equal(await run('oh shit', { found: 'stop' }), null)
-  assert.deepEqual(await run('oh hi', { found: 'stop' }), { message: 'oh hi', censored: false, badWords: 0 })
-  assert.deepEqual(await filter.run({ config: filter.config, data: {} }), { message: '', censored: false, badWords: 0 })
+  assert.deepEqual(await run('oh hi', { found: 'stop' }), { message: 'oh hi', hasBadWords: false, badWordCount: 0 })
+  assert.deepEqual(await filter.run({ config: filter.config, data: {} }), { message: '', hasBadWords: false, badWordCount: 0 })
   await assert.rejects(filter.run({ config: { ...filter.config, key: '' }, data: {} }), /no key set/)
 })
 

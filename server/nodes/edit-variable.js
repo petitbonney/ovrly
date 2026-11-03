@@ -1,5 +1,5 @@
 // Logic: sets, adds to or deletes a variable. Unlike data, variables are shared by all workflows and outlive firings
-// and restarts; read one anywhere as {{ $vars.name }}. Adds { value }, the variable's new value.
+// and restarts; read one anywhere as {{ $vars.name }}. Adds { variableValue }, the variable's new value.
 import { value } from '../template.js'
 import { vars, saveVars } from '../vars.js'
 
@@ -10,7 +10,7 @@ export default {
   category: 'logic',
   group: 'Data',
   description: 'Sets, adds to or deletes a variable: shared by all workflows, kept across runs and restarts.',
-  adds: ['value'],
+  adds: { variableValue: 'The variable\'s value now' },
   fields: {
     name: { hint: 'Read it as {{ $vars.name }}' },
     operation: { options: ['set', 'add', 'delete'] },
@@ -26,6 +26,6 @@ export default {
     else if (operation === 'delete') delete vars[name]
     else throw new Error(`Edit Variable: unknown operation "${operation}"`)
     await saveVars()
-    return { ...data, value: vars[name] }
+    return { ...data, variableValue: vars[name] }
   },
 }

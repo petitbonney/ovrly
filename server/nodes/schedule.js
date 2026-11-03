@@ -10,9 +10,9 @@ export default {
   label: 'Schedule',
   icon: 'clock',
   category: 'trigger',
-  group: 'Other',
+  group: 'System',
   description: 'Fires every so often while the workflow is on.',
-  adds: ['time'],
+  adds: { firedAt: 'When it fired (ISO date)' },
   fields: {
     minutes: { label: 'Every', unit: 'min', presets: [1, 5, 15, 30, 60], hint: 'Decimals work, e.g. 0.5 for 30 s' },
     when: { label: 'Fires', options: [{ value: 'always', label: 'Always' }, { value: 'live', label: 'While live', streamer: true }] },
@@ -21,7 +21,7 @@ export default {
   config: { minutes: 10, when: 'always' },
   manual: { event: () => ({ data: { now: true } }) },
   run({ config, data, id }) {
-    if (data.now) return { time: new Date().toISOString() } // fired by hand: now, whatever the interval
+    if (data.now) return { firedAt: new Date().toISOString() } // fired by hand: now, whatever the interval
 
     const interval = config.minutes * 60000
     if (!(interval >= 1000)) return null // a bad setting never fires
@@ -32,6 +32,6 @@ export default {
     s.tick = now
     if (now < s.due) return null
     s.due = now + interval
-    return { time: new Date(now).toISOString() }
+    return { firedAt: new Date(now).toISOString() }
   },
 }

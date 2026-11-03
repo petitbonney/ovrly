@@ -46,8 +46,8 @@ export default {
   },
   onStop: 'pause',
   onCancel: 'reset',
-  adds: ['remaining'],
-  output: ({ state }) => ({ remaining: clock(remaining(state), state.format, Math.ceil) }),
+  adds: { countdownLeft: 'Time left, e.g. 4:59' },
+  output: ({ state }) => ({ countdownLeft: clock(remaining(state), state.format, Math.ceil) }),
   // "start" plays until 0, however "add" (which doesn't replace it) moves its end.
   playTime: (action, { state }) => (action === 'start' ? remaining(state) : 0),
   retime: true,
@@ -65,7 +65,7 @@ export default {
       },
     },
     add: {
-      description: 'Adds time to the countdown under way or paused, or takes some off with a minus (all of it ends it); outputs {{remaining}}.',
+      description: 'Adds time to the countdown under way or paused, or takes some off with a minus (all of it ends it); outputs {{countdownLeft}}.',
       inputs: { time: { vars: true, default: '+30s', hint: 'e.g. +30s, -1m or {{args}}' } },
       run({ state, input: { time } }) {
         const ms = (time.startsWith('-') ? -1 : 1) * duration(time.replace(/^[+-]/, ''))

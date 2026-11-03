@@ -6,9 +6,8 @@ export default {
   label: 'Control Pad',
   icon: 'layout-grid',
   category: 'trigger',
-  group: 'Other',
   description: 'One output per button, fired by a Stream Deck key (with the Ovrly plugin) or, with Companion, by a URL per button.',
-  adds: ['button'],
+  adds: { buttonName: 'Name of the button pressed' },
   fields: {
     mode: {
       options: [{ value: 'companion', label: 'Companion' }, { value: 'streamdeck', label: 'Stream Deck', needs: 'streamdeck' }],
@@ -26,14 +25,14 @@ export default {
   manual: {
     event: (inputs, config) => {
       const id = config.buttons[0]?.id ?? ''
-      return config.mode === 'streamdeck' ? { event: 'streamdeck', data: { button: id } } : { event: 'webhook', data: { path: `deck/${id}` } }
+      return config.mode === 'streamdeck' ? { event: 'streamdeck', data: { button: id } } : { event: 'webhook', data: { hookPath: `deck/${id}` } }
     },
   },
   run({ config, data, event }) {
     const plugin = config.mode === 'streamdeck'
     if (plugin !== (event === 'streamdeck')) return null // each mode fires its own way only
-    const [path, key] = plugin ? ['deck', data.button] : data.path.split('/')
+    const [path, key] = plugin ? ['deck', data.button] : data.hookPath.split('/')
     const button = path === 'deck' && config.buttons.find((b) => b.id === key?.split('-').at(-1))
-    return button ? { [button.id]: plugin ? { ...data, button: button.name } : { ...data, button: button.name } } : null
+    return button ? { [button.id]: plugin ? { buttonName: button.name } : { ...data, buttonName: button.name } } : null
   },
 }

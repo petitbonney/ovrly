@@ -11,7 +11,7 @@ export default {
   group: 'Twitch',
   needs: ['twitch'],
   description: 'Clips the last moments of the stream (while live) and adds its URL as {{clipUrl}}.',
-  adds: ['clipId', 'clipUrl'],
+  adds: { clipId: 'The clip\'s id', clipUrl: 'Its URL (may take a few seconds to open)' },
   config: {},
   async run({ data }) {
     needStreamer('Clips')

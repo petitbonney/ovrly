@@ -114,7 +114,7 @@ test('a failure is reported to Error Trigger workflows, but not one in such a wo
   const [run] = await fire(failing, 'manual', {})
   assert.equal(run.record.status, 'error')
   await fire({ ...failing, id: 'guarded', name: 'guarded', nodes: [...failing.nodes, node('e', 'error-trigger')] }, 'manual', {})
-  assert.deepEqual(heard, [{ workflow: 'fails', node: 'Code', error: run.error.message }])
+  assert.deepEqual(heard, [{ errorWorkflow: 'fails', errorNode: 'Code', errorMessage: run.error.message }])
 })
 
 test('Execute Workflow merges the called workflow\'s last data, fails when it fails, and stops calls 10 deep', async (t) => {

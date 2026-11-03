@@ -11,14 +11,14 @@ export default {
   type: 'timer',
   label: 'Timer',
   icon: 'stopwatch',
-  description: 'Counts up from 0, e.g. for a speedrun or a challenge; pause it, reset it, read it with {{elapsed}}.',
+  description: 'Counts up from 0, e.g. for a speedrun or a challenge; pause it, reset it, read it with {{timerElapsed}}.',
   // since: when it would have been 0:00 (ms), pauses taken out, while counting; held: the ms counted, while paused.
   state: { ...look, since: 0, held: 0 },
   fields,
   onStop: 'pause',
   onCancel: 'reset',
-  adds: ['elapsed', 'seconds'],
-  output: ({ state }) => ({ elapsed: clock(elapsed(state), state.format), seconds: Math.floor(elapsed(state) / 1000) }),
+  adds: { timerElapsed: 'Time counted, e.g. 1:23', timerSeconds: 'Time counted, in seconds' },
+  output: ({ state }) => ({ timerElapsed: clock(elapsed(state), state.format), timerSeconds: Math.floor(elapsed(state) / 1000) }),
   playTime: () => 0, // it counts on its own: the workflow goes on at once
   actions: {
     start: {
@@ -26,7 +26,7 @@ export default {
       run: ({ state }) => (state.since ? undefined : { state: { ...state, since: Date.now() - state.held, held: 0 } }),
     },
     pause: {
-      description: 'Holds the timer where it is, until "start"; the workflow goes on with {{elapsed}}.',
+      description: 'Holds the timer where it is, until "start"; the workflow goes on with {{timerElapsed}}.',
       run: ({ state }) => (state.since ? { state: { ...state, since: 0, held: elapsed(state) } } : undefined),
     },
     reset: {

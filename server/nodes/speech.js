@@ -16,7 +16,7 @@ export default {
   play: true,
   needs: ['speech'],
   description: 'Speaks a text with a voice made on this computer and adds the sound as {{sound}}, for a Sound widget.',
-  adds: ['sound'],
+  adds: { sound: 'The spoken text (.wav), for a Sound widget' },
   fields: {
     text: { vars: true, multiline: true, hint: `e.g. {{user}} says {{message}}; ${MAX} characters at most` },
     lang: {

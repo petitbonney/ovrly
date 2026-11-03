@@ -1,6 +1,6 @@
 // Trigger: fires on every chat message, from viewers of at least the role set, except those of the users ignored (chat
 // bots by default). data = { user, message, channel, messageId, … } (messageId is for a reply or Delete Message).
-import { sentBy, testChat, testRoles } from '../integrations/twitch.js'
+import { chatKeys, sentBy, testChat, testRoles } from '../integrations/twitch.js'
 
 // Each role includes those above it, as in chat bots: VIPs also lets mods and the streamer in.
 const roles = ['everyone', 'sub', 'vip', 'mod', 'broadcaster']
@@ -13,7 +13,7 @@ export default {
   needs: ['chat'],
   group: 'Chat',
   description: 'Fires on every chat message.',
-  adds: ['user', 'message', 'channel', 'messageId', 'login', 'userId', 'color', 'timestamp', 'broadcaster', 'mod', 'vip', 'sub', 'subMonths', 'firstMessage', 'returning', 'emotes', 'action', 'highlighted', 'rewardId', 'replyToId', 'replyToUser', 'replyToMessage'],
+  adds: chatKeys,
   fields: {
     from: {
       options: [{ value: 'everyone', label: 'Everyone' }, { value: 'sub', label: 'Subs' }, { value: 'vip', label: 'VIPs' }, { value: 'mod', label: 'Mods' }, { value: 'broadcaster', label: 'Streamer' }],

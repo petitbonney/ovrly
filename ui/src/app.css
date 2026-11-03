@@ -48,8 +48,8 @@
 .preview { width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--mantine-color-default-border); border-radius: 4px; color-scheme: light; background: #fff repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
 
 /* n8n-style graph nodes (FlowNode.jsx) */
-.flow-node { position: relative; width: 90px; height: 90px; display: grid; place-items: center; background: var(--ovrly-node); border: 2px solid var(--ovrly-line); border-radius: 8px; }
-.flow-node.trigger { border-radius: 45px 8px 8px 45px; }
+.flow-node { position: relative; width: 80px; height: 80px; display: grid; place-items: center; background: var(--ovrly-node); border: 2px solid var(--ovrly-line); border-radius: 8px; }
+.flow-node.trigger { border-radius: 40px 8px 8px 40px; }
 .flow-node.selected { border-color: var(--ovrly-selected); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ovrly-selected) 15%, transparent); }
 /* A running workflow's loader in the list turns into its Stop button while hovered or focused (App.jsx Running). */
 .running .stop, .running:is(:hover, :focus-visible) .spin { display: none; }
@@ -69,13 +69,14 @@
 .flow-node .react-flow__handle.in { width: 8px; height: 22px; left: -1px; background: transparent; }
 .flow-node .in-bar { position: absolute; top: 50%; left: -1px; transform: translate(-50%, -50%); /* centred on left like a handle */ width: 8px; border-radius: 2px; background: var(--ovrly-line); pointer-events: none; }
 .react-flow.previewing .react-flow__connectionline { display: none; } /* the previewed link replaces the pulled line */
-.flow-node .react-flow__handle.out { width: 14px; height: 14px; right: -1px; }
-/* Port labels sit just above their link, on the canvas color so links passing behind don't cross the text. */
-.flow-node .port, .flow-node .in-port { position: absolute; font-size: 11px; line-height: 12px; color: var(--ovrly-sub); background: color-mix(in srgb, var(--ovrly-canvas) 90%, transparent); white-space: nowrap; pointer-events: none; }
-.flow-node .port { left: 18px; bottom: 9px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; } /* bottom: 1px above the link's 2px line */
+.flow-node .react-flow__handle.out { width: 16px; height: 16px; right: -1px; } /* as tall as an input bar */
+/* Port labels sit just above their link, on the canvas color so links passing behind don't cross the text; cut short
+   to stay in the 80px between nodes (layout.js). */
+.flow-node .port, .flow-node .in-port { position: absolute; font-size: 11px; line-height: 12px; color: var(--ovrly-sub); background: color-mix(in srgb, var(--ovrly-canvas) 90%, transparent); white-space: nowrap; pointer-events: none; max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
+.flow-node .port { left: 18px; bottom: 10px; } /* bottom: 1px above the link's 2px line */
 .flow-node .port svg { vertical-align: -1px; margin-right: 2px; } /* a Control Pad button's icon */
-/* A widget node's action port: its name left of its bar, above the link into its first slot (11px below the bar's top). */
-.flow-node .in-bar .in-port { right: 18px; bottom: calc(100% - 9px); }
+/* A widget node's action port: its name left of its bar, above the link into its first slot (8px below the bar's top). */
+.flow-node .in-bar .in-port { right: 18px; bottom: calc(100% - 6px); }
 /* Control Pad node: square keys in the button's color (Deck.jsx). */
 .deck-button { position: relative; aspect-ratio: 1; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #fff; font-size: 11px; font-weight: 600; text-align: center; padding: 4px; overflow: hidden; text-shadow: 0 1px 2px #0006; }
 .deck-button:disabled { opacity: 0.35; cursor: not-allowed; }

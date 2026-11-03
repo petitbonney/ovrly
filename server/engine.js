@@ -10,16 +10,16 @@ import { fill } from './template.js'
 // Load every node type from ./nodes, keyed by type, in the library's order: most used first, a group's nodes together.
 // Types not listed go last.
 const order = [
-  'manual', 'chat-command', 'chat-message',
+  'manual', 'deck', 'chat-command', 'chat-message',
   'redeem', 'follow', 'subscription', 'raid', 'cheer', 'gift-subs', 'hype-train', 'stream-status',
-  'schedule', 'webhook', 'deck', 'workflow-call', 'error-trigger',
+  'schedule', 'webhook', 'workflow-call', 'error-trigger',
   'if-else', 'filter', 'switch', 'fan-out', 'fan-in', 'wait-all', 'execute-workflow', 'pipe',
   'delay', 'cooldown', 'queue',
   'edit-variable', 'code', 'edit-data',
   'twitch-chat', 'twitch-announce', 'twitch-shoutout', 'twitch-ban', 'twitch-delete-message', 'twitch-clip', 'twitch-user', 'twitch-channel-info',
   'twitch-redemption', 'twitch-marker', 'twitch-stream-info', 'twitch-ad', 'twitch-chat-mode', 'twitch-reward', 'twitch-raid',
   'obs-scene', 'obs-source', 'giphy', 'myinstants', 'hue',
-  'log', 'http-request', 'key-press', 'websocket-send',
+  'log', 'key-press', 'http-request', 'websocket-send',
 ]
 const rank = (type) => (order.includes(type) ? order.indexOf(type) : order.length)
 const dir = new URL('./nodes/', import.meta.url)
@@ -246,7 +246,7 @@ export function fire(workflow, event, data, parent = {}, only) {
       console.error(`[${workflow.name}]`, err)
       // Error Trigger workflows hear about it, unless this one is such a workflow (so an error there can't loop).
       if (!workflow.nodes.some((n) => nodes[n.data.type]?.event === 'workflow-error')) {
-        bus.emit('workflow-error', { workflow: workflow.name, node: run.failedNode, error: err.message })
+        bus.emit('workflow-error', { errorWorkflow: workflow.name, errorNode: run.failedNode, errorMessage: err.message })
       }
     } finally {
       firing.delete(controller) && count()

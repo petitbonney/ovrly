@@ -27,7 +27,7 @@ export default {
 | Key | What it's for |
 | --- | --- |
 | `description` | The one line under the node's name in its settings. |
-| `adds` | The data keys it adds, offered as `{{key}}` in later nodes. |
+| `adds` | The data keys it adds, offered as `{{key}}` in later nodes' **{ }** menu: `{ key: 'What it holds' }`, or `{ key: { info, only } }` for a key some settings only add (`only` as for a field, e.g. Channel Info's `{ what: 'stream' }`). Name keys after what they come from (`raidViewers`, not `viewers`), so they don't overwrite another node's. |
 | `fields` | Per-setting hints: `{ options: [...] }`, `{ vars: true }` for `{{key}}` placeholders, `{ type: 'json' }`, a short `hint`, a longer `info` (an ⓘ), a `section` heading, `only: { otherSetting: value }` to show it only then. See `ui/src/Fields.jsx`. |
 | `outputs` | Several outputs, e.g. `['true', 'false']`; `run` returns `{ [output]: data }` to pick which continue. |
 | `event` | For a trigger: the bus event it listens to, or a list; `run` gets the one that fired as `event`. |

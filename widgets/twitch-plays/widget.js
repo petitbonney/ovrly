@@ -1,6 +1,6 @@
 // TwitchPlays: translates chat text into keys to press, through a list of keys ← commands rows (any of a row's commands
 // presses its keys). "start" makes it listen;
-// its widget node runs "push" with each chat message and goes on to a Key Press node set to {{keys}}, which presses
+// its widget node runs "push" with each chat message and goes on to a Key Press node set to {{playsKeys}}, which presses
 // them. Anarchy passes every command on at once; democracy counts one vote per viewer in loops of the vote window,
 // counted from "start", and passes on each loop's winner when it ends. "stop" and "cancel" make it stop listening.
 // Outputs { command, keys }: the command typed (anarchy), or the winning row's first (democracy).
@@ -57,7 +57,7 @@ export default {
   // for (-1: none, e.g. in anarchy); log: latest commands, newest first, { user, command, at }; votes: user -> command
   // index; counts: votes per command.
   runtime: { listening: false, since: 0, loop: -1, log: [], votes: {}, counts: [] },
-  adds: ['command', 'keys'],
+  adds: { playsCommand: 'The command that won (or was typed, in anarchy)', playsKeys: 'Its keys, for a Key Press node' },
   onSignal: 'push', // its widget node runs "push" with each chat message
   // Anarchy: the command just pushed. Democracy: the loop's leader, which is the winner for the last vote's run (the
   // only one left when the loop ends).
@@ -65,7 +65,7 @@ export default {
     const top = Math.max(0, ...runtime.counts)
     const i = runtime.loop >= 0 ? (top ? runtime.counts.indexOf(top) : -1) : find(state, runtime.log[0]?.command ?? '')
     const command = runtime.loop >= 0 ? state.commands[i]?.command.split('+')[0] : runtime.log[0]?.command
-    return { command: command ?? '', keys: state.commands[i]?.keys ?? '' }
+    return { playsCommand: command ?? '', playsKeys: state.commands[i]?.keys ?? '' }
   },
   // Democracy: each vote's run waits until its loop ends; the next vote replaces it, so only the last one goes on.
   playTime: (action, { state, runtime }) => (action === 'push' && runtime.loop >= 0 ? Math.max(0, loopEnd(state, runtime, runtime.loop) - Date.now()) : 0),
@@ -75,7 +75,7 @@ export default {
       run: ({ runtime }) => ({ runtime: { ...runtime, listening: true, since: Date.now(), loop: -1, votes: {}, counts: [] } }),
     },
     push: {
-      description: "A chat message, while listening. Anarchy: a command goes on at once, with {{command}} and {{keys}}. Democracy: it is a vote, and the loop's winner goes on when the loop ends. Anything else stops there.",
+      description: "A chat message, while listening. Anarchy: a command goes on at once, with {{playsCommand}} and {{playsKeys}}. Democracy: it is a vote, and the loop's winner goes on when the loop ends. Anything else stops there.",
       inputs: { text: { vars: true, default: '{{message}}', hint: 'The chat text' }, user: { vars: true, default: '{{user}}', hint: 'Who sent it' } },
       run({ state, runtime, input: { text, user } }) {
         const i = find(state, text)

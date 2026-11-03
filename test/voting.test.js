@@ -46,7 +46,7 @@ test('chat: start opens voting for its duration (30s at least), and the run ends
   await update(id, vote('RED', 'cy'))
   t.mock.timers.tick(30_000)
   assert.equal(await done, true) // the votes didn't replace it
-  assert.deepEqual(await output(id), { winner: 'Blue', votes: 3, winners: 'ana, bob' })
+  assert.deepEqual(await output(id), { winner: 'Blue', voteCount: 3, voteWinners: 'ana, bob' })
 })
 
 test('chat: one vote per viewer, the last one counts; unknown options and late votes are ignored', async (t) => {
@@ -72,7 +72,7 @@ test('chat: stop closes voting and the workflow goes on with the results; a new 
   t.mock.timers.tick(0)
   assert.equal(await done, true)
   await update(id, vote('2', 'bob'))
-  assert.deepEqual(await output(id), { winner: 'Red', votes: 1, winners: 'ana' })
+  assert.deepEqual(await output(id), { winner: 'Red', voteCount: 1, voteWinners: 'ana' })
   await update(id, { action: 'start' })
   assert.deepEqual(await runtime(id).then(({ votes, counts }) => ({ votes, counts })), { votes: {}, counts: [0, 0] })
 })
@@ -84,7 +84,7 @@ test('chat: a prediction\'s "win" reveals the outcome and who bet on it, once', 
   for (const [option, user] of [['1', 'ana'], ['2', 'bob'], ['2', 'cy']]) await update(id, vote(option, user))
   await update(id, { action: 'win', input: { option: 'blue' } })
   assert.equal(await done, true) // over: voting closed
-  assert.deepEqual(await output(id), { winner: 'Blue', votes: 3, winners: 'bob, cy' })
+  assert.deepEqual(await output(id), { winner: 'Blue', voteCount: 3, voteWinners: 'bob, cy' })
   await update(id, { action: 'win', input: { option: 'red' } })
   assert.equal((await runtime(id)).winner, 1)
   const { id: poll } = await create('voting', {})
@@ -117,7 +117,7 @@ test('Twitch: start opens a Twitch poll within its limits, EventSub brings its r
   assert.deepEqual(await runtime(id).then(({ counts, points }) => ({ counts, points })), { counts: [1, 3], points: [0, 10] })
   bus.emit('channel.poll.end', { id: 'poll-1', choices: [{ id: 'c1', votes: 1 }, { id: 'c2', votes: 4 }] })
   assert.equal(await done, true)
-  assert.deepEqual(await output(id), { winner: 'B', votes: 5, winners: '' })
+  assert.deepEqual(await output(id), { winner: 'B', voteCount: 5, voteWinners: '' })
 })
 
 test('Twitch: stop ends the poll on Twitch, but not once its time is up', async (t) => {
@@ -151,7 +151,7 @@ test('Twitch: a prediction locks on stop, and "win" resolves it, with its top pr
   assert.deepEqual(calls.at(-1).body, { broadcaster_id: '42', id: 'pred-1', status: 'LOCKED' })
   await update(id, { action: 'win', input: { option: '2' } })
   assert.deepEqual(calls.at(-1).body, { broadcaster_id: '42', id: 'pred-1', status: 'RESOLVED', winning_outcome_id: 'o2' })
-  assert.deepEqual(await output(id), { winner: 'Blue', votes: 3, winners: 'ana, bob' })
+  assert.deepEqual(await output(id), { winner: 'Blue', voteCount: 3, voteWinners: 'ana, bob' })
 })
 
 test('Twitch: a prediction resolved on Twitch shows its outcome', async (t) => {
@@ -163,5 +163,5 @@ test('Twitch: a prediction resolved on Twitch shows its outcome', async (t) => {
   const { done } = await update(id, { action: 'start' })
   bus.emit('channel.prediction.end', { id: 'pred-2', winning_outcome_id: 'o1', outcomes: [{ id: 'o1', users: 4 }, { id: 'o2', users: 1 }] })
   assert.equal(await done, true)
-  assert.deepEqual(await output(id), { winner: 'Red', votes: 5, winners: '' })
+  assert.deepEqual(await output(id), { winner: 'Red', voteCount: 5, voteWinners: '' })
 })

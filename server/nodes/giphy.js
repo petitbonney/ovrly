@@ -1,5 +1,5 @@
-// Action: adds { gif, title } (or { sticker, title } for stickers, { clip, title } for clips, GIFs with sound): the URL of one picked in the editor, or a random
-// one found by a search run each time (empty: trending), e.g. for an Image/GIF widget's {{gif}} an Image/GIF widget's {{sticker}} or a Video widget's {{clip}}.
+// Action: adds { giphyUrl, giphyTitle }: the URL of a GIF, sticker or clip (a GIF with sound) picked in the editor, or a
+// random one found by a search run each time (empty: trending), e.g. for an Image/GIF widget (a Video widget for a clip).
 // Uses the Giphy API key (Settings → Giphy).
 import { fill } from '../template.js'
 import * as giphy from '../integrations/giphy.js'
@@ -12,8 +12,8 @@ export default {
   group: 'Media',
   play: { only: { pick: 'random' } },
   needs: ['giphy'],
-  description: 'Finds a GIF, sticker or clip (with sound) on Giphy and adds its URL as {{gif}}, {{sticker}} or {{clip}}.',
-  adds: ['gif', 'sticker', 'clip', 'title'],
+  description: 'Finds a GIF, sticker or clip (with sound) on Giphy and adds its URL as {{giphyUrl}}.',
+  adds: { giphyUrl: 'URL of the GIF, sticker or clip', giphyTitle: 'Its title (empty when picked)' },
   fields: {
     kind: {
       label: 'Type', options: [{ value: 'gif', label: 'GIF' }, { value: 'sticker', label: 'Sticker' }, { value: 'clip', label: 'Clip' }],
@@ -42,12 +42,12 @@ export default {
     if (config.pick === 'picked') {
       const url = { gif: config.picked, sticker: config.pickedSticker, clip: config.pickedClip }[kind]
       if (!url) throw new Error(`GIPHY: pick a ${kind} first`)
-      return { ...data, [kind]: url, title: '' }
+      return { ...data, giphyUrl: url, giphyTitle: '' }
     }
     const q = fill(config.search, data).trim()
     const list = await giphy.search(q, 0, kind, config.rating)
     const found = list[Math.floor(Math.random() * list.length)]
     if (!found) throw new Error(`GIPHY: no ${kind} found for "${q}"`)
-    return { ...data, [kind]: found.url, title: found.title }
+    return { ...data, giphyUrl: found.url, giphyTitle: found.title }
   },
 }
