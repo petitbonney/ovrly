@@ -6,7 +6,7 @@ import { fill } from '../template.js'
 export default {
   type: 'twitch-chat',
   label: 'Send Chat Message',
-  icon: 'message-share',
+  icon: 'send',
   category: 'action',
   group: 'Twitch',
   needs: ['twitch'],

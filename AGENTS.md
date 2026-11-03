@@ -42,5 +42,6 @@ When writing a node or widget type's `config` and `fields`:
 - **Order** is the `config` order: the main choice first (a mode or action that changes which other settings show), then what it acts on, then details, timing, and extra options last.
 - **Sections** (`section: 'Title'` on a group's first field) only for more than about 5 visible settings.
 - **Labels** in sentence case. A humanized key is fine when it reads well (`minBits` → "Min bits"); plain-text options show with a capital first letter, so give `{ value, label }` only when that isn't enough (`GIF`). Units go in `unit` (shown in the field), not in the label.
+- **A fixed list of values** (a setting or an action input) gets `options`, never free text: 4 or fewer show as a segmented control, more as a select. Add `vars: true` when a workflow should also pass it as data: it's then text with the options suggested where data comes in, and still picked from the options in a manual run.
 - **Hints** (`hint`) are one short line; anything longer goes in `info` (an ⓘ beside the label).
 - A setting shown only while a switch is on (`only: { someSwitch: true }`) is indented under it, by itself.

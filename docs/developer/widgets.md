@@ -29,7 +29,7 @@ export default {
 Each is `{ description, inputs, only, run }`.
 
 - `run({ state, runtime, input })` returns the parts it changes, `{ state?, runtime? }` (nothing: it did nothing). It may be async (e.g. a Twitch call); throwing refuses the action.
-- `inputs` says what it asks for on the node, as node fields, filled from the data when it runs: e.g. `{ option: { vars: true, hint }, user: { vars: true, default: '{{user}}' } }`, `{ image: { type: 'image' } }` for a file picker (`image`, `sound` or `video`), or `{ type: 'list' }` for a list.
+- `inputs` says what it asks for on the node, as node fields, filled from the data when it runs: e.g. `{ option: { vars: true, hint }, user: { vars: true, default: '{{user}}' } }`, `{ image: { type: 'image' } }` for a file picker (`image`, `sound` or `video`), or `{ type: 'list' }` for a list. A fixed list of values takes `options`, and `vars: true` too if a workflow may pass it as data (`{ mode: { options: ['toggle', 'anarchy', 'democracy'], vars: true } }`): it's then typed in the port's tab, with the options suggested, and picked in the manual Run dialog (the live column's menu), which starts from the input's `default` and leaves the port's inputs alone.
 - `only` shows an action only with some settings, as for fields (Voting's `vote`: `{ mode: 'chat' }`). An exposed one the settings no longer allow keeps its port, which does nothing: its tab says so.
 - `description` and `inputs` are listed in the node's ⓘ tooltip.
 

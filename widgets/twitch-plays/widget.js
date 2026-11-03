@@ -89,10 +89,11 @@ export default {
       },
     },
     mode: {
-      description: 'Switches the Mode setting to anarchy or democracy; the vote under way, if any, is dropped and a new loop begins.',
-      inputs: { mode: { vars: true, hint: 'anarchy or democracy' } },
+      description: 'Switches the Mode setting to anarchy or democracy, or toggles it; the vote under way, if any, is dropped and a new loop begins.',
+      inputs: { mode: { options: ['toggle', 'anarchy', 'democracy'], vars: true, default: 'toggle' } },
       run({ state, runtime, input }) {
-        const next = input.mode.toLowerCase()
+        const asked = String(input.mode ?? '').trim().toLowerCase() // data can bring any text
+        const next = asked === 'toggle' ? (state.mode === 'anarchy' ? 'democracy' : 'anarchy') : asked
         if (!['anarchy', 'democracy'].includes(next) || next === state.mode) return
         return { state: { ...state, mode: next }, runtime: { ...runtime, since: Date.now(), loop: -1, votes: {}, counts: [] } }
       },

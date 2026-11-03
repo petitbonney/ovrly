@@ -301,8 +301,8 @@ function SettingsTabs({ type, state, setState, config, context, onConfig }) {
 // named after its action, Stop and Cancel always named so. Start sends the inputs saved for its action (variables like
 // {{user}} aren't filled outside a run). Stop and Cancel also end a workflow run waiting on the widget: Stop lets it go
 // on, Cancel ends it. The widget's other actions (those its settings allow, Stop's and Cancel's aside, e.g. Lottery's
-// reset) are in a menu beside Start: one asking for inputs opens a dialog, filled with the inputs it last ran with
-// (saved in the state, through save).
+// reset) are in a menu beside Start: one asking for inputs opens a dialog, filled with the action's defaults (a manual
+// run: the inputs saved for its port, which may read data, are left alone).
 function WidgetPreview({ widget, type, state, save }) {
   const url = `${location.origin}/w/${widget.id}`
   const act = (action, input = {}) => fetch(`/api/widgets/${widget.id}/action`, json('POST', { action, input })).then(async (res) => {
@@ -319,14 +319,13 @@ function WidgetPreview({ widget, type, state, save }) {
   const press = (action, input) => act(action, input).then(() => setFailed(''), (err) => setFailed(`${humanize(action)} failed: ${err.message}`))
   const pick = (name) => {
     if (!Object.keys(type.actions[name].inputs ?? {}).length) return press(name)
-    setDraft(state.input?.[name] ?? {})
+    setDraft({})
     setError('')
     setOpen(name)
   }
   const run = async () => {
     const inputs = type.actions[open].inputs
     try {
-      await save({ ...state, input: { ...state.input, [open]: draft } })
       await act(open, sent(inputs, { ...inputDefaults(inputs), ...draft }))
       setOpen(null)
     } catch (err) {

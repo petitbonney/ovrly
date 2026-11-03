@@ -10,6 +10,7 @@
 // presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
 // off: true labels the 0 preset "off" (where 0 turns the setting off); a word labels it that word instead (e.g. 'any').
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
+// vars: true adds the "{}" menu of data keys; with options, the field is text where data comes in, the options suggested.
 // (or one of them: { layout: ['wheel', 'slots'] }). fixed: a list with a set number of items (no add, remove or move).
 // An option { value, label, streamer: true } is a Twitch feature: it needs Twitch in Streamer mode, like { needs: 'twitch' }.
 // An option { value, label, needs: key } needs that integration: disabled while it isn't ready (context.off lists the
@@ -661,6 +662,9 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
     return <TagsInput {...props} styles={{ input: TAG_SCROLL }} data={f.options} splitChars={TAG_SPLIT} value={tags} onChange={(v) => set(v.join('+'))}
       rightSection={<VarMenu vars={vars} onPick={(k) => set([...tags, `{{${k}}}`].join('+'))} />} />
   }
+  // Options that can also come as data (vars): typed where data comes in, the options suggested; picked elsewhere (a
+  // trigger, a manual run).
+  if (f.options && f.vars && vars) return <VarInput {...props} vars={vars} data={labelled(f.options).map((o) => o.value)} value={value} onChange={set} />
   // Options needing a requirement not met (Twitch features without Streamer mode, an integration not ready) can't be
   // picked, and say why on hover; one picked earlier is noted at the top of the settings pane. Short lists are buttons.
   const options = f.options

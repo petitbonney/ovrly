@@ -31,6 +31,7 @@ Subs, gift subs, cheers and raids work in Guest mode too, from what chat announc
 
 | Node | What it does |
 | --- | --- |
+| Waypoint | Passes its input on unchanged (to tidy up links). |
 | Filter | Continues only if a comparison holds (equals, contains, regex, numbers, empty…). |
 | If / Else | Sends data to "true" or "false" by comparing two values. |
 | Switch | Sends data to the first case equal to a value, one output per case, else to "else". |
@@ -40,7 +41,6 @@ Subs, gift subs, cheers and raids work in Guest mode too, from what chat announc
 | Wait For All | Continues once every incoming link has delivered, with their data merged. Force or Cancel from its settings. |
 | Fan Out | Runs what follows once per item of a list, e.g. a gift's recipients. |
 | Fan In | Collects firings into one `{{items}}` list with `{{itemCount}}`, released after a duration, a quiet period or a limit. Optionally one entry per key, e.g. `!join` sign-ups. |
-| Pipe | Passes its input on unchanged (to tidy up links). |
 | Portal Out | Sends the data through a Portal In, in this workflow or another, and the flow goes on from there. Its list has every Portal In, by workflow. **Wait for it to finish** gets back the data of the last node past the Portal In (or its failure), and gives the node an output. A loop going round more than 100 times in 10 seconds is stopped. |
 | Edit Data | Adds or overwrites data keys, for this run only. |
 | Map Value | Replaces a key's value using a "from" → "to" list. |
