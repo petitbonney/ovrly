@@ -71,7 +71,12 @@ function VarMenu({ vars, onPick }) {
       <Menu.Dropdown className="nowheel nopan" style={{ overflowY: 'auto' }}>
         {vars.length ? vars.map((v, i) => (
           <Fragment key={`${v.node}:${v.key}`}>
-            {v.node !== vars[i - 1]?.node && <Menu.Label>{v.from}</Menu.Label>}
+            {v.node !== vars[i - 1]?.node && (
+              <>
+                {i > 0 && <Menu.Divider />}
+                <Menu.Label fw={700} tt="uppercase" c="bright">{v.from}</Menu.Label>
+              </>
+            )}
             <Menu.Item onClick={() => onPick(v.key)} maw={360}>
               <Text span size="sm" ff="monospace">{`{{${v.key}}}`}</Text>
               {v.info && <Text span size="xs" c="dimmed">{` – ${v.info}`}</Text>}

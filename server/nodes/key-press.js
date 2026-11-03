@@ -18,7 +18,7 @@ export default {
   fields: {
     keys: {
       type: 'tags',
-      options: Object.keys(Key).filter((k) => isNaN(k)), // the enum also maps numbers back to names
+      options: Object.keys(Key).filter((k) => isNaN(k)).sort((a, b) => a.localeCompare(b, 'en', { numeric: true })), // the enum also maps numbers back to names
       hint: 'Pressed together, e.g. LeftControl + F1, or {{playsKeys}} from data',
       info: process.platform === 'darwin' ? 'macOS needs the Accessibility permission (System Settings → Privacy & Security).' : undefined,
     },

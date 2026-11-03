@@ -9,7 +9,7 @@ Its **mode** picks how buttons are pressed:
 - **Stream Deck**: keys on your Elgato Stream Deck, with the Ovrly plugin.
 - **Companion**: a URL per button (`/hooks/<path>/<name>-<id>`), for Bitfocus Companion or anything that sends HTTP requests. Only the id counts, so renaming a button keeps its URL working. Turn on **Settings → LAN → Open to LAN**: the copy button beside a button gives its URL at this computer's network address (`http://192.168.1.26:6875/…`), which works from other devices and from callers that `localhost` refuses, like the Stream Deck's Web Requests plugin.
 
-You can also press the buttons in the node's settings, to try them. Buttons fire nothing while the workflow is off.
+You can also press the buttons in the node's settings, to try them, also while the workflow is off (its keys and URLs fire nothing then).
 
 ## The Ovrly plugin
 

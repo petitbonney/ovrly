@@ -243,14 +243,12 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   useEffect(() => onBasic(basic ? { trigger: hasTrigger, graph: () => pickView('graph') } : null), [basic, hasTrigger])
   useEffect(() => () => onBasic(null), [])
 
-  // Short feedback message (copy, paste, a node failing) shown over the graph for a few seconds.
+  // Short feedback message (copy, paste, a node failing) shown over the graph for a few seconds:
+  // longer for errors and long messages, paused while hovered so it can be read.
   const [toast, setToast] = useState(null)
-  const toastTimer = useRef()
-  const notify = (message, color = 'teal') => {
-    setToast({ message, color, id: Date.now() })
-    clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), 3000)
-  }
+  const [toastHover, setToastHover] = useState(false)
+  const notify = (message, color = 'teal') =>
+    setToast({ message, color, id: Date.now(), ms: Math.max(color === 'red' ? 6000 : 3000, message.length * 60) })
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Locked graph: nodes can't be moved, linked or deleted, but can still be clicked to open their settings.
   const [locked, setLocked] = useState(false)
@@ -795,9 +793,10 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
           </Group>
         </Modal>
         {toast && (
-          <Notification withCloseButton={false} className="toast timed" color={toast.color}>
+          <Notification withCloseButton={false} className="toast timed" color={toast.color}
+            onMouseEnter={() => setToastHover(true)} onMouseLeave={() => setToastHover(false)}>
             {toast.message}
-            <TimerBar key={toast.id} ms={3000} />
+            <TimerBar key={toast.id} ms={toast.ms} paused={toastHover} onDone={() => setToast(null)} />
           </Notification>
         )}
         {/* An empty graph says how to start. */}

@@ -176,7 +176,7 @@ export default [
       // Each sets the time its trigger adds, for the countdown's add (its input: {{time}}).
       node('subTime', 'edit-data', 1, 1, { values: [{ name: 'time', value: '+5m' }] }),
       node('bitsTime', 'edit-data', 1, 2, { values: [{ name: 'time', value: '+{{ Math.floor(bits / 100) }}m' }] }),
-      widget('countdown', 2, 1, ['add', 'pause']),
+      widget('countdown', 2, 1, ['pause', 'add']),
       // Pause lets the workflow waiting on the countdown go on too: only its end is announced.
       node('over', 'filter', 3, 1, { value: '{{countdownLeft}}', operator: 'equals', compare: '0:00' }),
       node('end', 'twitch-announce', 4, 1, { message: 'The subathon is over! Thank you all!', color: 'purple' }),

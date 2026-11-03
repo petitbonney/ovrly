@@ -380,19 +380,17 @@ export default function App({ theme, onTheme }) {
     fetch(`/api/workflows/${item.id}`, json('PUT', { enabled }))
   }
   // Emergency stop: every workflow off, runs cancelled; the workflows it switched off can be turned back on at once.
+  // Its notice stays 5 seconds, paused while hovered.
   const [stopped, setStopped] = useState([])
+  const [stoppedHover, setStoppedHover] = useState(false)
   const stopAll = () => fetch('/api/stop', { method: 'POST' }).then((r) => r.json()).then(({ off }) => {
     setStopped(off)
     refresh()
   })
-  useEffect(() => {
-    if (!stopped.length) return
-    const t = setTimeout(() => setStopped([]), 5000)
-    return () => clearTimeout(t)
-  }, [stopped])
   const undoStop = () => {
     Promise.all(stopped.map((id) => fetch(`/api/workflows/${id}`, json('PUT', { enabled: true })))).then(refresh)
     setStopped([])
+    setStoppedHover(false) // the notice goes from under the pointer
   }
   // Called by the editors after a save (id) or a delete (null).
   const onItemChange = (id) => {
@@ -471,7 +469,8 @@ export default function App({ theme, onTheme }) {
       </AppShell.Aside>
       {stopped.length > 0 && (
         <Affix position={{ bottom: 16, left: 236 }}>
-          <Notification className="timed" color="red" withCloseButton={false}>
+          <Notification className="timed" color="red" withCloseButton={false}
+            onMouseEnter={() => setStoppedHover(true)} onMouseLeave={() => setStoppedHover(false)}>
             <Group gap="xl" wrap="nowrap">
               <div>
                 <Text size="sm" fw={500} c="var(--mantine-color-text)">EMERGENCY</Text>
@@ -479,7 +478,7 @@ export default function App({ theme, onTheme }) {
               </div>
               <Button size="compact-xs" variant="light" onClick={undoStop}>Undo</Button>
             </Group>
-            <TimerBar key={stopped.join()} ms={5000} />
+            <TimerBar key={stopped.join()} ms={5000} paused={stoppedHover} onDone={() => setStopped([])} />
           </Notification>
         </Affix>
       )}

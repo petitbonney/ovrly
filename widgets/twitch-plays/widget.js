@@ -46,7 +46,7 @@ export default {
     commands: {
       hint: 'A chat message that is exactly one of a row\'s commands presses its keys',
       info: 'In any case. A row\'s keys are pressed together.',
-      columns: { keys: { label: 'Key', type: 'tags', options: Object.keys(Key).filter((k) => isNaN(k)) }, command: { label: 'Commands', type: 'tags' } },
+      columns: { keys: { label: 'Key', type: 'tags', options: Object.keys(Key).filter((k) => isNaN(k)).sort((a, b) => a.localeCompare(b, 'en', { numeric: true })) }, command: { label: 'Commands', type: 'tags' } },
     },
     window: {
       label: 'Vote window', unit: 's', presets: [3, 5, 10, 20], only: { mode: 'democracy' }, hint: 'Votes are counted in loops this long, from start',

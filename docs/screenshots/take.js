@@ -32,7 +32,7 @@ await fs.mkdir(out, { recursive: true })
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 })
 const shot = (name, target = page) => target.screenshot({ path: path.join(out, `${name}.png`), animations: 'disabled' })
-const node = (label) => page.locator('.react-flow__node').filter({ has: page.locator('.label', { hasText: label }) })
+const node = (label) => page.locator('.react-flow__node').filter({ has: page.locator('.label', { hasText: new RegExp(`^${label}$`) }) })
 async function fromTemplate(name) {
   await page.getByRole('button', { name: 'New workflow' }).first().click()
   await page.getByRole('dialog').getByRole('button', { name }).click()

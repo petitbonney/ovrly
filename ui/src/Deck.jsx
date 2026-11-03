@@ -1,5 +1,5 @@
 // Control Pad node: its buttons' icons and URLs, the icon picker of its settings, and the grid of buttons that fire
-// them from the editor, as its mode would (so not while the workflow is off), each marked when a key shows it.
+// them by hand from the editor, as its mode would (also while the workflow is off), each marked when a key shows it.
 import { useEffect, useState } from 'react'
 import { ActionIcon, Menu, SimpleGrid, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core'
 import { animate } from 'animejs'
@@ -61,30 +61,24 @@ export function IconPicker({ value, color, onChange }) {
 // Where a paired key is, e.g. "Stream Deck MK.2, row 1, column 3".
 const place = (k, devices) => [devices[k.device]?.name ?? 'Stream Deck', k.row == null ? 'in a multi action' : `row ${k.row + 1}, column ${k.column + 1}`].join(', ')
 
-// The buttons, five a row like a Stream Deck; a press goes the mode's way: a key press for the Stream Deck, the
-// button's URL for Companion. Whether the workflow is on, and the keys paired with the Ovrly plugin, are asked again
-// every 2s, so switching the workflow off greys the grid.
+// The buttons, five a row like a Stream Deck; a press fires that button by hand (engine.js fireManual), the way its
+// mode would, so also while the workflow is off. The keys paired with the Ovrly plugin are asked again every 2s.
 export default function DeckGrid({ workflow, node, config }) {
-  const [on, setOn] = useState(true)
   const [deck, setDeck] = useState({ devices: {}, keys: [] })
   useEffect(() => {
-    const load = () => {
-      get(`/api/workflows/${workflow}`).then((w) => setOn(w.enabled !== false), () => {})
-      get('/api/streamdeck').then(setDeck, () => {})
-    }
+    const load = () => get('/api/streamdeck').then(setDeck, () => {})
     load()
     const timer = setInterval(load, 2000)
     return () => clearInterval(timer)
-  }, [workflow])
+  }, [])
   const plugin = config.mode === 'streamdeck'
   const press = (e, b) => {
     animate(e.currentTarget, { scale: [0.88, 1], duration: 300, ease: 'outBack' })
-    if (plugin) fetch('/api/streamdeck/press', json('POST', { workflow, node, button: b.id }))
-    else fetch(deckUrl(b), { method: 'POST' })
+    fetch(`/api/workflows/${workflow}/run?node=${node}`, json('POST', { config, inputs: { button: b.id } }))
   }
   return (
     <Stack gap="xs" flex="1 1 320px" miw={0}>
-      <Text size="xs" c="dimmed">{!on ? 'This workflow is off: its buttons fire nothing.' : `Press a button to fire it, as ${plugin ? 'its Stream Deck key' : 'Companion'} would.`}</Text>
+      <Text size="xs" c="dimmed">{`Press a button to fire it, as ${plugin ? 'its Stream Deck key' : 'Companion'} would.`}</Text>
       {plugin && deck.connected && <Text size="xs" c="dimmed">In the Stream Deck app, drag Ovrly → Ovrly button onto a key, then pick a button in its settings. <IconLink size={11} /> marks the buttons on a key.</Text>}
       {!config.buttons.length && <Text size="sm" c="dimmed">Add a button on the left.</Text>}
       <SimpleGrid cols={5} spacing="xs" maw={5 * 88}>
@@ -92,7 +86,7 @@ export default function DeckGrid({ workflow, node, config }) {
           const Icon = deckIcons[b.icon] ?? IconStar
           const keys = !plugin ? [] : deck.keys.filter((k) => k.workflow === workflow && k.node === node && k.button === b.id)
           return (
-            <UnstyledButton key={b.id} className="deck-button" disabled={!on} onClick={(e) => press(e, b)} style={{ background: b.color }}>
+            <UnstyledButton key={b.id} className="deck-button" onClick={(e) => press(e, b)} style={{ background: b.color }}>
               <Icon size={28} stroke={1.6} />
               <span>{b.name}</span>
               {keys.length > 0 && (

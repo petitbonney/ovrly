@@ -5,7 +5,7 @@
 ## Left: workflows
 
 - **+** opens the New workflow dialog (blank, which starts in the [Basic view](#basic-a-list-of-steps), import or a [template](./templates)).
-- The **switch** next to a workflow turns it off: what it is running is cancelled, and its triggers ignore chat and API calls. A trigger's **⚡** still fires it, to try it.
+- The **switch** next to a workflow turns it off: what it is running is cancelled, and its triggers ignore chat and API calls. A trigger's **⚡**, its **Fire** and a Control Pad's buttons in its settings still fire it, to try it.
 - A **spinner** shows next to a running workflow. Hover it and it becomes **■ Stop**: it cancels what that workflow is running, without opening it.
 - **EMERGENCY** turns every workflow off at once, then offers to turn them back on.
 - Below, one row per integration you set up (✓ connected, ! failing; its tooltip says more), opening its settings. **Settings** has them all, plus variables, custom nodes and widgets, LAN and the theme.

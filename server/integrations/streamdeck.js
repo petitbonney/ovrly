@@ -77,7 +77,7 @@ export function report({ devices = {}, keys = [] }) {
   Object.assign(status, { devices, keys })
 }
 
-// A key (or the node's grid) pressed: fires its button on that node alone, unless the button is gone, the node is set
+// A key pressed: fires its button on that node alone, unless the button is gone, the node is set
 // to Companion, or its workflow is off.
 export async function press({ workflow: id, node: nodeId, button }) {
   const workflow = await store.get('workflows', id).catch(() => null)
