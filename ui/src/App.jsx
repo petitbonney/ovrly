@@ -164,12 +164,15 @@ function Groups({ items }) {
   ))
 }
 
+const devOnly = ['merge', 'error-trigger', 'log']
+
 // Drag a node type or a widget type onto the graph; each widget dropped is a new instance. In the Basic view (basic:
-// { trigger, graph }) only what keeps the workflow one line: triggers while it has none, no branching nodes.
-function Library({ defs, types, off, basic }) {
+// { trigger, graph }) only what keeps the workflow one line: triggers while it has none, no branching nodes. Merge Widgets,
+// Error Trigger and Log are listed in developer mode only (nodes already placed keep working).
+function Library({ defs, types, off, basic, devMode }) {
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
-  const match = (d) => (!q || d.label.toLowerCase().includes(q))
+  const match = (d) => (!q || d.label.toLowerCase().includes(q)) && (devMode || !devOnly.includes(d.type))
     && (!basic || (d.category === 'trigger' ? !basic.trigger : !graphOnly.includes(d.type)))
   return (
     <>
@@ -459,7 +462,7 @@ export default function App({ theme, onTheme }) {
       )}
       <AppShell.Aside>
         <div className="pane">
-          <Library defs={defs} types={types} off={off} basic={basic} />
+          <Library defs={defs} types={types} off={off} basic={basic} devMode={devMode} />
         </div>
       </AppShell.Aside>
       {stopped.length > 0 && (

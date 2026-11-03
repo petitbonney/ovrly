@@ -11,6 +11,8 @@ const loopAt = (state, runtime, at) => Math.floor((at - runtime.since) / (state.
 const loopEnd = (state, runtime, loop) => runtime.since + (loop + 1) * state.window * 1000
 // Stops listening; the votes stay, for the output of the loop "stop" ends.
 const off = (runtime) => ({ ...runtime, listening: false })
+// How many of the latest commands are kept; the page lists those that fit.
+const KEPT = 30
 // Clears the latest commands and the votes ("reset", and "cancel").
 const reset = (runtime) => ({ ...runtime, log: [], votes: {}, counts: [], loop: -1 })
 
@@ -32,7 +34,6 @@ export default {
       { command: 'start', keys: 'Enter' },
     ],
     window: 5,
-    max: 8,
   },
   fields: {
     mode: { options: [{ value: 'anarchy', label: 'Anarchy' }, { value: 'democracy', label: 'Democracy' }] },
@@ -46,7 +47,6 @@ export default {
       label: 'Vote window', unit: 's', presets: [3, 5, 10, 20], only: { mode: 'democracy' }, hint: 'Votes are counted in loops this long, from start',
       info: "Each loop's most voted command goes on (a tie: the first in the list).",
     },
-    max: { label: 'Inputs shown', only: { mode: 'anarchy' }, hint: 'How many of the latest commands are listed' },
   },
   // listening: between "start" and "stop" or "cancel"; since: when the loops began (ms); loop: the loop the votes are
   // for (-1: none, e.g. in anarchy); log: latest commands, newest first, { user, command, at }; votes: user -> command
@@ -74,7 +74,7 @@ export default {
       run({ state, runtime, input: { text, user } }) {
         const i = find(state, text)
         if (!runtime.listening || i < 0) return
-        const log = [{ user, command: state.commands[i].command, at: Date.now() }, ...runtime.log].slice(0, state.max)
+        const log = [{ user, command: state.commands[i].command, at: Date.now() }, ...runtime.log].slice(0, KEPT)
         if (state.mode === 'anarchy') return { runtime: { ...runtime, log, loop: -1, votes: {}, counts: [] } }
         const loop = loopAt(state, runtime, Date.now())
         const votes = { ...(loop === runtime.loop ? runtime.votes : {}), [user]: i } // a new loop starts over

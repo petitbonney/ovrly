@@ -185,7 +185,7 @@ function Config({ workflow, node, def, context, off, running, error, onChange, o
             : <Text fw={600} truncate>{isWidget ? 'Missing widget' : def.label}</Text>}
           {/* The widget's actions, as its settings allow them now (e.g. Voting's "win" only for a prediction). */}
           {isWidget && type && (
-            <ActionsInfo key={widget.id} type={type} state={{ ...type.state, ...widget.state }} />
+            <ActionsInfo key={`actions-${widget.id}`} type={type} state={{ ...type.state, ...widget.state }} />
           )}
           {isWidget && widget && <WidgetMenu widget={widget} onCopy={onCopy} />}
           <CloseButton size="sm" ml="auto" aria-label="Close settings" onClick={onClose} />

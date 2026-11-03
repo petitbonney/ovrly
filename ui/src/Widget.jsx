@@ -259,7 +259,7 @@ function SettingsTabs({ type, state, setState, config, context, onConfig }) {
   )
   const Icon = type.Icon ?? IconBox
   return (
-    <Tabs value={open} onChange={setTab}>
+    <Tabs className="settings-tabs" value={open} onChange={setTab}>
       <Tabs.List>
         <Tabs.Tab value={WIDGET} leftSection={<Icon size={14} />}>Widget</Tabs.Tab>
         <Divider orientation="vertical" mx={4} my={6} />

@@ -45,4 +45,4 @@ Expressions and the Code node run as code on your computer.
 
 ## When something fails
 
-A node that fails stops its run there and turns red, with the error in its settings. A workflow starting with an **Error Trigger** runs whenever a node fails in another workflow: e.g. to post the error to Discord.
+A node that fails stops its run there and turns red, with the error in its settings. A workflow starting with an **Error Trigger** (listed in [developer mode](./editor#developer-mode) only) runs whenever a node fails in another workflow: e.g. to post the error to Discord.

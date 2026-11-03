@@ -23,7 +23,7 @@ A workflow starts at a trigger. Its **⚡** fires it by hand, to try the workflo
 | API Call | a request reaches `http://localhost:6875/hooks/<path>`; its query and JSON body become data | |
 | Control Pad | a button is pressed: a [Stream Deck](./stream-deck) key, or a URL per button for Companion | |
 | Called By Workflow | another workflow runs this one (Execute Workflow) | |
-| Error Trigger | a node fails in another workflow | |
+| Error Trigger | a node fails in another workflow (listed in [developer mode](./editor#developer-mode) only) | |
 
 Subs, gift subs, cheers and raids work in Guest mode too, from what chat announces.
 
@@ -55,7 +55,7 @@ Subs, gift subs, cheers and raids work in Guest mode too, from what chat announc
 | Key Press | Presses a key combo on this computer, optionally only while a given window is focused. | |
 | HTTP Request | Sends an HTTP request, e.g. a Discord webhook. | |
 | WebSocket Send | Opens a WebSocket, sends one message, then closes. | |
-| Log | Prints the data to the events view, and shows the last one in its settings. | |
+| Log | Prints the data to the events view, and shows the last one in its settings. Listed in [developer mode](./editor#developer-mode) only. | |
 | GIPHY | Finds a GIF, sticker or clip and adds its URL (`{{gif}}`, `{{sticker}}`, `{{clip}}`). | [Giphy](./hue-giphy#giphy) |
 | MyInstants | Finds a sound on Myinstants and adds its URL as `{{sound}}`. | |
 | Text-to-Speech | Speaks a text in a language and voice, and adds the sound as `{{sound}}`. | [Text-to-Speech](./hue-giphy#text-to-speech) |
@@ -87,4 +87,4 @@ All need [Streamer mode](./twitch#guest-or-streamer).
 
 ## Widgets
 
-The **Widget** section of the library has every [widget type](./widgets), and **Merge Widgets** to put several on one browser source.
+The **Widget** section of the library has every [widget type](./widgets), and, in [developer mode](./editor#developer-mode), **Merge Widgets** to put several on one browser source.

@@ -4,9 +4,13 @@
 <link rel="stylesheet" href="/widgets/base.css">
 <script type="importmap">{ "imports": { "animejs": "/vendor/animejs/index.js" } }</script>
 <style>
-  /* The card fills the page (minus its margin), so resizing the browser source resizes it; extra rows are cut off. */
+  /* The card fills the page (minus its margin), so resizing the browser source resizes it. The rows fit in it: anarchy
+     lists the latest that fit whole, democracy shrinks them all (--z). */
   .card { box-sizing: border-box; height: calc(100vh - 32px); display: flex; flex-direction: column; }
   #rows { flex: 1; min-height: 0; overflow: hidden; }
+  .row { zoom: var(--z, 1); }
+  .row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row > .muted { flex: 1; } /* a long user name gives way before the command */
   h1 { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
   #mode { font-size: 16px; padding: 2px 10px; border-radius: 999px; background: #9147ff; }
   .row b { min-width: 2ch; text-align: right; }
@@ -22,17 +26,21 @@
   let seen = 0 // newest log entry already shown, so only new ones slide in
   let widths = [] // vote bars' last widths, so they grow from there
   let timer
+  let data // the last state and runtime, to fit the rows again when the page is resized
 
-  // Anarchy: the latest inputs, newest on top, older ones fading out.
-  function anarchy(state, runtime) {
+  // Anarchy: the latest inputs that fit whole, newest on top, older ones fading out.
+  function anarchy(runtime) {
     $('foot').textContent = runtime.listening ? '' : 'Not listening'
-    $('rows').replaceChildren(...runtime.log.map(({ user, command, at }, i) => {
-      const row = el('div', 'row', el('span', 'muted', user || 'test'), el('span', '', command))
-      const opacity = 1 - i / (state.max + 1)
+    const rows = runtime.log.map(({ user, command }) => el('div', 'row', el('span', 'muted', user || 'test'), el('span', '', command)))
+    $('rows').replaceChildren(...rows)
+    const bottom = $('rows').getBoundingClientRect().bottom
+    const shown = rows.filter((row) => row.getBoundingClientRect().bottom <= bottom)
+    rows.slice(shown.length).forEach((row) => row.remove())
+    shown.forEach((row, i) => {
+      const opacity = 1 - i / (shown.length + 1)
       row.style.opacity = opacity
-      if (at > seen) animate(row, { translateX: [-40, 0], opacity: [0, opacity], duration: 300, ease: 'outQuad' })
-      return row
-    }))
+      if (runtime.log[i].at > seen) animate(row, { translateX: [-40, 0], opacity: [0, opacity], duration: 300, ease: 'outQuad' })
+    })
     seen = runtime.log[0]?.at ?? 0
   }
 
@@ -58,16 +66,23 @@
       if (command === last) row.classList.add('win')
       return row
     }))
+    // Every command shows: shrunk to fit if they don't.
+    const rows = $('rows')
+    rows.style.setProperty('--z', Math.min(1, rows.clientHeight / rows.scrollHeight))
     $('foot').textContent = runtime.listening ? `${Math.ceil(left / 1000)}s to vote · type a command${last ? ` · last: ${last}` : ''}` : 'Not listening'
   }
 
-  subscribe(function render({ state, runtime }) {
+  function render({ state, runtime }) {
     clearTimeout(timer)
+    data = { state, runtime }
+    $('rows').style.removeProperty('--z')
     const mode = state.mode
     $('title').textContent = state.title
     $('mode').textContent = mode === 'democracy' ? 'Democracy' : 'Anarchy'
     document.body.classList.toggle('off', !runtime.listening)
     if (mode === 'democracy') democracy(state, runtime, () => render({ state, runtime }))
-    else anarchy(state, runtime)
-  })
+    else anarchy(runtime)
+  }
+  subscribe(render)
+  addEventListener('resize', () => data && render(data))
 </script>

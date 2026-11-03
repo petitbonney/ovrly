@@ -10,6 +10,11 @@
 .widget-split .settings { overflow: auto; padding-right: var(--mantine-spacing-xs); }
 /* The live column (Control Pad grid, Queue line) scrolls too: the split pane clips what overflows. */
 .widget-split .live { overflow: auto; }
+/* Its tabs, tighter than Mantine's: less height, and a port's × close to its name without a wide right padding. */
+.settings-tabs .mantine-Tabs-tab { padding: 6px 12px; }
+.settings-tabs .mantine-Tabs-tab:has(.mantine-Tabs-tabSection[data-position='right']) { padding-right: 8px; }
+.settings-tabs .mantine-Tabs-tabSection[data-position='left'] { margin-inline-end: 6px; }
+.settings-tabs .mantine-Tabs-tabSection[data-position='right'] { margin-inline-start: 2px; }
 .preview-fit { flex: 1; min-height: 0; }
 .preview-fit .preview { display: block; height: 100%; aspect-ratio: auto; }
 /* A Code node's editor fills the settings column, or the full-screen view (Fields.jsx), its code in the theme's colors
@@ -65,10 +70,12 @@
 .flow-node .in-bar { position: absolute; top: 50%; left: -1px; transform: translate(-50%, -50%); /* centred on left like a handle */ width: 8px; border-radius: 2px; background: var(--ovrly-line); pointer-events: none; }
 .react-flow.previewing .react-flow__connectionline { display: none; } /* the previewed link replaces the pulled line */
 .flow-node .react-flow__handle.out { width: 14px; height: 14px; right: -1px; }
-.flow-node .port { position: absolute; left: 18px; top: -3px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--ovrly-sub); pointer-events: none; }
+/* Port labels sit just above their link, on the canvas color so links passing behind don't cross the text. */
+.flow-node .port, .flow-node .in-port { position: absolute; font-size: 11px; line-height: 12px; color: var(--ovrly-sub); background: color-mix(in srgb, var(--ovrly-canvas) 90%, transparent); white-space: nowrap; pointer-events: none; }
+.flow-node .port { left: 18px; bottom: 9px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; } /* bottom: 1px above the link's 2px line */
 .flow-node .port svg { vertical-align: -1px; margin-right: 2px; } /* a Control Pad button's icon */
-/* A widget node's action port: its name left of its bar, over the links coming in. */
-.flow-node .in-bar .in-port { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); padding: 0 3px; border-radius: 3px; background: var(--ovrly-canvas); font-size: 11px; color: var(--ovrly-sub); white-space: nowrap; }
+/* A widget node's action port: its name left of its bar, above the link into its first slot (11px below the bar's top). */
+.flow-node .in-bar .in-port { right: 18px; bottom: calc(100% - 9px); }
 /* Control Pad node: square keys in the button's color (Deck.jsx). */
 .deck-button { position: relative; aspect-ratio: 1; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #fff; font-size: 11px; font-weight: 600; text-align: center; padding: 4px; overflow: hidden; text-shadow: 0 1px 2px #0006; }
 .deck-button:disabled { opacity: 0.35; cursor: not-allowed; }
