@@ -55,15 +55,17 @@
     const counts = state.commands.map((c, i) => (runtime.loop === loop ? runtime.counts[i] ?? 0 : 0))
     const total = counts.reduce((a, b) => a + b, 0)
     const past = runtime.loop >= 0 && runtime.loop === loop - 1 && Math.max(0, ...runtime.counts)
-    const last = past ? state.commands[runtime.counts.indexOf(past)]?.command : ''
-    $('rows').replaceChildren(...state.commands.map(({ command }, i) => {
+    const won = past ? runtime.counts.indexOf(past) : -1
+    const name = (c) => c.command.split('+').join(' / ') // a row shows all its commands
+    const last = state.commands[won] ? name(state.commands[won]) : ''
+    $('rows').replaceChildren(...state.commands.map((c, i) => {
       const pct = total ? (counts[i] / total) * 100 : 0
       const bar = el('div', 'bar')
       bar.style.width = `${widths[i] ?? 0}%`
       if (pct !== widths[i]) animate(bar, { width: `${pct}%`, duration: 400, ease: 'outQuad' })
       widths[i] = pct
-      const row = el('div', 'row', bar, el('span', '', command), el('b', '', String(counts[i])))
-      if (command === last) row.classList.add('win')
+      const row = el('div', 'row', bar, el('span', '', name(c)), el('b', '', String(counts[i])))
+      if (i === won) row.classList.add('win')
       return row
     }))
     // Every command shows: shrunk to fit if they don't.

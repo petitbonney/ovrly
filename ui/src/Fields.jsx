@@ -347,7 +347,10 @@ function ItemInput({ item, shape, columns = {}, onChange }) {
     const props = { size: 'xs', w, flex: w ? undefined : 1, 'aria-label': columns[key]?.label ?? humanize(key), disabled: !applies(columns[key], item) }
     const set = (v) => onChange({ ...item, [key]: v })
     if (columns[key]?.type === 'id') return null
-    if (columns[key]?.options) return <Select key={key} {...props} data={labelled(columns[key].options)} value={item[key]} onChange={set} allowDeselect={false} />
+    // Many options (TwitchPlays' keys): typing filters them.
+    if (columns[key]?.options) {
+      return <Select key={key} {...props} data={labelled(columns[key].options)} value={item[key]} onChange={set} allowDeselect={false} searchable={columns[key].options.length > 8} />
+    }
     if (columns[key]?.type === 'icon') return <IconPicker key={key} value={item[key]} color={Object.values(item).find(isColor)} onChange={set} />
     if (columns[key]?.type === 'tags') {
       return <TagsInput key={key} {...props} miw={0} styles={{ input: TAG_SCROLL, inputField: { minWidth: 30 } }} data={columns[key].options} splitChars={TAG_SPLIT}

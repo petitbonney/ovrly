@@ -71,7 +71,7 @@ They draw a `{{winner}}`:
 
 ### TwitchPlays
 
-Turns chat into key presses through a list of command → keys (`up` → `Up`); a Key Press node set to `{{keys}}` presses them. **Anarchy** passes on every command; **democracy** counts one vote per viewer in rounds, and passes on each round's winner. The overlay fits its source: anarchy lists as many of the latest commands as fit, democracy shrinks its vote so every command shows. Use Key Press's "Only when focused" so keys only reach the game window.
+Turns chat into key presses through a list of keys and the commands that press them (`Up` ← `up`, `u`; any of a row's commands); a Key Press node set to `{{keys}}` presses them. **Anarchy** passes on every command; **democracy** counts one vote per viewer in rounds, and passes on each round's winner. The overlay fits its source: anarchy lists as many of the latest commands as fit, democracy shrinks its vote so every command shows. Use Key Press's "Only when focused" so keys only reach the game window.
 
 ## Merge Widgets
 
