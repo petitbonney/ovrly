@@ -40,8 +40,15 @@ export async function importBundle({ widgets = [], workflows = [] }) {
     ids[id] = saved.id
     created.push({ kind: 'widgets', id: saved.id })
   }
+  // Portal In nodes get fresh ids, and the bundle's Portal Out nodes sending through them follow: a template imported
+  // twice sends through its own.
+  const portals = Object.fromEntries(workflows.flatMap((w) => w.nodes).filter((n) => n.data.type === 'portal-in').map((n) => [n.id, crypto.randomUUID()]))
+  const node = (id) => portals[id] ?? id
   for (const { id, ...workflow } of workflows) {
-    const saved = await fetch('/api/workflows', json('POST', { ...workflow, nodes: withWidgetIds(workflow.nodes, ids) })).then((r) => r.json())
+    const nodes = withWidgetIds(workflow.nodes, ids).map((n) => ({ ...n, id: node(n.id),
+      ...(n.data.type === 'portal-out' && portals[n.data.config?.target] && { data: { ...n.data, config: { ...n.data.config, target: portals[n.data.config.target] } } }) }))
+    const edges = workflow.edges?.map((e) => ({ ...e, source: node(e.source), target: node(e.target) }))
+    const saved = await fetch('/api/workflows', json('POST', { ...workflow, nodes, edges })).then((r) => r.json())
     created.unshift({ kind: 'workflows', id: saved.id })
   }
   return created[0]

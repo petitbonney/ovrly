@@ -3,8 +3,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { chainOf, relink } from '../ui/src/chain.js'
 
-const outputs = { 'if-else': 'true', cooldown: 'pass' }
-const opts = { isTrigger: (n) => n.type === 'follow' || n.type === 'manual', firstOutput: (n) => outputs[n.type] ?? null }
+const outputs = { 'if-else': 'true', cooldown: 'pass', 'portal-out': undefined } // Portal Out not waiting: no output
+const opts = { isTrigger: (n) => n.type === 'follow' || n.type === 'manual', firstOutput: (n) => (n.type in outputs ? outputs[n.type] : null) }
 const node = (id, type = 'log') => ({ id, type })
 const link = (source, target, sourceHandle = null) => ({ id: `${source}-${target}`, source, sourceHandle, target })
 const ids = (list) => list?.map((n) => n.id) ?? null
@@ -46,6 +46,12 @@ test('relink keeps the links in place and adds the missing ones from the first o
   assert.equal(edges.length, 2)
   assert.equal(edges[0], kept)
   assert.deepEqual({ ...edges[1], id: undefined }, { id: undefined, source: 'c', sourceHandle: 'pass', target: 'a', targetHandle: null })
+})
+
+test('a node without an output only ends a line, and relink links nothing from it', () => {
+  assert.deepEqual(ids(chainOf([node('a'), node('o', 'portal-out')], [link('a', 'o')], opts)), ['a', 'o'])
+  assert.equal(chainOf([node('o', 'portal-out'), node('b')], [link('o', 'b')], opts), null)
+  assert.deepEqual(relink([node('o', 'portal-out'), node('b')], [], opts.firstOutput), [])
 })
 
 test('relink of a list of one or none has no links', () => {

@@ -12,8 +12,8 @@ import { fill } from './template.js'
 const order = [
   'manual', 'deck', 'chat-command', 'chat-message',
   'redeem', 'follow', 'subscription', 'raid', 'cheer', 'gift-subs', 'hype-train', 'stream-status',
-  'schedule', 'webhook', 'workflow-call', 'error-trigger',
-  'if-else', 'filter', 'switch', 'fan-out', 'fan-in', 'wait-all', 'execute-workflow', 'pipe',
+  'schedule', 'webhook', 'portal-in', 'error-trigger',
+  'if-else', 'filter', 'switch', 'fan-out', 'fan-in', 'wait-all', 'portal-out', 'pipe',
   'delay', 'cooldown', 'queue',
   'edit-variable', 'code', 'edit-data',
   'twitch-chat', 'twitch-announce', 'twitch-shoutout', 'twitch-ban', 'twitch-delete-message', 'twitch-clip', 'twitch-user', 'twitch-channel-info',
@@ -181,7 +181,7 @@ async function step(workflow, node, data, run, { def, config, id, status, from }
   }
   const began = Date.now()
   const log = (extra) => run.record.nodes.push({ node: node.id, type: def.type, input: data, ...extra, ms: Date.now() - began })
-  // A failure stops the firing there. fire is passed in (Execute Workflow): nodes can't import the engine that loads them.
+  // A failure stops the firing there. fire is passed in (Portal Out): nodes can't import the engine that loads them.
   let out
   try {
     out = await def.run({ config, data, id, from, signal: run.signal, depth: run.depth, origins: run.origins, event: run.event, fire, ovrly: custom.ovrly })

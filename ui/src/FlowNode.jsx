@@ -11,12 +11,14 @@ import { IconAlertTriangle, IconBolt, IconBox, IconPlugOff, createReactComponent
 import { deckIcons } from './Deck.jsx'
 
 // A node or widget type with its icon as Icon: a Tabler component drawn from the SVG shapes the server sends (iconNode, for
-// the icon its file names), turned iconRotate degrees (e.g. if/else branches left to right, like the graph).
+// the icon its file names), turned iconRotate degrees (e.g. if/else branches left to right, like the graph). Its color
+// is the CSS color too: Tabler's only sets the stroke, and Ovrly's own filled icons (Portal In and Out) fill with
+// currentColor.
 export function withIcon(type) {
   if (!type.iconNode) return type
   const Svg = createReactComponent('outline', type.icon, type.icon, type.iconNode)
   const turn = type.iconRotate && `rotate(${type.iconRotate}deg)`
-  return { ...type, Icon: turn ? ({ style, ...props }) => <Svg {...props} style={{ ...style, transform: turn }} /> : Svg }
+  return { ...type, Icon: ({ color, style, ...props }) => <Svg {...props} color={color} style={{ ...style, color, ...(turn && { transform: turn }) }} /> }
 }
 
 // Category colors, from the editor theme (themes.js).
@@ -69,14 +71,19 @@ export const PORT = 20
 // Port i of n: its height from the node's middle.
 export const portY = (i, n) => (i - (n - 1) / 2) * PORT
 
+// Whether a node has its one output (types with several always have them): a type with `output: { only }` has it only
+// while its settings match (Portal Out while it waits).
+export const hasOutput = (def, config) => !def?.output?.only
+  || Object.entries(def.output.only).every(([k, v]) => [v].flat().includes({ ...def.config, ...config }[k]))
+
 // A node's height: NODE, taller with more outputs or inputs, keeping a PORT between the end outputs and the corners,
 // and about as much between the ends of the input bars (8px past their end handles) and the corners.
 export function nodeHeight(def, config, inputs = 0) {
   return Math.max(NODE, (outputsOf(def, config).length + 1) * PORT, (inputs + 2) * PORT)
 }
 
-// Field types too long or too secret for the subtitle.
-const unshown = ['json', 'code', 'secret']
+// Field types too long, too secret or unreadable (a node id) for the subtitle.
+const unshown = ['json', 'code', 'secret', 'portal']
 
 // Subtitle like n8n's "mode: Rules": the node's first setting (not JSON, code or a secret). A widget node shows the
 // action a signal runs unless it is its start action (TwitchPlays: "push").
@@ -117,7 +124,7 @@ export default function FlowNode({ id, data, selected }) {
   const ports = isWidget && widgetPorts(type, data.config, data.portLinks)
   const inputs = ports ? slotCount(ports) : Math.max(1, data.inputs ?? 0)
   const at = (slot) => `calc(50% + ${portY(slot, inputs)}px)`
-  const handles = outputs.map((o) => o.id).join() + inputs + (ports ? ports.map((p) => `${p.id}:${p.slots}`).join() : '')
+  const handles = outputs.map((o) => o.id).join() + hasOutput(def, data.config) + inputs + (ports ? ports.map((p) => `${p.id}:${p.slots}`).join() : '')
   useEffect(() => updateNodeInternals(id), [handles])
   const Icon = (isWidget ? type : def)?.Icon ?? IconBox
   const trigger = def?.category === 'trigger'
@@ -147,7 +154,7 @@ export default function FlowNode({ id, data, selected }) {
         <Handle key={o.id} id={o.id} type="source" position="right" className="out" style={{ top: `calc(50% + ${portY(i, outputs.length)}px)` }}>
           <span className="port">{o.icon && <o.icon size={10} color={o.color} />}{o.label}</span>
         </Handle>
-      )) : <Handle type="source" position="right" className="out" />}
+      )) : hasOutput(def, data.config) && <Handle type="source" position="right" className="out" />}
       <div className="caption">
         <div className="label">{isWidget ? widget?.state.name ?? 'Missing widget' : def?.label ?? data.label}</div>
         {sub && <div className="sub">{sub}</div>}

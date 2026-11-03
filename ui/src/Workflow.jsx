@@ -35,7 +35,7 @@ import Fire from './Fire.jsx'
 import CodeTest from './CodeTest.jsx'
 import Merge from './Merge.jsx'
 import Notice from './Notice.jsx'
-import FlowNode, { NODE, colors, outputsOf, portY, slotCount, widgetPorts } from './FlowNode.jsx'
+import FlowNode, { NODE, colors, hasOutput, outputsOf, portY, slotCount, widgetPorts } from './FlowNode.jsx'
 import layout, { CAPTION, GRID, STEP } from './layout.js'
 import Basic from './Basic.jsx'
 import { chainOf, relink } from './chain.js'
@@ -46,6 +46,8 @@ import { requirements } from './Settings.jsx'
 const findWidget = (widgets, id) => widgets.find((w) => w.id === id)
 // Copied nodes and the edges between them; kept in memory so they can be pasted into another workflow.
 let clipboard = null
+// The Portal In added last (its node id), which a Portal Out added after it sends data through.
+let lastPortalIn = ''
 // A workflow's last view (pan and zoom), kept by this browser: it reopens where it was left, even after a refresh.
 const savedView = (id) => {
   try { return JSON.parse(localStorage.getItem(`ovrly-view-${id}`)) } catch {}
@@ -228,7 +230,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   const typeOf = (n) => types.find((t) => t.type === findWidget(widgets, n?.data.config.widget)?.type)
   // The links into each port of a widget node: port id ('' for the main one) -> how many.
   const portLinks = (id, list = edges) => list.reduce((c, e) => (e.target === id ? { ...c, [e.targetHandle ?? '']: (c[e.targetHandle ?? ''] ?? 0) + 1 } : c), {})
-  const firstOutput = (n) => outputsOf(defOf(n), n.data.config)[0]?.id ?? null
+  // undefined for a node without an output (chain.js).
+  const firstOutput = (n) => (hasOutput(defOf(n), n.data.config) ? outputsOf(defOf(n), n.data.config)[0]?.id ?? null : undefined)
   // Basic view: the nodes in order while the graph is one line (else null, and the graph is shown).
   const chain = chainOf(nodes, edges, { isTrigger: (n) => defOf(n)?.category === 'trigger', firstOutput })
   const [view, setView] = useState(workflow.view === 'basic' ? 'basic' : 'graph')
@@ -319,6 +322,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
       const i = ports.reduce((best, _, i) => (Math.abs(y(i) - p.y) < Math.abs(y(best) - p.y) ? i : best), 0)
       link = { source: c.fromNode.id, sourceHandle: c.fromHandle.id ?? null, target: node.id, targetHandle: ports[i].id }
     } else {
+      if (!hasOutput(defOf(node), node.data.config)) return null
       const outs = outputsOf(defOf(node), node.data.config)
       const y = (i) => node.position.y + node.measured.height / 2 + portY(i, outs.length) // as placed by FlowNode
       const i = outs.reduce((best, o, i) => (Math.abs(y(i) - p.y) < Math.abs(y(best) - p.y) ? i : best), 0)
@@ -541,7 +545,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const from = spawned && def.category !== 'trigger' ? nodes.find((n) => n.selected) : null
     position ??= spawnPosition(def, from)
     let config = {}
-    // An ID setting (a Called By Workflow trigger's) starts unique.
+    if (def.type === 'portal-out') config.target = lastPortalIn
+    // An ID setting starts unique.
     for (const [key, f] of Object.entries(def.fields ?? {})) if (f.type === 'id') config[key] = crypto.randomUUID()
     // An option needing an integration (a Control Pad node's Stream Deck mode) is picked when that integration is ready.
     for (const [key, f] of Object.entries(def.fields ?? {})) {
@@ -557,10 +562,11 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
       onWidgetChange()
     }
     const node = { id: crypto.randomUUID(), type: 'step', position, selected: true, data: { type: def.type, label: def.label, config } }
+    if (def.type === 'portal-in') lastPortalIn = node.id
     if (basic) return setChain(def.category === 'trigger' ? [node, ...chain] : [...chain, node], node.id)
     setNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)).concat(node))
     // From the selected node's first output; the same checks as a link drawn by hand.
-    const link = from && { source: from.id, sourceHandle: outputsOf(defOf(from), from.data.config)[0]?.id ?? null, target: node.id }
+    const link = from && hasOutput(defOf(from), from.data.config) && { source: from.id, sourceHandle: outputsOf(defOf(from), from.data.config)[0]?.id ?? null, target: node.id }
     if (link && isValidConnection(link, edges, [...nodes, node])) setEdges((es) => addEdge(link, es))
     if (spawned) showBox({ ...position, width: NODE, height: NODE + CAPTION })
   }
@@ -626,7 +632,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     const what = picked.length === 1 ? nodeName(picked[0]) : `${picked.length} nodes`
     notify(`Copied ${what}. Paste with Ctrl+V, here or in another workflow.`)
   }
-  // Pasted nodes get new ids (their ID settings too) and keep their layout, centered on the pointer (or the canvas when the pointer is
+  // Pasted nodes get new ids (their ID settings too; a Portal Out pasted with its Portal In sends through the pasted one) and keep their layout, centered on the pointer (or the canvas when the pointer is
   // elsewhere). A pasted widget node gets a new widget instance, with a copy of the copied one's state (settings,
   // inputs, kept data); one whose instance is unknown (deleted) is pasted as it is, and says so in its settings.
   const pointer = useRef(null)
@@ -646,7 +652,7 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
     // A Merge Widgets node pasted with its widget nodes keeps their placement, now keyed by the new instances.
     const newIds = (n) => Object.entries(defOf(n)?.fields ?? {}).filter(([, f]) => f.type === 'id').map(([key]) => [key, crypto.randomUUID()])
     const pasted = withWidgetIds(copied, instances).map((n) => ({ ...n, id: ids[n.id], selected: true, position: { x: n.position.x + d.x, y: n.position.y + d.y },
-      data: { ...n.data, config: { ...n.data.config, ...Object.fromEntries(newIds(n)) } } }))
+      data: { ...n.data, config: { ...n.data.config, ...Object.fromEntries(newIds(n)), ...(ids[n.data.config.target] && n.data.type === 'portal-out' && { target: ids[n.data.config.target] }) } } }))
     setNodes((ns) => ns.map((n) => ({ ...n, selected: false })).concat(pasted))
     setEdges((es) => es.concat(links.map((ed) => ({ ...ed, id: crypto.randomUUID(), source: ids[ed.source], target: ids[ed.target] }))))
     if (Object.keys(instances).length) onWidgetChange()
@@ -716,13 +722,14 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
   }
   // Links follow switch cases: a moved case keeps its links, a renamed one too, and a removed one takes them along.
   // Items with an id (Control Pad buttons) are their own output id: only a removed one has links to drop. A widget
-  // node's port no longer exposed takes its links along too.
+  // node's port no longer exposed takes its links along too, and so does an output taken away (Portal Out not waiting).
   const setConfig = (config) => {
     setNodes((ns) => ns.map((n) => (n.id === selected.id ? { ...n, data: { ...n.data, config } } : n)))
     if (selected.data.type === 'widget') {
       return setEdges((es) => es.filter((e) => e.target !== selected.id || !e.targetHandle || config.ports?.includes(e.targetHandle)))
     }
     const def = defOf(selected)
+    if (!hasOutput(def, config)) return setEdges((es) => es.filter((e) => e.source !== selected.id))
     const key = def?.outputsFrom
     const before = selected.data.config[key] ?? def?.config[key]
     const after = config[key] ?? def?.config[key]
@@ -874,6 +881,8 @@ function Editor({ workflow, defs, widgets, types, off, openNode, onRename, onDel
           // The links into the selected node, named after the node each comes from (for Wait For All).
           links: edges.filter((e) => e.target === selected?.id).map((e) => ({ id: e.id, name: shownNodes.find((n) => n.id === e.source)?.ariaLabel })),
           types,
+          // This workflow's Portal In nodes, as they are now (for a Portal Out's picker).
+          portals: { id: workflow.id, name, ins: nodes.filter((n) => n.data.type === 'portal-in').map((n) => n.id) },
         }}
         onChange={setConfig}
         onManualChange={setManual}

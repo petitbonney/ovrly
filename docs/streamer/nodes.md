@@ -22,7 +22,7 @@ A workflow starts at a trigger. Its **⚡** fires it by hand, to try the workflo
 | Schedule | every so often, while the workflow is on | |
 | API Call | a request reaches `http://localhost:6875/hooks/<path>`; its query and JSON body become data | |
 | Control Pad | a button is pressed: a [Stream Deck](./stream-deck) key, or a URL per button for Companion | |
-| Called By Workflow | another workflow runs this one (Execute Workflow) | |
+| Portal In | a Portal Out node sends data through it, from this workflow or another | |
 | Error Trigger | a node fails in another workflow (listed in [developer mode](./editor#developer-mode) only) | |
 
 Subs, gift subs, cheers and raids work in Guest mode too, from what chat announces.
@@ -41,7 +41,7 @@ Subs, gift subs, cheers and raids work in Guest mode too, from what chat announc
 | Fan Out | Runs what follows once per item of a list, e.g. a gift's recipients. |
 | Fan In | Collects firings into one `{{items}}` list with `{{itemCount}}`, released after a duration, a quiet period or a limit. Optionally one entry per key, e.g. `!join` sign-ups. |
 | Pipe | Passes its input on unchanged (to tidy up links). |
-| Execute Workflow | Runs another workflow (from its Called By Workflow trigger) and waits for its result. |
+| Portal Out | Sends the data through a Portal In, in this workflow or another, and the flow goes on from there. Its list has every Portal In, by workflow. **Wait for it to finish** gets back the data of the last node past the Portal In (or its failure), and gives the node an output. A loop going round more than 100 times in 10 seconds is stopped. |
 | Edit Data | Adds or overwrites data keys, for this run only. |
 | Map Value | Replaces a key's value using a "from" → "to" list. |
 | Word Filter | Masks the [bad words](./data#bad-words) in a key's text, or stops; adds `{{hasBadWords}}` and `{{badWordCount}}`. |

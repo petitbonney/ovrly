@@ -9,7 +9,7 @@ import { fill } from '../template.js'
 export default {
   type: 'http-request',
   label: 'HTTP Request',
-  icon: 'world', // a Tabler icon name
+  icon: 'world', // a Tabler icon name, or one of Ovrly's own in server/icons/ (a 24px SVG)
   category: 'action', // trigger, logic or action
   group: 'System', // its sub-section in the library
   config: { url: '', method: 'POST' }, // defaults; the UI renders a form from this
@@ -29,6 +29,7 @@ export default {
 | `description` | The one line under the node's name in its settings. |
 | `adds` | The data keys it adds, offered as `{{key}}` in later nodes' **{ }** menu: `{ key: 'What it holds' }`, or `{ key: { info, only } }` for a key some settings only add (`only` as for a field, e.g. Channel Info's `{ what: 'stream' }`). Name keys after what they come from (`raidViewers`, not `viewers`), so they don't overwrite another node's. |
 | `fields` | Per-setting hints: `{ options: [...] }`, `{ vars: true }` for `{{key}}` placeholders, `{ type: 'json' }`, a short `hint`, a longer `info` (an ⓘ), a `section` heading, `only: { otherSetting: value }` to show it only then. See `ui/src/Fields.jsx`. |
+| `output` | `{ only: { … } }`: its one output shows only for those settings (Portal Out while it waits). |
 | `outputs` | Several outputs, e.g. `['true', 'false']`; `run` returns `{ [output]: data }` to pick which continue. |
 | `event` | For a trigger: the bus event it listens to, or a list; `run` gets the one that fired as `event`. |
 | `needs` | Requirement keys: `twitch`, `obs`, `streamdeck`, `giphy`, `hue`, `speech`, `chat`, or `lan` (Open to LAN on). The UI marks the node when one isn't ready. |

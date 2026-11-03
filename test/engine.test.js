@@ -1,5 +1,5 @@
 // The engine's walk: which outputs continue, Fan Out's items, earlier outputs ($node), Queue's line, Wait For All's
-// Force and Cancel, cancelling a workflow, failures reaching Error Trigger workflows, and Execute Workflow.
+// Force and Cancel, cancelling a workflow, failures reaching Error Trigger workflows, and portals.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
@@ -117,16 +117,34 @@ test('a failure is reported to Error Trigger workflows, but not one in such a wo
   assert.deepEqual(heard, [{ errorWorkflow: 'fails', errorNode: 'Code', errorMessage: run.error.message }])
 })
 
-test('Execute Workflow merges the called workflow\'s last data, fails when it fails, and stops calls 10 deep', async (t) => {
+test('a waiting Portal Out merges the last data past its Portal In, fails when it fails, and stops 10 deep', async (t) => {
   t.mock.method(console, 'error', () => {})
-  const callee = (id, js) => store.save('workflows', workflow(id, [node('c', 'workflow-call', { id: 'main' }), code('x', js)], [edge('c', 'x')]))
+  const callee = (id, js) => store.save('workflows', workflow(id, [node(`${id}-in`, 'portal-in'), code('x', js)], [edge(`${id}-in`, 'x')]))
   await callee('double', 'return { doubled: data.n * 2 }')
   await callee('broken', 'throw new Error("nope")')
-  const caller = (target) => workflow(`call-${target}`, [trigger(), node('x', 'execute-workflow', { workflow: `${target}/main` })], [edge('t', 'x')])
+  const caller = (target) => workflow(`call-${target}`, [trigger(), node('x', 'portal-out', { target: `${target}-in`, wait: true })], [edge('t', 'x')])
   const [run] = await fire(caller('double'), 'manual', { n: 2 })
   assert.deepEqual(run.outputs.x, { n: 2, doubled: 4 })
   const [failed] = await fire(caller('broken'), 'manual', {})
   assert.match(failed.error.message, /"broken" failed: .*nope/)
   const [deep] = await fire(caller('double'), 'manual', { n: 2 }, { depth: 10 })
   assert.match(deep.error.message, /too deep/)
+})
+
+test('a Portal Out not waiting ends there, and the flow goes on past its Portal In', async () => {
+  const arrived = new Promise((resolve) => (globalThis.arrive = resolve))
+  await store.save('workflows', workflow('far', [node('far-in', 'portal-in'), code('x', 'globalThis.arrive(data); return data')], [edge('far-in', 'x')]))
+  const [run] = await fire(workflow('near', [trigger(), node('o', 'portal-out', { target: 'far-in' })], [edge('t', 'o')]), 'manual', { n: 1 })
+  assert.equal(run.error, undefined)
+  assert.deepEqual(await arrived, { n: 1 })
+})
+
+test('a portal loop stops past 100 rounds in 10s', async (t) => {
+  t.mock.method(console, 'error', () => {})
+  const stopped = new Promise((resolve) => bus.once('workflow-error', resolve))
+  const loop = workflow('loop', [trigger(), node('in', 'portal-in'), code('x', 'return { n: (data.n ?? 0) + 1 }'), node('o', 'portal-out', { target: 'in' })],
+    [edge('t', 'o'), edge('in', 'x'), edge('x', 'o')])
+  await store.save('workflows', loop)
+  await fire(loop, 'manual', {})
+  assert.match((await stopped).errorMessage, /looped more than 100 times in 10s/)
 })

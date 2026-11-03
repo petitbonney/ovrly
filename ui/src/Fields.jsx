@@ -1,5 +1,5 @@
 // Settings form generated from a config's defaults (shown in their order), plus optional per-field hints from the node
-// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'id' | 'workflow' | 'secret' | 'var' | 'list' | 'tags' | 'palette' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' | 'font' }.
+// or widget type: { label, hint, info, section, unit, options, presets, vars, rewards (a Twitch channel points reward picker), multiline, hidden, only, type: 'json' | 'code' | 'id' | 'portal' | 'secret' | 'var' | 'list' | 'tags' | 'palette' | 'image' | 'sound' | 'video' | 'giphy' | 'myinstants' | 'window' | 'font' }.
 // hint: one short line under the label; info: anything longer, in an ⓘ tooltip beside the label. section: a heading
 // shown before this field, starting a group (for nodes with many settings). A field shown only while a switch is on
 // (only: { someSwitch: true }) is indented under it. Plain-text options show with a capital first letter; a '-' among
@@ -174,16 +174,27 @@ function HueSteps({ value, limits, device, transition, restore, ...props }) {
   )
 }
 
-// A saved workflow's Called By Workflow trigger, as "<workflow id>/<trigger ID>" (see server/nodes/execute-workflow.js).
-function WorkflowSelect({ value, onChange, ...props }) {
-  const [list, setList] = useState([])
+// A Portal In node, by id (see server/nodes/portal-out.js), in a section per workflow: the edited workflow's first, as
+// they are in the editor (here: { id, name, ins }), saved or not, then those saved, listed again each time the list opens.
+function PortalSelect({ value, onChange, here, ...props }) {
+  const [saved, setSaved] = useState([])
+  const load = () => get('/api/workflows').then(setSaved, () => {})
   useEffect(() => {
-    get('/api/workflows').then((all) => setList(all.flatMap((w) => [...new Set(w.nodes.filter((n) => n.data.type === 'workflow-call')
-      .map((n) => n.data.config.id ?? 'main'))] // 'main': the trigger's default ID; two triggers sharing one show once
-      .map((id) => ({ value: `${w.id}/${id}`, label: `${w.name || w.id} > ${id}` })))))
+    load()
   }, [])
-  return <Select {...props} data={list} value={value} onChange={onChange} placeholder="Pick a Called By Workflow trigger"
-    nothingFoundMessage="No workflow has a Called By Workflow trigger" />
+  const listed = new Set() // a node id shows once (two workflow files copied by hand)
+  const fresh = (id) => {
+    const seen = listed.has(id)
+    listed.add(id)
+    return !seen
+  }
+  const data = [...(here ? [here] : []), ...saved.filter((w) => w.id !== here?.id)].map((w) => ({
+    group: w.name || w.id,
+    items: (w === here ? here.ins : w.nodes.filter((n) => n.data.type === 'portal-in').map((n) => n.id))
+      .filter(fresh).map((id) => ({ value: id, label: `Portal In - ${id.slice(0, 8)}` })),
+  })).filter((g) => g.items.length)
+  return <Select {...props} data={data} value={value} onChange={onChange} onDropdownOpen={load} placeholder="Pick a Portal In"
+    nothingFoundMessage="No workflow has a Portal In" />
 }
 
 // An app or window (or part of its name), picked from those open now, listed again each time the list opens. Typing
@@ -696,7 +707,7 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
   if (f.type === 'json') return <JsonInput {...props} value={value} onChange={set} validationError="Invalid JSON" formatOnBlur autosize minRows={2} maxRows={8} />
   if (f.type === 'code') return <CodeField {...props} vars={vars} value={value} onChange={set} />
   if (f.type === 'id') return <TextInput {...props} rightSection={<Copy text={value} />} value={value} onChange={(e) => set(e.target.value)} />
-  if (f.type === 'workflow') return <WorkflowSelect {...props} value={value} onChange={set} />
+  if (f.type === 'portal') return <PortalSelect {...props} here={context.portals} value={value} onChange={set} />
   if (FILE_KINDS[f.type]) return <FileInput kind={f.type} {...props} vars={vars} value={value} onChange={set} />
   if (f.type === 'giphy' || f.type === 'myinstants') {
     return <PickInput {...props} kind={f.type} media={f.media} rating={values.rating} ready={f.type !== 'giphy' || !context.off?.includes('giphy')} value={value} onChange={set} />
