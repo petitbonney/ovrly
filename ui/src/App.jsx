@@ -220,8 +220,8 @@ function Choice({ title, description, icon: Icon, onClick }) {
   )
 }
 
-// "New workflow" modal: blank or imported from a JSON file side by side, then the templates (if any) in two columns. Calls onDone
-// with { kind, id }. defs: node types, to arrange templates.
+// "New workflow" modal: blank or imported from a JSON file side by side, then the templates (if any) by category, in two
+// columns. Calls onDone with { kind, id }. defs: node types, to arrange templates.
 function NewWorkflow({ defs, opened, onDone, onClose }) {
   const blank = { workflows: [{ name: 'New workflow', nodes: [], edges: [], view: 'basic' }] }
   return (
@@ -235,13 +235,17 @@ function NewWorkflow({ defs, opened, onDone, onClose }) {
         {templates.length > 0 && (
           <>
             <Divider my="xs" />
-            <Heading title="Templates" />
-            <ScrollArea.Autosize mah="calc(100dvh - 20rem)" offsetScrollbars>
-              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
-                {templates.map((t) => (
-                  <Choice key={t.name} title={t.name} description={t.description} onClick={() => importBundle(arranged(t, defs)).then(onDone)} />
-                ))}
-              </SimpleGrid>
+            <ScrollArea.Autosize mah="calc(100dvh - 18rem)" offsetScrollbars>
+              {Object.entries(Object.groupBy(templates, (t) => t.category)).map(([category, list], i) => (
+                <div key={category}>
+                  <Heading title={category} mt={i ? 'md' : 0} />
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+                    {list.map((t) => (
+                      <Choice key={t.name} title={t.name} description={t.description} onClick={() => importBundle(arranged(t, defs)).then(onDone)} />
+                    ))}
+                  </SimpleGrid>
+                </div>
+              ))}
             </ScrollArea.Autosize>
           </>
         )}

@@ -45,12 +45,12 @@ await page.goto(url)
 await page.getByRole('button', { name: 'New workflow' }).first().click()
 await shot('new-workflow', page.getByRole('dialog'))
 await page.keyboard.press('Escape')
-await fromTemplate('!roll dice')
+await fromTemplate('Chat decides')
 await shot('editor')
-await node('Cooldown').click()
+await node('Switch').click()
 await wait(500)
 await shot('node-settings')
-await node('Dice').click()
+await node('Chat decides').click()
 await wait(1000)
 await shot('widget-node')
 await page.getByRole('button', { name: 'Close settings' }).click()
@@ -110,8 +110,7 @@ await page.keyboard.press('Escape')
 // Overlays, as OBS shows them, mid-play or at their end. Each is framed over a dark backdrop standing in for the
 // stream (a backdrop in the page itself would be hidden by its WebGL canvas).
 await fromTemplate('Event alerts')
-await fromTemplate('Chat poll')
-await fromTemplate('Channel points wheel')
+await fromTemplate('Challenge wheel')
 const overlays = await browser.newPage({ viewport: { width: 960, height: 540 }, deviceScaleFactor: 2 })
 async function play(name, shotName, actions, ms) {
   const { id } = await widget(name)
@@ -123,8 +122,8 @@ async function play(name, shotName, actions, ms) {
   await overlays.screenshot({ path: path.join(out, `${shotName}.png`) })
 }
 await play('Event alerts', 'overlay-alerts', [{ action: 'start', input: { text: 'petitbonney just followed!' } }], 2500)
-await play('Wheel of fortune', 'overlay-wheel', [{ action: 'start' }], 7500)
-await play('Chat poll', 'overlay-voting', [{ action: 'start' }, ...['ana', 'bo', 'cy', 'di', 'ed'].map((user, i) =>
+await play('Challenge wheel', 'overlay-wheel', [{ action: 'start' }], 7500)
+await play('Chat decides', 'overlay-voting', [{ action: 'start' }, ...['ana', 'bo', 'cy', 'di', 'ed'].map((user, i) =>
   ({ action: 'vote', input: { option: i < 3 ? '1' : '2', user } }))], 1500)
 
 await browser.close()

@@ -25,16 +25,16 @@ Your workflows and widgets are saved in the `data` folder next to the launcher. 
 ## Your first workflow
 
 1. Click **+** next to **Workflows**, or **New workflow**.
-2. Pick a template, e.g. **!roll dice**: chat rolls a die with `!roll`.
+2. Pick a template, e.g. **Chat decides**: mods start a poll with `!poll`, chat votes with `!vote 1`.
 
    ![The New workflow dialog: Blank, Import, and the templates](/screenshots/new-workflow.png)
 
    Or pick **Blank** to build your own: it opens as a list of steps (the [Basic view](./editor#basic-a-list-of-steps)), a trigger then what it does.
 
 3. Templates start switched off. Connect what the workflow needs first (here, [Twitch](./twitch) to read your chat), then turn on the switch next to its name.
-4. Show its widgets in OBS: select the widget node (the die), copy the **OBS browser source** link from its settings, and add it to OBS as a **Browser Source** (see [OBS](./obs#show-a-widget)).
+4. Show its widgets in OBS: select the widget node (the poll), copy the **OBS browser source** link from its settings, and add it to OBS as a **Browser Source** (see [OBS](./obs#show-a-widget)).
 
-![The !roll dice workflow: Chat !command → Cooldown → Queue → Dice → Roll result](/screenshots/editor.png)
+![The Chat decides workflow: !poll and !vote → Voting → the result announced, and a Switch to the winning scene](/screenshots/editor.png)
 
 Try it without going live: the **⚡** beside a trigger fires it, and its settings' **Fire** section picks what it carries, e.g. a Chat !command's args, user and role (see [Fire a trigger](./editor#fire-a-trigger)).
 

@@ -45,7 +45,7 @@ A node with a **plug icon** needs something that isn't ready yet, e.g. Twitch in
 
 Click a node to open its settings. Every node has the same layout: a one-line description, notices (yellow: won't run yet; red: broken), its settings on the left and, when there is something to watch or press, a live column on the right.
 
-![The settings of a Cooldown node](/screenshots/node-settings.png)
+![The settings of a Switch node](/screenshots/node-settings.png)
 
 Changes save by themselves. Text settings take [`{{ }}` expressions](./data#expressions): the **{ }** menu inserts data from earlier nodes, e.g. `{{user}}`.
 

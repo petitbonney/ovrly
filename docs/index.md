@@ -14,7 +14,7 @@ hero:
 features:
   - icon: 🧩
     title: Workflows
-    details: Trigger → logic → action, drawn as a graph. Start from a blank canvas or one of 18 templates.
+    details: Trigger → logic → action, drawn as a graph. Start from a blank canvas or one of 14 templates.
   - icon: 🎬
     title: Widgets for OBS
     details: Alerts, labels, GIFs, sounds, videos, polls, wheels, dice and more, each a browser source.

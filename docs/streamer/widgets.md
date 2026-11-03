@@ -2,7 +2,7 @@
 
 A widget is an overlay: a web page you add to OBS as a **Browser Source**. Drop one from the library's **Widget** section onto a workflow: that makes a new widget and its **widget node**. Deleting the node deletes the widget.
 
-![A Dice widget node: its settings, with its OBS link, live preview and Start, Stop, Cancel](/screenshots/widget-node.png)
+![A Voting widget node: its settings, with its OBS link, live preview and Start, Stop, Cancel](/screenshots/widget-node.png)
 
 Its settings have tabs: **Widget** first, its look, shared by every node that uses it, then a tab per port with its action's inputs (e.g. **Start**: the text to show). Double-click its name, at the top of its settings, to rename it; the **⋯** beside it copies the node (to paste a new widget with the same settings) or its instance ID. The live column has its **OBS browser source** link, a preview, and **Start**, **Stop** and **Cancel**.
 
