@@ -3,12 +3,14 @@
 // statuses (useStatuses) and opens the dialog, also from anywhere with openSettings(item).
 import { useEffect, useState } from 'react'
 import { ActionIcon, Anchor, Button, Code, Group, Loader, Modal, NavLink, Paper, PasswordInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput, ThemeIcon, Tooltip, UnstyledButton } from '@mantine/core'
-import { IconAlertCircle, IconBrandTwitch, IconCircleCheck, IconCircleDashed, IconExternalLink, IconFileImport, IconFolderOpen, IconLogout, IconPlus, IconRefresh, IconTrash } from '@tabler/icons-react'
+import { IconAlertCircle, IconBrandTwitch, IconCircleCheck, IconCircleDashed, IconExternalLink, IconFileImport, IconFileZip, IconFolderOpen, IconLogout, IconPlus, IconRefresh, IconTrash } from '@tabler/icons-react'
 import Heading from './Heading.jsx'
 import themes from './themes.js'
 import { get, json } from './api.js'
+import { exportAll, importFile } from './share.js'
 
-// Opens the Settings dialog on a pane: an integration key, 'variables', 'nodes', 'widgets', 'network' or 'appearance'.
+// Opens the Settings dialog on a pane: an integration key, 'variables', 'nodes', 'widgets', 'backup', 'network' or
+// 'appearance'.
 export const openSettings = (item) => window.dispatchEvent(new CustomEvent('ovrly-settings', { detail: item }))
 
 // An integration's status as an icon whose shape and color both say it: a check when connected, "!" when set up but
@@ -399,6 +401,21 @@ function Network({ status, setStatus }) {
   )
 }
 
+// Backup: every workflow downloaded at once, as a zip of the files Export makes, and imported back (that zip, or any
+// exported files). onImport({ kind, id }) gets the first workflow imported.
+function Backup({ onImport }) {
+  const [error, setError] = useState('')
+  return (
+    <Stack gap="sm" align="start">
+      <Text size="sm">Downloads a zip with every workflow, each with its widgets as one JSON file.</Text>
+      <Button size="xs" leftSection={<IconFileZip size={14} />} onClick={() => exportAll().then(() => setError(''), (err) => setError(err.message))}>Export all workflows</Button>
+      <Text size="sm" mt="xs">Imports that zip, or exported JSON files (pick several at once), as new workflows beside yours.</Text>
+      <Button size="xs" leftSection={<IconFileImport size={14} />} onClick={() => importFile().then(onImport, (err) => setError(`Import failed: ${err.message}`))}>Import workflows…</Button>
+      {error && <Text size="xs" c="red">{error}</Text>}
+    </Stack>
+  )
+}
+
 // Appearance: the editor's theme (themes.js), kept by this browser: a card per theme, dark ones then light ones, each
 // with its name and colors.
 function Appearance({ theme, onTheme }) {
@@ -464,7 +481,7 @@ export function useStatuses() {
 }
 
 // item: the pane shown; onItem(item) switches panes.
-export default function Settings({ opened, item, onItem, onClose, statuses, setStatus, theme, onTheme }) {
+export default function Settings({ opened, item, onItem, onClose, statuses, setStatus, theme, onTheme, onImport }) {
   const current = integrations.find((i) => i.key === item)
   const status = current ? statuses[current.path] : statuses['/api/network']
   return (
@@ -479,6 +496,7 @@ export default function Settings({ opened, item, onItem, onClose, statuses, setS
           <NavLink component="button" label="Variables" active={item === 'variables'} onClick={() => onItem('variables')} />
           <NavLink component="button" label="Custom nodes" active={item === 'nodes'} onClick={() => onItem('nodes')} />
           <NavLink component="button" label="Custom widgets" active={item === 'widgets'} onClick={() => onItem('widgets')} />
+          <NavLink component="button" label="Backup" active={item === 'backup'} onClick={() => onItem('backup')} />
           <Heading title="Network" mt="sm" />
           <NavLink component="button" label="LAN" active={item === 'network'} onClick={() => onItem('network')} />
           <Heading title="Appearance" mt="sm" />
@@ -487,6 +505,7 @@ export default function Settings({ opened, item, onItem, onClose, statuses, setS
         <div style={{ flex: 1, minWidth: 0 }}>
           {item === 'appearance' ? <Appearance theme={theme} onTheme={onTheme} />
             : item === 'variables' ? <Variables />
+            : item === 'backup' ? <Backup onImport={onImport} />
             : item === 'nodes' || item === 'widgets' ? <Custom key={item} kind={item} />
             : !status ? <Loader size="sm" />
             : current ? <current.Pane key={current.key} status={status} info={current.info(status)} setStatus={(s) => setStatus(current.path, s)} />

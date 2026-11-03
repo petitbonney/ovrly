@@ -220,7 +220,7 @@ function Choice({ title, description, icon: Icon, onClick }) {
   )
 }
 
-// "New workflow" modal: blank or imported from a JSON file side by side, then the templates (if any) by category, in two
+// "New workflow" modal: blank or imported (JSON files or a zip) side by side, then the templates (if any) by category, in two
 // columns. Calls onDone with { kind, id }. defs: node types, to arrange templates.
 function NewWorkflow({ defs, opened, onDone, onClose }) {
   const blank = { workflows: [{ name: 'New workflow', nodes: [], edges: [], view: 'basic' }] }
@@ -229,7 +229,7 @@ function NewWorkflow({ defs, opened, onDone, onClose }) {
       <Stack gap="xs">
         <SimpleGrid cols={2} spacing="xs">
           <Choice title="Blank" description="Start from a list of steps; switch to the graph when you need branches." icon={IconFile} onClick={() => importBundle(blank).then(onDone)} />
-          <Choice title="Import" description="Load a workflow from an exported JSON file." icon={IconFileImport}
+          <Choice title="Import" description="Load workflows from exported JSON files, or a zip of them." icon={IconFileImport}
             onClick={() => importFile().then(onDone, (err) => alert(`Import failed: ${err.message}`))} />
         </SimpleGrid>
         {templates.length > 0 && (
@@ -492,6 +492,7 @@ export default function App({ theme, onTheme }) {
       <Settings
         opened={settings.opened} item={settings.item} onItem={(item) => setSettings({ opened: true, item })} onClose={() => setSettings((s) => ({ ...s, opened: false }))}
         statuses={statuses} setStatus={setStatus} theme={theme} onTheme={onTheme}
+        onImport={(item) => (setSettings((s) => ({ ...s, opened: false })), onCreate(item))}
       />
       <NewWorkflow defs={defs} opened={modal} onDone={onCreate} onClose={() => setModal(false)} />
     </AppShell>
