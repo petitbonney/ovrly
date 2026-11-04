@@ -13,10 +13,11 @@ import { helix, status as account } from './integrations/twitch-auth.js'
 import { needStreamer } from './integrations/twitch.js'
 import { request } from './integrations/obs.js'
 import { httpError } from './errors.js'
+import { dataDir } from './store.js'
 
-export const dirs = { nodes: path.resolve('data', 'custom', 'nodes'), widgets: path.resolve('data', 'custom', 'widgets') }
+export const dirs = { nodes: path.join(dataDir, 'custom', 'nodes'), widgets: path.join(dataDir, 'custom', 'widgets') }
 // A widget folder being imported lands here first, then replaces the old one at once (and isn't watched meanwhile).
-const incoming = path.resolve('data', 'custom', '.incoming')
+const incoming = path.join(dataDir, 'custom', '.incoming')
 const SCRIPT = /^[\w.-]+\.m?js$/
 const TYPE = /^[\w-]+$/
 // What a widget folder may hold: its page and code, and what the page shows or plays.

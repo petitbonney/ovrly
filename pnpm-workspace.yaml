@@ -1,3 +1,6 @@
-# esbuild (VitePress's) ships its binary as a package: its install script only checks it.
+# esbuild (VitePress's) ships its binary as a package: its install script only checks it. electron's downloads its
+# binary; electron-winstaller is for Squirrel installers, not the NSIS one electron-builder makes here.
 allowBuilds:
   esbuild: false
+  electron: true
+  electron-winstaller: false

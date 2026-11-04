@@ -10,7 +10,7 @@ Ovrly is a local, node-based automation tool for live stream interactions. See [
 
 ## Stack
 
-Plain JavaScript (ESM), no TypeScript. pnpm, single package. Express + `ws` on the server; React + ReactFlow + Mantine + Vite for the UI.
+Plain JavaScript (ESM), no TypeScript. pnpm, single package. Express + `ws` on the server; React + ReactFlow + Mantine + Vite for the UI; Electron for the desktop app (`desktop/`), running the server in its main process. Packages the server or widget pages use are `dependencies` (all the app ships), UI-only ones `devDependencies` (Vite bundles them).
 
 **Motion: anime.js (v4) is the animation standard** for the whole app, widget pages and UI alike. 3D goes through three.js, animated with anime.js's Three.js adapter (`animejs/adapters/three`); physics (the dice throw) through cannon-es, replayed with anime.js. Widget pages load them from `/vendor/` (see `widgets/dice/index.html` for the import map).
 
@@ -19,6 +19,7 @@ Plain JavaScript (ESM), no TypeScript. pnpm, single package. Express + `ws` on t
 ```bash
 pnpm install
 pnpm dev      # server + UI on http://localhost:6875
+pnpm desktop  # the desktop app (Electron) on the built UI
 pnpm docs:dev # the docs site; pnpm docs:shots retakes its screenshots (Docker)
 ```
 

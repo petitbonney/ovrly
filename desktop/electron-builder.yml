@@ -1,0 +1,29 @@
+# Desktop installers (pnpm desktop:build): a .dmg per Mac architecture and a Windows NSIS installer, both unsigned.
+appId: com.ovrly.app
+productName: Ovrly
+directories: { output: release }
+artifactName: ${productName}-${version}-${os}-${arch}.${ext} # e.g. Ovrly-1.0.0-mac-arm64.dmg
+# Plain files, no asar archive: the server serves them, starts a worker from them and imports them by path.
+asar: false
+files:
+  - package.json
+  - LICENSE
+  - server/**
+  - widgets/**
+  - dist/**
+  - desktop/main.js
+  - desktop/*.png
+  - streamdeck/*.streamDeckPlugin
+mac:
+  identity: '-' # ad hoc: unsigned for Gatekeeper, but Apple Silicon only runs signed code
+  hardenedRuntime: false # only notarization needs it, and it would refuse nut.js's native module
+  icon: desktop/icon.png
+  category: public.app-category.video
+  target: dmg
+win:
+  icon: desktop/icon.png
+  target: nsis
+nsis:
+  oneClick: false # asks where to install, and for whom
+  allowToChangeInstallationDirectory: true
+publish: null

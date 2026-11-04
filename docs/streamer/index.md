@@ -8,19 +8,23 @@ Ovrly is a prototype: Twitch and OBS only, for now. Expect rough edges, and keep
 
 ## Download
 
-1. Get the zip for your system from the [Releases page](https://github.com/petitbonney/ovrly/releases): macOS (Apple Silicon or Intel) or Windows.
-2. Unzip it where you want Ovrly to live.
-3. Double-click **Start Ovrly.command** (macOS) or **Start Ovrly.bat** (Windows).
+1. Get the installer for your system from the [Releases page](https://github.com/petitbonney/ovrly/releases): `…-mac-arm64.dmg` (Mac with Apple Silicon), `…-mac-x64.dmg` (Intel Mac) or `…-win-x64.exe` (Windows).
+2. **macOS**: open the `.dmg` and drag **Ovrly** into **Applications**. **Windows**: run the installer.
+3. Open **Ovrly**.
 
-Nothing else to install: Node.js comes bundled. The editor opens at [http://localhost:6875](http://localhost:6875). Keep the window that started it open while you stream: closing it stops Ovrly.
+Nothing else to install. The editor opens in Ovrly's window, and in your browser at [http://localhost:6875](http://localhost:6875) too. Closing the window keeps Ovrly running in the tray (the menu bar on macOS), so widgets and workflows keep working on stream: **Quit Ovrly** is in the tray icon's menu.
 
 ::: tip First launch
 The app isn't signed, so your system warns you the first time.
-- **macOS**: right-click the file → **Open**, then confirm.
+- **macOS**: open it once and close the warning, then click **Open Anyway** in **System Settings → Privacy & Security**.
 - **Windows**: click **More info** → **Run anyway**.
 :::
 
-Your workflows and widgets are saved in the `data` folder next to the launcher. To update, unzip a new version over the old one: `data` stays.
+Your workflows and widgets are saved in Ovrly's `data` folder (the tray menu's **Open data folder**): `~/Library/Application Support/Ovrly/data` on macOS, `%APPDATA%\Ovrly\data` on Windows. To update, install the new version over the old one: `data` stays.
+
+::: info Coming from the zip
+Earlier versions came as a zip with a launcher, their `data` folder next to it. Open Ovrly once, pick **Open data folder** in the tray menu, then **Quit Ovrly**. Copy what's in the old `data` folder into that one, and open Ovrly again.
+:::
 
 ## Your first workflow
 

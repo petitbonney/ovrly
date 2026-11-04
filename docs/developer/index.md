@@ -1,6 +1,6 @@
 # Architecture
 
-Ovrly is one Node.js process: an Express server that runs workflows, serves the React editor, and serves widget pages to OBS. Plain JavaScript (ESM), no TypeScript, no database.
+Ovrly is one Node.js process (Electron's main process, in the desktop app): an Express server that runs workflows, serves the React editor, and serves widget pages to OBS. Plain JavaScript (ESM), no TypeScript, no database.
 
 ```
 Twitch chat,
@@ -28,7 +28,8 @@ Stream Deck ──► Event bus ──► Workflow engine ──► Actions
 | Philips Hue | the bridge's local API (CLIP v2), its certificate pinned at pairing |
 | Stream Deck | a plugin on the Stream Deck SDK's WebSocket protocol, packed with @elgato/cli |
 | Key Press | @nut-tree-fork/nut-js |
-| Storage | JSON files in `./data` |
+| Storage | JSON files in `./data` (`$OVRLY_DATA`: the desktop app's user folder) |
+| Desktop app | Electron, packed by electron-builder |
 | Docs | VitePress, screenshots by Playwright |
 
 ## Project layout
@@ -65,6 +66,7 @@ server/
 ui/               React app (Vite); starter workflows in ui/src/templates.js
 widgets/          one folder per widget type (index.html + widget.js)
 streamdeck/       the Ovrly Stream Deck plugin (com.ovrly.deck.sdPlugin)
+desktop/          the desktop app (Electron): main.js, its icons, the installers' config
 docs/             this site (VitePress), and its screenshot script
 test/             node --test
 data/             your widgets, workflows, settings and custom/ types (gitignored)

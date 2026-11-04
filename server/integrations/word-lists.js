@@ -2,6 +2,7 @@
 // (a Word Filter node saved or run with it) into data/word-lists/.
 import fs from 'node:fs'
 import path from 'node:path'
+import { dataDir } from '../store.js'
 
 // The lists at a fixed commit, so they can't change behind a filter's back. The file names are the language codes.
 const BASE = 'https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/5faf2ba42d7b1c0977169ec3611df25a3c08eb13'
@@ -13,7 +14,7 @@ export const LANGS = Object.fromEntries(['ar', 'cs', 'da', 'de', 'en', 'eo', 'es
 export const UNSPACED = ['ja', 'th', 'zh']
 export const DEFAULT = ['en', 'fr']
 
-const dir = path.resolve('data/word-lists')
+const dir = path.join(dataDir, 'word-lists')
 const loaded = {} // lang -> Promise of its words
 
 // The words of a list, from disk or downloaded (to a .part file first, so a cut download is never taken for a whole one).

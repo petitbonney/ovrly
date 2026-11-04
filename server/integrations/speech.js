@@ -7,6 +7,7 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { Worker } from 'node:worker_threads'
 import { Router } from 'express'
+import { dataDir } from '../store.js'
 
 // sherpa-onnx's build of the model (MIT code, OpenRAIL-M weights), at a fixed revision, with each file's size.
 const MODEL = 'sherpa-onnx-supertonic-3-tts-int8-2026-05-11'
@@ -28,8 +29,8 @@ export const LANGS = ['ar', 'bg', 'cs', 'da', 'de', 'el', 'en', 'es', 'et', 'fi'
 export const VOICES = ['F1', 'F2', 'F3', 'F4', 'F5', 'M1', 'M2', 'M3', 'M4', 'M5']
 const KEEP = 24 * 3600e3 // ms a made file is kept, long enough for a queued Sound widget to play it
 
-const dir = path.resolve('data/speech', MODEL)
-const outDir = path.resolve('data/speech/out')
+const dir = path.join(dataDir, 'speech', MODEL)
+const outDir = path.join(dataDir, 'speech', 'out')
 const has = (name) => fs.statSync(path.join(dir, name), { throwIfNoEntry: false })?.size === FILES[name]
 
 // ready: the model is all there; progress: 0 to 1 while downloading.

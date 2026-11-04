@@ -1,10 +1,11 @@
-// JSON file storage: one file per item at ./data/<kind>/<id>.json.
+// JSON file storage: one file per item at ./data/<kind>/<id>.json (or $OVRLY_DATA, the desktop app's user folder).
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { httpError } from './errors.js'
 
-const root = path.resolve('data')
+export const dataDir = path.resolve(process.env.OVRLY_DATA || 'data') // everything Ovrly writes lives here
+const root = dataDir
 // Restrict kinds and ids so a request can't escape ./data.
 const KINDS = ['workflows', 'widgets', 'settings']
 const ID = /^[\w-]+$/

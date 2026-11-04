@@ -19,7 +19,7 @@ The docs' source is in [docs/](docs/).
 
 ## Download
 
-Grab the zip for your OS from the [Releases page](https://github.com/petitbonney/ovrly/releases), unzip it, and double-click **Start Ovrly.command** (macOS) or **Start Ovrly.bat** (Windows). Node is bundled; your data stays in the `data` folder next to it.
+Grab the installer for your OS from the [Releases page](https://github.com/petitbonney/ovrly/releases): a `.dmg` for macOS (Apple Silicon or Intel), a setup `.exe` for Windows. Ovrly opens in its own window, and keeps running in the tray when you close it.
 
 ## From source
 

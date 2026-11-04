@@ -2,11 +2,15 @@
 
 ### My system won't open Ovrly
 
-The app isn't signed. On macOS, right-click **Start Ovrly.command** → **Open**. On Windows, click **More info** → **Run anyway**.
+The app isn't signed. On macOS, open it once, then click **Open Anyway** in **System Settings → Privacy & Security**. On Windows, click **More info** → **Run anyway**.
+
+### "Ovrly is already running"
+
+Something else uses port 6875, usually Ovrly started another way (an older version's launcher, or from source). Quit it, then open Ovrly again.
 
 ### Key Press does nothing (macOS)
 
-macOS needs to allow it: **System Settings → Privacy & Security → Accessibility**, then allow the app that runs Ovrly (Terminal). "Only when focused" also needs it to read window titles.
+macOS needs to allow it: **System Settings → Privacy & Security → Accessibility**, then allow **Ovrly** (Terminal when you run it from source). "Only when focused" also needs it to read window titles.
 
 ### A workflow doesn't fire
 
