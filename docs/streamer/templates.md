@@ -8,7 +8,7 @@
 
 | Template | What it does |
 | --- | --- |
-| Event alerts | Follows, subs, cheers and raids, each with its own text and a sound, shown one after another. Pick the sound on the **Alert sound** widget. |
+| Event alerts | Follows, subs, cheers and raids, each with its own text, a GIF and a sound, shown one after another. Change the GIF on the **Alert GIF** widget, the sound on the **MyInstants** node. |
 | Chat commands | Chat gets your links with `!socials` and `!discord`, once every 30 s; `!lurk` says goodbye, once per viewer. |
 | Chat reminders | Every 15 minutes while live, announces the next of three messages, in turn. |
 | Channel points media | Redeeming "Airhorn" plays an airhorn; redeeming "Show a GIF" shows a GIPHY GIF of what the viewer typed. Needs a [Giphy key](./hue-giphy#giphy). |
@@ -19,6 +19,8 @@
 | --- | --- |
 | Stream segments | [Control Pad](./stream-deck) buttons: "Starting soon" counts down 5 minutes, then switches to "Main"; BRB warns chat and runs a 90 s ad on the "BRB" scene, counting down; Ending shows the "Ending" scene and thanks chat. |
 | Death counter | Control Pad buttons count deaths on screen, with the time since the last; chat asks with `!deaths`. |
+| Latest events | The latest follower, subscriber, cheer (with its bits) and raid (with its viewers), each on its own label to place in OBS. They're kept across restarts and shown again when the stream goes live. |
+| Stream goals | "Followers: 12 / 50" and "Subs: 3 / 10" on screen; reaching a goal is announced in chat. A Control Pad button resets both. Change the goals in the labels' text and the **Filter** nodes. |
 | Raid & shoutout | A raid of 3 viewers or more gets a shoutout, an announcement and an alert; mods shout out anyone with `!so @name`. |
 | Chat guard | Deletes bad words, and links from viewers who have followed for less than a week (with a 60 s timeout). |
 

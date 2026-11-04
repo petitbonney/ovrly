@@ -33,7 +33,7 @@ const pulse = (color, ms) => [{ action: 'set', color, brightness: 100, duration:
 
 export default [
   ...category('Essential',
-    template('Event alerts', 'Follows, subs, cheers and raids, each with its own text and a sound, shown one after another.', [
+    template('Event alerts', 'Follows, subs, cheers and raids, each with its own text, a GIF and a sound, shown one after another.', [
       node('follow', 'follow', 0, 0),
       node('sub', 'subscription', 0, 1, { kinds: ['sub', 'resub'] }),
       node('cheer', 'cheer', 0, 2),
@@ -43,12 +43,15 @@ export default [
       node('cheerText', 'edit-data', 1, 2, { values: [{ name: 'text', value: '{{user}} cheered {{bits}} bits!' }] }),
       node('raidText', 'edit-data', 1, 3, { values: [{ name: 'text', value: '{{user}} is raiding with {{raidViewers}} viewers!' }] }),
       node('queue', 'queue', 2, 1.5),
-      widget('alerts', 3, 1),
-      widget('sound', 3, 2),
+      widget('alerts', 3, 0.5),
+      widget('gif', 3, 1.5),
+      node('pick', 'myinstants', 3, 2.5, { picked: 'https://www.myinstants.com/media/sounds/1547679809default.mp3' }),
+      widget('sound', 4, 2.5),
     ], links('follow>followText', 'sub>subText', 'cheer>cheerText', 'raid>raidText',
-      'followText>queue', 'subText>queue', 'cheerText>queue', 'raidText>queue', 'queue>alerts', 'queue>sound'), [
-      instance('alerts', 'alerts', 'Event alerts', { layout: 'flap', duration: 6 }, { start: { text: '{{text}}' } }),
-      instance('sound', 'sound', 'Alert sound', { duration: 6 }), // its sound: a file, picked on the node
+      'followText>queue', 'subText>queue', 'cheerText>queue', 'raidText>queue', 'queue>alerts', 'queue>gif', 'queue>pick', 'pick>sound'), [
+      instance('alerts', 'alerts', 'Event alerts', {}, { start: { text: '{{text}}' } }),
+      instance('gif', 'image', 'Alert GIF', {}, { start: { image: 'https://cdn.streamelements.com/uploads/1b4e9acb-67d4-47e8-b49d-05bb4ebc95ba.gif' } }),
+      instance('sound', 'sound', 'Alert sound', { duration: 5 }, { start: { sound: '{{sound}}' } }),
     ]),
 
     template('Chat commands', 'Chat gets your links with !socials and !discord, once every 30 s; !lurk says goodbye, once per viewer.', [
@@ -133,6 +136,51 @@ export default [
       'reset>timer:reset', 'wait>timer', 'command>reply'), [
       instance('label', 'label', 'Death counter', {}, { start: { text: 'Deaths: {{variableValue}}' } }),
       instance('timer', 'timer', 'Since last death', { text: 'Since last death: {time}', size: 36 }),
+    ]),
+
+    // The names are kept in variables, shown again when the stream goes live: a label's text is lost on restart.
+    template('Latest events', 'The latest follower, subscriber, cheer and raid, each on its own label; going live shows them again.', [
+      node('follow', 'follow', 0, 0),
+      node('sub', 'subscription', 0, 1),
+      node('cheer', 'cheer', 0, 2),
+      node('raid', 'raid', 0, 3),
+      node('live', 'stream-status', 0, 4, { statuses: ['online'] }),
+      node('setFollower', 'edit-variable', 1, 0, { name: 'latestFollower', operation: 'set', value: '{{user}}' }),
+      node('setSub', 'edit-variable', 1, 1, { name: 'latestSub', operation: 'set', value: '{{user}}' }),
+      node('setCheer', 'edit-variable', 1, 2, { name: 'latestCheer', operation: 'set', value: '{{user}} ({{bits}} bits)' }),
+      node('setRaid', 'edit-variable', 1, 3, { name: 'latestRaid', operation: 'set', value: '{{user}} ({{raidViewers}} viewers)' }),
+      widget('follower', 2, 0),
+      widget('subscriber', 2, 1),
+      widget('cheerer', 2, 2),
+      widget('raider', 2, 3),
+    ], links('follow>setFollower', 'sub>setSub', 'cheer>setCheer', 'raid>setRaid',
+      'setFollower>follower', 'setSub>subscriber', 'setCheer>cheerer', 'setRaid>raider',
+      'live>follower', 'live>subscriber', 'live>cheerer', 'live>raider'), [
+      instance('follower', 'label', 'Latest follower', { size: 36 }, { start: { text: 'Latest follower: {{ $vars.latestFollower }}' } }),
+      instance('subscriber', 'label', 'Latest subscriber', { size: 36 }, { start: { text: 'Latest subscriber: {{ $vars.latestSub }}' } }),
+      instance('cheerer', 'label', 'Latest cheer', { size: 36 }, { start: { text: 'Latest cheer: {{ $vars.latestCheer }}' } }),
+      instance('raider', 'label', 'Latest raid', { size: 36 }, { start: { text: 'Latest raid: {{ $vars.latestRaid }}' } }),
+    ]),
+
+    template('Stream goals', 'Follower and sub goals on screen, 12 / 50; reaching one is announced in chat. A Control Pad button resets them.', [
+      node('follow', 'follow', 0, 0),
+      node('sub', 'subscription', 0, 1),
+      node('pad', 'deck', 0, 2, { buttons: [{ id: 'reset', icon: 'refresh', name: 'Reset goals', color: '#3d8bff' }] }),
+      node('addFollower', 'edit-variable', 1, 0, { name: 'goalFollowers', operation: 'add', value: '1' }),
+      node('addSub', 'edit-variable', 1, 1, { name: 'goalSubs', operation: 'add', value: '1' }),
+      node('resetFollowers', 'edit-variable', 1, 2, { name: 'goalFollowers', operation: 'set', value: '0' }),
+      node('resetSubs', 'edit-variable', 1, 3, { name: 'goalSubs', operation: 'set', value: '0' }),
+      widget('followers', 2, 0),
+      widget('subs', 2, 1),
+      node('followersDone', 'filter', 3, 0, { value: '{{variableValue}}', operator: 'equals', compare: '50' }),
+      node('subsDone', 'filter', 3, 1, { value: '{{variableValue}}', operator: 'equals', compare: '10' }),
+      node('followersCheer', 'twitch-announce', 4, 0, { message: 'Follower goal reached: 50 followers! Thank you all!', color: 'green' }),
+      node('subsCheer', 'twitch-announce', 4, 1, { message: 'Sub goal reached: 10 subs! Thank you all!', color: 'purple' }),
+    ], links('follow>addFollower', 'sub>addSub', 'pad:reset>resetFollowers', 'pad:reset>resetSubs',
+      'addFollower>followers', 'addSub>subs', 'resetFollowers>followers', 'resetSubs>subs',
+      'addFollower>followersDone', 'addSub>subsDone', 'followersDone>followersCheer', 'subsDone>subsCheer'), [
+      instance('followers', 'label', 'Follower goal', { size: 36 }, { start: { text: 'Followers: {{variableValue}} / 50' } }),
+      instance('subs', 'label', 'Sub goal', { size: 36 }, { start: { text: 'Subs: {{variableValue}} / 10' } }),
     ]),
 
     template('Raid & shoutout', 'A raid of 3 viewers or more gets a shoutout, an announcement and an alert; mods shout out anyone with !so @name.', [
