@@ -2,6 +2,12 @@
 
 > Node-based automation for live stream interactions.
 
+[![Release](https://img.shields.io/github/v/release/petitbonney/ovrly?include_prereleases&sort=semver)](https://github.com/petitbonney/ovrly/releases)
+[![Downloads](https://img.shields.io/github/downloads/petitbonney/ovrly/total)](https://github.com/petitbonney/ovrly/releases)
+[![Tests](https://img.shields.io/github/actions/workflow/status/petitbonney/ovrly/test.yml?branch=master&label=tests)](https://github.com/petitbonney/ovrly/actions/workflows/test.yml)
+[![Docs](https://img.shields.io/github/actions/workflow/status/petitbonney/ovrly/docs.yml?branch=master&label=docs)](https://petitbonney.github.io/ovrly/)
+[![License](https://img.shields.io/github/license/petitbonney/ovrly)](LICENSE)
+
 Ovrly connects stream events (Twitch chat, follows, subs, raids, channel points, Stream Deck keys) to actions (overlays, OBS scenes, Philips Hue lights, key presses, HTTP calls) by drawing a graph, the way n8n works, but for streamers. It runs on your computer; the editor opens in your browser.
 
 ![The Ovrly editor](docs/public/hero.webp)
