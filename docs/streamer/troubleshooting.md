@@ -13,7 +13,6 @@ macOS needs to allow it: **System Settings → Privacy & Security → Accessibil
 - Is its **switch** on? Templates start off.
 - A node with a **plug icon** needs something that isn't ready: its settings say what.
 - Is the trigger right? Fire it with its ⚡ (see [Fire a trigger](./editor#fire-a-trigger)): if its settings filter the event out, Ovrly says so.
-- Press **Ctrl+Shift+D** and open the events view: it lists what Ovrly received.
 
 ### A node is red
 

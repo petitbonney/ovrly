@@ -4,11 +4,11 @@ Ovrly works with OBS two ways: widgets are **browser sources**, and Switch Scene
 
 ## Show a widget
 
-1. Select the widget node (or Merge Widgets node) and copy its **OBS browser source** link, e.g. `http://localhost:6875/w/<id>`.
+1. Select the widget node and copy its **OBS browser source** link, e.g. `http://localhost:6875/w/<id>`.
 2. In OBS, add a **Browser Source** with that URL. Size it as you like: widgets scale to fit.
 3. For widgets with sound (Sound, Video, Alerts), tick **Control audio via OBS**.
 
-The page reconnects by itself if Ovrly restarts. To put several widgets in one source, use [Merge Widgets](./widgets#merge-widgets).
+The page reconnects by itself if Ovrly restarts.
 
 ## Control OBS
 

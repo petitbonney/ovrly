@@ -55,6 +55,7 @@ export default defineConfig({
         { text: 'Understand', items: [
           { text: 'Architecture', link: '/developer/' },
           { text: 'HTTP API', link: '/developer/api' },
+          { text: 'Developer mode', link: '/developer/dev-mode' },
         ] },
         { text: 'Build', items: [
           { text: 'Run from source', link: '/developer/from-source' },

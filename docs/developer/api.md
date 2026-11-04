@@ -23,7 +23,7 @@ curl -X POST localhost:6875/hooks/my-hook -H 'content-type: application/json' -d
 | --- | --- |
 | `POST /api/widgets/<id>/action` | Runs an action, e.g. `{ "action": "vote", "input": { "option": "1", "user": "bob" } }`. |
 | `GET /w/<id>` | The widget's page, for OBS. `/w/<id>/events` streams its state (SSE). |
-| `GET /m/<workflow>/<node>` | A Merge Widgets page. |
+| `GET /m/<workflow>/<node>` | A [Merge Widgets](./dev-mode#merge-widgets) page. |
 
 ## Look inside
 

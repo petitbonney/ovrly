@@ -65,7 +65,3 @@ Its settings have a **Fire** section in their live column: what the event carrie
 ## Right: the library
 
 Every node and widget type, in sections: **Trigger**, **Logic**, **Action**, **Widget**. Search it from the top. See [Nodes](./nodes) and [Widgets](./widgets).
-
-## Developer mode
-
-Ctrl+Shift+D (Ctrl on macOS too) shows a tool button at the bottom right: it opens the last 200 events Ovrly saw (chat, API calls, widget actions, logs), handy to see why a workflow didn't fire. It also lists [Merge Widgets](./widgets#merge-widgets), [Error Trigger](./data#when-something-fails) and [Log](./nodes#actions) in the library.

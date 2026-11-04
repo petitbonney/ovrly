@@ -72,9 +72,3 @@ They draw a `{{winner}}`:
 ### TwitchPlays
 
 Turns chat into key presses through a list of keys and the commands that press them (`Up` ← `up`, `u`; any of a row's commands); a Key Press node set to `{{playsKeys}}` presses them. **Anarchy** passes on every command; **democracy** counts one vote per viewer in rounds, and passes on each round's winner. Its **Mode** action switches between them, or toggles: pick one, or pass it as data (e.g. `{{message}}` from a `!democracy` chat command). The overlay fits its source: anarchy lists as many of the latest commands as fit, democracy shrinks its vote so every command shows. Use Key Press's "Only when focused" so keys only reach the game window.
-
-## Merge Widgets
-
-One browser source for several widgets, listed in the library in [developer mode](./editor#developer-mode) only. Link widget nodes into a **Merge Widgets** node: its settings show a 16:9 canvas with each widget live. Drag a widget to move it, its corner to resize it; boxes snap to the borders, center lines and other widgets (hold Alt to place freely). Its link shows them all where you placed them, scaled to any source size.
-
-![Merge Widgets: a label and a wheel placed on one canvas](/screenshots/merge.png)

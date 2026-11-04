@@ -23,7 +23,6 @@ A workflow starts at a trigger. Its **⚡** fires it by hand, to try the workflo
 | Schedule | every so often, while the workflow is on | |
 | API Call | a request reaches `http://localhost:6875/hooks/<path>`; its query and JSON body become data | |
 | Portal In | a Portal Out node sends data through it, from this workflow or another | |
-| Error Trigger | a node fails in another workflow (listed in [developer mode](./editor#developer-mode) only) | |
 
 Subs, gift subs, cheers and raids work in Guest mode too, from what chat announces.
 
@@ -82,11 +81,10 @@ All need [Streamer mode](./twitch#guest-or-streamer).
 | MyInstants | Finds a sound on Myinstants and adds its URL as `{{sound}}`. | |
 | Text-to-Speech | Speaks a text in a language and voice, and adds the sound as `{{sound}}`. | [Text-to-Speech](./hue-giphy#text-to-speech) |
 | Hue Lights | Toggles, sets or turns off lights, or plays a routine of colors. | [Hue](./hue-giphy#philips-hue) |
-| Log | Prints the data to the events view, and shows the last one in its settings. Listed in [developer mode](./editor#developer-mode) only. | |
 | Key Press | Presses a key combo on this computer, optionally only while a given window is focused. | |
 | HTTP Request | Sends an HTTP request, e.g. a Discord webhook. | |
 | WebSocket Send | Opens a WebSocket, sends one message, then closes. | |
 
 ## Widgets
 
-The **Widget** section of the library has every [widget type](./widgets), and, in [developer mode](./editor#developer-mode), **Merge Widgets** to put several on one browser source.
+The **Widget** section of the library has every [widget type](./widgets).
