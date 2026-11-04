@@ -4,30 +4,28 @@
 <link rel="stylesheet" href="/widgets/base.css">
 <script type="importmap">{ "imports": { "animejs": "/vendor/animejs/index.js" } }</script>
 <style>
-  /* The text across the page, vertically centered, aligned by the align setting; long text wraps. */
+  /* The text across the page, vertically centered, aligned by the align setting (text-align); long text wraps. */
   #page { position: fixed; inset: 0; display: flex; align-items: center; padding: 0 16px; box-sizing: border-box; }
-  #text { max-width: 100%; overflow-wrap: anywhere; white-space: pre-wrap; opacity: 0; }
+  #text { width: 100%; overflow-wrap: anywhere; white-space: pre-wrap; opacity: 0; }
   #text:empty { display: none; }
 </style>
 <div id="page"><div id="text"></div></div>
 <script type="module">
   import { animate, engine } from 'animejs'
-  import { subscribe, loadFont } from '/widgets/lib.js'
-  import { FADE } from '/widgets/label/widget.js'
+  import { subscribe, styleText } from '/widgets/lib.js'
+  import label, { FADE } from '/widgets/label/widget.js'
   engine.pauseOnDocumentHidden = false // OBS may hide the source: a new text still shows
-  const page = document.getElementById('page'), text = document.getElementById('text')
+  const text = document.getElementById('text')
   let anim
   const fade = (to, then) => {
     anim?.pause()
     anim = animate(text, { opacity: to, duration: FADE, ease: to ? 'outQuad' : 'inQuad', onComplete: then })
   }
   subscribe(({ state, runtime }) => {
-    page.style.justifyContent = { left: 'flex-start', center: 'center', right: 'flex-end' }[state.align]
-    loadFont(state.font)
-    text.style.fontFamily = `"${state.font}", system-ui, sans-serif`
-    text.style.color = state.color
-    text.style.fontSize = `${state.size}px`
-    const next = runtime.ended ? '' : runtime.text
+    styleText(text, state)
+    // Before its first Start (or since a restart), the text its Start is set to, placeholders left out; stopped, none.
+    const before = () => (state.input?.start?.text ?? label.actions.start.inputs.text.default).replace(/\{\{.+?\}\}/gs, '')
+    const next = runtime.ended ? '' : runtime.at ? runtime.text : before()
     if (next === text.textContent) return
     // A new text fades out the one showing, then fades in.
     const show = () => {

@@ -32,11 +32,11 @@ Shows a text for a few seconds, in one of ten layouts: banner, neon sign, ticket
 
 ### Label
 
-A text that stays on screen until it changes or stops: the last follower, the current goal. Any [Google Fonts](https://fonts.google.com) family, picked by name (the overlay loads it, so it needs internet).
+A text that stays on screen until it changes or stops: the last follower, the current goal. Before its first Start, it shows the text its Start is set to (placeholders such as `{{user}}` left out). Any [Google Fonts](https://fonts.google.com) family, picked by name from an alphabetical list (the overlay loads it, so it needs internet), a color, a size (a slider from XS to XL, or any size in px typed beside it), aligned to the left, centred, to the right or justified.
 
 ### Countdown, Timer
 
-A clock as a text around `{time}`, e.g. `Starting in {time}`, in any Google Fonts family. Its format: **Auto** (`1:05:03`, then `4:59`), `hh:mm:ss` or `mm:ss`. Both stay on screen (hide them in OBS) and go on across a restart of Ovrly. Their Stop pauses them, their Cancel resets them, and Start only starts one that is paused or reset.
+A clock as a text around `{time}`, e.g. `Starting in {time}`, styled as a Label (font, color, size, alignment). Its format: **Auto** (`1:05:03`, then `4:59`), `hh:mm:ss` or `mm:ss`. Both stay on screen (hide them in OBS) and go on across a restart of Ovrly. Their Stop pauses them, their Cancel resets them, and Start only starts one that is paused or reset.
 
 - **Countdown**: Start counts down **for** a duration (`5m`, `1h30m`, `1:30`, or `{{args}}` from a chat command) or **until** a time of day (`20:00`, `8pm`); before that, it shows that time. The workflow goes on once it reaches 0, when the **ended text** shows instead (e.g. `Starting now!`; empty, `0:00` stays). `add` adds time or takes some off (`+30s` per sub for a subathon, `-1m`), and its end follows. **Pause** holds it, and the workflow waiting on it goes on; **Reset** brings it back to before its start, and that workflow stops there. The last 10 seconds beat (**Pulse**). It outputs `{{remaining}}`.
 - **Timer**: counts up from 0, for a speedrun or a challenge, like a stopwatch: **Pause** holds it, **Reset** stops it at 0. The workflow goes on at once. Every action outputs `{{timerElapsed}}` (as shown) and `{{timerSeconds}}`, e.g. for a `!time` command to answer in chat.
@@ -71,4 +71,4 @@ They draw a `{{winner}}`:
 
 ### TwitchPlays
 
-Turns chat into key presses through a list of keys and the commands that press them (`Up` ← `up`, `u`; any of a row's commands); a Key Press node set to `{{playsKeys}}` presses them. **Anarchy** passes on every command; **democracy** counts one vote per viewer in rounds, and passes on each round's winner. Its **Mode** action switches between them, or toggles: pick one, or pass it as data (e.g. `{{message}}` from a `!democracy` chat command). The overlay fits its source: anarchy lists as many of the latest commands as fit, democracy shrinks its vote so every command shows. Use Key Press's "Only when focused" so keys only reach the game window.
+Turns chat into key presses through a list of keys and the commands that press them (`Up` ← `up`, `u`; any of a row's commands); a Key Press node set to `{{playsKeys}}` presses them. **Anarchy** passes on every command; **democracy** counts one vote per viewer in rounds, and passes on each round's winner. Its **Mode** action switches between them, or toggles: pick one, or pass it as data (e.g. `{{message}}` from a `!democracy` chat command). The overlay fits its source: anarchy lists as many of the latest commands as fit, democracy shrinks its vote so every command shows (with **Sort by votes** on, the most voted moves first). Use Key Press's "Only when focused" so keys only reach the game window.

@@ -40,6 +40,36 @@ export function loadFont(family) {
   font.href = css(true)
 }
 
+// A text's look (Label, Countdown, Timer): its default state and settings, spread into a widget type's own, any of them
+// overridden there (e.g. a bigger size). The page puts it on its text with styleText.
+export const textStyle = {
+  state: { font: 'Inter', color: '#ffffff', size: 48, align: 'center' },
+  fields: {
+    font: { type: 'font', hint: 'A Google Fonts family' },
+    color: {},
+    size: {
+      unit: 'px',
+      slider: true,
+      presets: [{ value: 24, label: 'XS' }, { value: 36, label: 'S' }, { value: 48, label: 'M' }, { value: 72, label: 'L' }, { value: 96, label: 'XL' }],
+    },
+    // As Word's paragraph buttons: icons, their names on hover.
+    align: {
+      options: [
+        { value: 'left', label: 'Align to Left', icon: 'align-left' },
+        { value: 'center', label: 'Centre Text', icon: 'align-center' },
+        { value: 'right', label: 'Align to Right', icon: 'align-right' },
+        { value: 'justify', label: 'Justify Text', icon: 'align-justified' },
+      ],
+    },
+  },
+}
+
+// Page side: puts a textStyle on an element (a block as wide as the page, so its lines follow the alignment).
+export function styleText(el, { font, color, size, align }) {
+  loadFont(font)
+  Object.assign(el.style, { fontFamily: `"${font}", system-ui, sans-serif`, color, fontSize: `${size}px`, textAlign: align })
+}
+
 // Page side: a promise that resolves after ms, for render to return while an animation plays.
 export const wait = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(ms, 0)))
 

@@ -7,7 +7,9 @@
 // slider: true shows the options as marks on a slider, from the first to the last, instead of buttons; tips: { option: text } adds a tooltip to each mark.
 // On a number, slider: true is a slider from min to max (0 to 100 by default), its value beside the label; a volume's
 // slider has a mute button.
-// presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input.
+// presets: common values of a number, e.g. a duration's [3, 5, 10] seconds, shown as buttons next to its input. With
+// slider: true, they're named ([{ value, label }], e.g. a size's XS to XL) and marks on a slider instead, the input
+// beside it showing the value and taking any other.
 // off: true labels the 0 preset "off" (where 0 turns the setting off); a word labels it that word instead (e.g. 'any').
 // only: { key: value } shows the field only while those other settings have those values, e.g. { mode: 'twitch' }
 // vars: true adds the "{}" menu of data keys; with options, the field is text where data comes in, the options suggested.
@@ -28,10 +30,10 @@
 // { hue: 'devices' } a Hue light, room or zone.
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
-  ActionIcon, Anchor, Autocomplete, Button, Chip, ColorInput, ColorPicker, CopyButton, Group, Image, JsonInput, Menu, Modal, MultiSelect, NumberInput, PasswordInput, Popover, SegmentedControl,
+  ActionIcon, Anchor, Autocomplete, Button, Center, Chip, ColorInput, ColorPicker, CopyButton, Group, Image, JsonInput, Menu, Modal, MultiSelect, NumberInput, PasswordInput, Popover, SegmentedControl,
   Select, Slider, Stack, Switch, TagsInput, Text, Textarea, TextInput, Tooltip, UnstyledButton,
 } from '@mantine/core'
-import { IconArrowsMaximize, IconBraces, IconCheck, IconCopy, IconGripVertical, IconInfoCircle, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX } from '@tabler/icons-react'
+import { IconArrowsMaximize, IconBraces, IconCheck, IconCopy, IconGripVertical, IconInfoCircle, IconPlus, IconFolderOpen, IconVolume, IconVolume2, IconVolume3, IconVolume4, IconX, createReactComponent } from '@tabler/icons-react'
 import { get } from './api.js'
 import { openSettings, requirements } from './Settings.jsx'
 import Heading from './Heading.jsx'
@@ -245,6 +247,13 @@ function FontInput({ value, description, ...props }) {
     renderOption={({ option }) => <FontName family={option.value} />} styles={{ input: { fontFamily: `"${value}"` } }} />
 }
 
+// A segmented option's label: its icon if it has one (a type names it, the server sends its shapes), its name then on
+// hover, else its name; a disabled one's reason on hover.
+function OptionLabel({ label, icon: Icon, why }) {
+  const tip = [Icon && label, why].filter(Boolean).join(': ')
+  return <Tooltip label={tip} withinPortal><Center>{Icon ? <Icon size={16} aria-label={label} /> : label}</Center></Tooltip>
+}
+
 // A time preset reads in its biggest unit that fits: 90 s -> "1m30", 1440 min -> "1d", 1000 ms -> "1s".
 const SECONDS = { ms: 0.001, s: 1, min: 60 }
 const STEPS = [['w', 604800], ['d', 86400], ['h', 3600], ['m', 60], ['s', 1]]
@@ -267,6 +276,25 @@ function PresetInput({ label, name, description, unit, presets, off, value, onCh
         {presets.map((n) => (
           <Button key={n} size="compact-xs" h={30} px="sm" variant={n === value ? 'filled' : 'default'} onClick={() => onChange(n)}>{off && n === 0 ? (off === true ? 'off' : off) : short(n, unit)}</Button>
         ))}
+        <NumberInput size="xs" w={90} min={0} aria-label={`Custom ${name.toLowerCase()}`} suffix={unit && ` ${unit}`} value={value} onChange={(v) => onChange(Number(v))} />
+      </Group>
+    </Stack>
+  )
+}
+
+// A number on a slider snapping to named presets, and an input for any value: one between two presets sits between their
+// marks.
+function PresetSlider({ label, name, description, unit, presets, value, onChange }) {
+  const values = presets.map((p) => p.value)
+  const next = values.findIndex((v) => v >= value)
+  const at = next < 0 ? values.length - 1 : next === 0 ? 0 : next - 1 + (value - values[next - 1]) / (values[next] - values[next - 1])
+  return (
+    <Stack gap={4} pb="md">
+      <Text size="xs" fw={500}>{label}</Text>
+      {description && <Text size="xs" c="dimmed">{description}</Text>}
+      <Group gap="lg" wrap="nowrap">
+        <Slider size="md" flex={1} ml="xs" min={0} max={values.length - 1} step={1} label={null} aria-label={name}
+          marks={presets.map((p, i) => ({ value: i, label: p.label }))} value={at} onChange={(i) => onChange(values[i])} />
         <NumberInput size="xs" w={90} min={0} aria-label={`Custom ${name.toLowerCase()}`} suffix={unit && ` ${unit}`} value={value} onChange={(v) => onChange(Number(v))} />
       </Group>
     </Stack>
@@ -678,6 +706,7 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
     const unmet = requirements.find((r) => (r.key === needs || (streamer && r.key === 'twitch')) && context.off?.includes(r.key))
     return unmet ? { ...option, disabled: true, why: `Needs ${unmet.needs} (Settings → ${unmet.label})` } : option
   })
+  if (f.slider && f.presets) return <PresetSlider {...props} name={f.label ?? humanize(name)} unit={f.unit} presets={f.presets} value={value} onChange={set} />
   if (f.slider && typeof fallback === 'number') {
     return <SliderInput {...props} unit={f.unit} min={f.min} max={f.max} mute={name === 'volume'} value={value} onChange={set} />
   }
@@ -700,7 +729,7 @@ function Field({ name, f, fallback, value, set, change, values, context }) {
         <Text size="xs" fw={500}>{props.label}</Text>
         {props.description && <Text size="xs" c="dimmed">{props.description}</Text>}
         <SegmentedControl size="xs" fullWidth value={value} onChange={set}
-          data={choices.map(({ why, ...o }) => (why ? { ...o, label: <Tooltip label={why} withinPortal><span>{o.label}</span></Tooltip> } : o))} />
+          data={choices.map(({ why, icon, iconNode, ...o }) => (why || iconNode ? { ...o, label: <OptionLabel {...o} icon={iconNode && createReactComponent('outline', icon, icon, iconNode)} why={why} /> } : o))} />
       </Stack>
     )
   }

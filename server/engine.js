@@ -13,7 +13,7 @@ const order = [
   'manual', 'deck', 'chat-command', 'chat-message',
   'redeem', 'follow', 'subscription', 'raid', 'cheer', 'gift-subs', 'hype-train', 'stream-status',
   'schedule', 'webhook', 'portal-in', 'error-trigger',
-  'pipe', 'if-else', 'filter', 'switch', 'fan-out', 'fan-in', 'wait-all', 'portal-out',
+  'pipe', 'if-else', 'filter', 'switch', 'wait-all', 'fan-in', 'fan-out', 'portal-out',
   'delay', 'cooldown', 'queue',
   'word-filter', 'map-value', 'edit-data', 'edit-variable', 'code',
   'twitch-chat', 'twitch-announce', 'twitch-shoutout', 'twitch-ban', 'twitch-delete-message', 'twitch-clip', 'twitch-user', 'twitch-channel-info',

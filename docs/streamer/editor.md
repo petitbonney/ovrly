@@ -23,7 +23,7 @@ For one-line workflows, e.g. an alert on a new follower: a trigger under **When*
 - **Pick the trigger** and **add steps** from the library (double-click, or drag onto the list): a step goes at the end. The dashed **+** below the steps marks where the next one goes.
 - **Click** a step to open its settings. **Drag** it by its grip (left of the card) to move it: the other steps make room, a dashed outline shows where it lands, and **Escape** puts it back. **Alt+↑** / **Alt+↓** on a step, or its **⋯** menu, also move it up or down; the menu deletes it too (the steps around it stay linked).
 - The **⚡** left of the trigger fires it (see [Fire a trigger](#fire-a-trigger)).
-- The library leaves out what makes branches (If / Else, Switch, Fan Out…): its link at the bottom switches to the graph for those.
+- The library leaves out what makes branches (If / Else, Switch, Wait For All…): its link at the bottom switches to the graph for those.
 
 Basic is available while the workflow is one line: one trigger, each node linked to the next only (from its first output: If / Else's "true", Cooldown's "pass"). Once the graph has a branch, Basic is greyed out; remove the branch and it comes back.
 

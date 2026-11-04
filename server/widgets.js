@@ -34,6 +34,10 @@ export function normalize(def) {
   return { ...def, onSignal, onStart, onStop, onCancel, state: def.state ?? {}, runtime: def.runtime ?? {}, actions }
 }
 
+// Settings' options naming an icon (e.g. align: 'align-left') get its shapes, for the UI to draw them as icon buttons.
+const optionIcons = async (fields = {}) => Object.fromEntries(await Promise.all(Object.entries(fields).map(async ([key, f]) =>
+  [key, f.options ? { ...f, options: await Promise.all(f.options.map(async (o) => (o.icon ? { ...o, iconNode: await iconNode(o.icon) } : o))) } : f])))
+
 // Types are kept in the library's order: most used first (unlisted ones last).
 const order = ['alerts', 'label', 'voting', 'countdown', 'timer', 'sound', 'image', 'video', 'lottery', 'roulette', 'dice', 'twitch-plays']
 const rank = (name) => (order.includes(name) ? order.indexOf(name) : order.length)
@@ -54,7 +58,7 @@ export const loadTypes = () => (loading = loading.catch(() => {}).then(async () 
   const { defs, errors } = await custom.loadWidgets(new Set(bundled.map((d) => d.type)))
   const reloaded = new Set([...Object.values(types), ...defs].filter((d) => d.custom).map((d) => d.type))
   for (const type in types) delete types[type]
-  for (const def of [...bundled, ...defs].sort((a, b) => rank(a.type) - rank(b.type))) types[def.type] = { ...normalize(def), iconNode: await iconNode(def.icon) }
+  for (const def of [...bundled, ...defs].sort((a, b) => rank(a.type) - rank(b.type))) types[def.type] = { ...normalize(def), fields: await optionIcons(def.fields), iconNode: await iconNode(def.icon) }
   problems.splice(0, Infinity, ...errors)
   follow()
   for (const widget of Object.values(cache)) {

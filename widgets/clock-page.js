@@ -2,7 +2,7 @@
 // the font, color, size and alignment set. It's always on screen: "stop" and "cancel" hold the clock, and OBS hides the
 // source.
 import { animate, engine } from 'animejs'
-import { subscribe, loadFont } from '/widgets/lib.js'
+import { subscribe, styleText } from '/widgets/lib.js'
 
 engine.pauseOnDocumentHidden = false // OBS may hide the source: the clock still keeps time
 
@@ -23,9 +23,8 @@ export function mount(view) {
   setInterval(tick, 100)
   subscribe((msg) => {
     state = msg.state
-    page.style.justifyContent = { left: 'flex-start', center: 'center', right: 'flex-end' }[state.align]
-    loadFont(state.font)
-    Object.assign(text.style, { fontFamily: `"${state.font}", system-ui, sans-serif`, color: state.color, fontSize: `${state.size}px`, transformOrigin: state.align })
+    styleText(text, state)
+    text.style.transformOrigin = state.align === 'justify' ? 'left' : state.align // the beat grows from where the text sits (a one-line justified text sits left)
     tick()
   })
 }

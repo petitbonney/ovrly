@@ -39,6 +39,7 @@ export default {
       { keys: 'Enter', command: 'start' },
     ],
     window: 5,
+    sort: false,
   },
   fields: {
     mode: { options: [{ value: 'anarchy', label: 'Anarchy' }, { value: 'democracy', label: 'Democracy' }] },
@@ -52,6 +53,7 @@ export default {
       label: 'Vote window', unit: 's', presets: [3, 5, 10, 20], only: { mode: 'democracy' }, hint: 'Votes are counted in loops this long, from start',
       info: "Each loop's most voted command goes on (a tie: the first in the list).",
     },
+    sort: { label: 'Sort by votes', only: { mode: 'democracy' }, hint: 'The most voted command moves first' },
   },
   // listening: between "start" and "stop" or "cancel"; since: when the loops began (ms); loop: the loop the votes are
   // for (-1: none, e.g. in anarchy); log: latest commands, newest first, { user, command, at }; votes: user -> command

@@ -1,18 +1,17 @@
 // Shared by Countdown and Timer (their widget.js and pages, see clock-page.js): their look, reading the times typed or
 // sent from chat, and showing a time as a clock, e.g. 1:05:03.
+import { textStyle } from './lib.js'
 
-// The look, as Label's, plus the text around the clock and its format.
-export const state = { text: '{time}', format: 'auto', font: 'Inter', color: '#ffffff', size: 72, align: 'center' }
+// The text around the clock, its format, then the text's look (bigger than Label's by default).
+export const state = { text: '{time}', format: 'auto', ...textStyle.state, size: 72 }
 export const fields = {
   text: { hint: '{time} is the clock, e.g. Starting in {time}' },
   format: {
     options: [{ value: 'auto', label: 'Auto' }, { value: 'hh:mm:ss', label: 'hh:mm:ss' }, { value: 'mm:ss', label: 'mm:ss' }],
     info: 'Auto shows hours only when there are some: 1:05:03, then 4:59. mm:ss counts the minutes past 60: 65:03.',
   },
-  font: { type: 'font', section: 'Style', hint: 'A Google Fonts family' },
-  color: {},
-  size: { unit: 'px', presets: [36, 48, 72, 96] },
-  align: { options: ['left', 'center', 'right'] },
+  ...textStyle.fields,
+  font: { ...textStyle.fields.font, section: 'Style' },
 }
 
 const two = (n) => String(n).padStart(2, '0')

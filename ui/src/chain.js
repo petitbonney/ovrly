@@ -2,7 +2,7 @@
 // list of nodes one line again (relink). Pure, so the node tests can import them.
 
 // Node types the Basic view's library leaves out: they make branches or take several inputs.
-export const graphOnly = ['if-else', 'switch', 'fan-out', 'fan-in', 'wait-all', 'merge']
+export const graphOnly = ['if-else', 'switch', 'wait-all', 'merge']
 
 // The nodes in order from the head, or null when the graph isn't one line: a node with several links in or out, a
 // node off the line, a trigger after the head, a link from an output other than the node's first (If/else's

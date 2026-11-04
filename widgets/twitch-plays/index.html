@@ -25,11 +25,13 @@
   const $ = (id) => document.getElementById(id)
   let seen = 0 // newest log entry already shown, so only new ones slide in
   let widths = [] // vote bars' last widths, so they grow from there
+  let tops = [] // democracy rows' last positions, so sorted ones slide to their new place
   let timer
   let data // the last state and runtime, to fit the rows again when the page is resized
 
   // Anarchy: the latest inputs that fit whole, newest on top, older ones fading out.
   function anarchy(runtime) {
+    tops = []
     $('foot').textContent = runtime.listening ? '' : 'Not listening'
     const rows = runtime.log.map(({ user, command }) => el('div', 'row', el('span', 'muted', user || 'test'), el('span', '', command)))
     $('rows').replaceChildren(...rows)
@@ -58,7 +60,7 @@
     const won = past ? runtime.counts.indexOf(past) : -1
     const name = (c) => c.command.split('+').join(' / ') // a row shows all its commands
     const last = state.commands[won] ? name(state.commands[won]) : ''
-    $('rows').replaceChildren(...state.commands.map((c, i) => {
+    const rows = state.commands.map((c, i) => {
       const pct = total ? (counts[i] / total) * 100 : 0
       const bar = el('div', 'bar')
       bar.style.width = `${widths[i] ?? 0}%`
@@ -67,10 +69,19 @@
       const row = el('div', 'row', bar, el('span', '', name(c)), el('b', '', String(counts[i])))
       if (i === won) row.classList.add('win')
       return row
-    }))
+    })
+    // Sort by votes: most voted first, ties in list order (sort is stable).
+    const order = rows.map((row, i) => i)
+    if (state.sort) order.sort((a, b) => counts[b] - counts[a])
+    $('rows').replaceChildren(...order.map((i) => rows[i]))
     // Every command shows: shrunk to fit if they don't.
-    const rows = $('rows')
-    rows.style.setProperty('--z', Math.min(1, rows.clientHeight / rows.scrollHeight))
+    const z = Math.min(1, $('rows').clientHeight / $('rows').scrollHeight)
+    $('rows').style.setProperty('--z', z)
+    rows.forEach((row, i) => {
+      const top = row.getBoundingClientRect().top
+      if (tops[i] !== undefined && tops[i] !== top) animate(row, { translateY: [(tops[i] - top) / z, 0], duration: 300, ease: 'outQuad' })
+      tops[i] = top
+    })
     $('foot').textContent = runtime.listening ? `${Math.ceil(left / 1000)}s to vote · type a command${last ? ` · last: ${last}` : ''}` : 'Not listening'
   }
 
@@ -86,5 +97,5 @@
     else anarchy(runtime)
   }
   subscribe(render)
-  addEventListener('resize', () => data && render(data))
+  addEventListener('resize', () => { tops = []; if (data) render(data) })
 </script>

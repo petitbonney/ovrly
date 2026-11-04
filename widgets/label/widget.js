@@ -1,5 +1,7 @@
 // Label: a text that stays on screen, e.g. "Now playing: Celeste" or the last follower, until a new one replaces it
-// or "stop" hides it. Like Alerts, the text is the action's input; the workflow goes on at once.
+// or "stop" hides it. Before its first Start, it shows the text its Start is set to. Like Alerts, the text is the action's input; the workflow goes on at once.
+import { textStyle } from '../lib.js'
+
 export const FADE = 300 // ms: the text fading in, out, or into the next one
 
 export default {
@@ -7,13 +9,8 @@ export default {
   label: 'Label',
   icon: 'typography',
   description: 'Shows a text that stays on screen until it changes, e.g. the last follower or the current goal.',
-  state: { font: 'Inter', color: '#ffffff', size: 48, align: 'center' },
-  fields: {
-    font: { type: 'font', hint: 'A Google Fonts family' },
-    color: {},
-    size: { unit: 'px', presets: [24, 36, 48, 72] },
-    align: { options: ['left', 'center', 'right'] },
-  },
+  state: { ...textStyle.state },
+  fields: textStyle.fields,
   // text: the label showing; at: when it was set (ms).
   runtime: { text: '', at: 0 },
   playTime: () => 0, // the text stays: the workflow goes on at once

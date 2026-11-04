@@ -67,5 +67,6 @@ The node waits until what it started has stopped:
 `subscribe(render, { stop, cancel })` from `/widgets/lib.js` calls `render` now and on every update. When "stop" or "cancel" ends what plays, its handler runs instead (play an outro, or cut); a page without one renders the new state. Once something has ended, `runtime.ended` is set, so a page opened later doesn't replay it; `runtime.firing` says whether a run still plays.
 
 - Text from chat goes in with `el()` from `lib.js` or `textContent`, **never as HTML**.
+- A text's look (font, color, size, alignment) is `textStyle` from `lib.js`: spread its `state` and `fields` into the type's (as Label and `clock.js` do), and the page calls `styleText(el, state)`.
 - Shared code (e.g. a fade's duration) is imported from `/widgets/<type>/widget.js`.
 - Animate with **anime.js** (v4), the standard across Ovrly. 3D goes through three.js, animated with anime.js's Three.js adapter; physics through cannon-es. Pages load them from `/vendor/` with an import map: see `widgets/dice/index.html`.
