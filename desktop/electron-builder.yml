@@ -2,7 +2,7 @@
 appId: com.ovrly.app
 productName: Ovrly
 directories: { output: release }
-artifactName: ${productName}-${version}-${os}-${arch}.${ext} # e.g. Ovrly-1.0.0-mac-arm64.dmg
+artifactName: ${productName}-${version}-${os}-${arch}.${ext} # e.g. Ovrly-2026.11.0-mac-arm64.dmg
 # Plain files, no asar archive: the server serves them, starts a worker from them and imports them by path.
 asar: false
 files:

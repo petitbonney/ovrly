@@ -2,7 +2,7 @@
 
 > Node-based automation for live stream interactions.
 
-[![Release](https://img.shields.io/github/v/release/petitbonney/ovrly?include_prereleases&sort=semver)](https://github.com/petitbonney/ovrly/releases)
+[![Release](https://img.shields.io/github/v/release/petitbonney/ovrly?sort=semver)](https://github.com/petitbonney/ovrly/releases)
 [![Downloads](https://img.shields.io/github/downloads/petitbonney/ovrly/total)](https://github.com/petitbonney/ovrly/releases)
 [![Tests](https://img.shields.io/github/actions/workflow/status/petitbonney/ovrly/test.yml?branch=master&label=tests)](https://github.com/petitbonney/ovrly/actions/workflows/test.yml)
 [![Docs](https://img.shields.io/github/actions/workflow/status/petitbonney/ovrly/docs.yml?branch=master&label=docs)](https://petitbonney.github.io/ovrly/)
@@ -33,6 +33,12 @@ Grab the installer for your OS from the [Releases page](https://github.com/petit
 pnpm install
 pnpm dev      # server + UI on http://localhost:6875
 ```
+
+## Versioning
+
+Ovrly uses calendar versioning: `YYYY.M.MICRO`, e.g. `2026.11.0`, then `2026.11.1` for the next release that month. The version says when a release was made, not how much changed: breaking changes are called out in the release notes.
+
+A release is a `vYYYY.M.MICRO` tag on `master`: CI tests it, builds the installers and publishes the GitHub release. `package.json` stays at `0.0.0-dev`, as the tag sets the version.
 
 ## License
 

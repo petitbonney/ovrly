@@ -28,7 +28,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      # The app's version is the tag's (v1.2.3 → 1.2.3).
+      # The app's and its Stream Deck plugin's version are the tag's (v2026.11.0 → 2026.11.0).
+      - run: pnpm streamdeck:pack --version ${GITHUB_REF_NAME#v}
       - run: pnpm desktop:build ${{ matrix.args }} -c.extraMetadata.version=${GITHUB_REF_NAME#v}
       - uses: actions/upload-artifact@v4
         with:
@@ -42,7 +43,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 } # the notes need the commits and the previous tag
       - uses: actions/download-artifact@v4
         with: { path: installers, merge-multiple: true }
-      - run: gh release create ${{ github.ref_name }} installers/* --repo ${{ github.repository }} --generate-notes
+      # The notes list the commits since the previous tag: --generate-notes only reads pull requests.
+      - run: |
+          previous=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
+          git log --format='- %s' ${previous:+$previous..}HEAD > notes.md
+          gh release create ${{ github.ref_name }} installers/* --repo ${{ github.repository }} --notes-file notes.md
         env: { GH_TOKEN: '${{ github.token }}' }

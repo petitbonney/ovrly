@@ -33,7 +33,16 @@ Tests use Node's own runner, no framework. Each test file runs in a fresh temp f
 
 ## Releases
 
-Pushing a `v*` tag runs `.github/workflows/release.yml`: on macOS (arm64, x64) and Windows, it runs `pnpm desktop:build` with the tag as version, and attaches the two `.dmg`s and the Windows installer to a GitHub release.
+Versions are calendar ones, `YYYY.M.MICRO`: `2026.11.0`, then `2026.11.1` for the next release that month, and `2026.12.0` for the first of the next. No leading zeros, as electron-builder needs valid semver. The tag is the only place a version lives: `package.json` stays at `0.0.0-dev`.
+
+To release, tag `master` and push the tag, never moving it afterwards:
+
+```bash
+git tag -a v2026.11.0 -m v2026.11.0
+git push origin v2026.11.0
+```
+
+This runs `.github/workflows/release.yml`: on macOS (arm64, x64) and Windows, it runs `pnpm desktop:build` with the tag as version (the Stream Deck plugin's too), and attaches the two `.dmg`s and the Windows installer to a GitHub release, its notes listing the commits since the previous tag. A breaking change to saved data or the custom code API gets a line of its own there: the version doesn't show it.
 
 ## Desktop app
 
