@@ -1,7 +1,7 @@
 // Trophy layout (three.js): a metal trophy drops in, bounces, spins to face the front, confetti bursts on landing, and
 // the text shows on an engraved plaque below it. Then the trophy shrinks away.
 import * as THREE from 'three'
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
+import { RoomEnvironment } from '/widgets/alerts/room-environment.js'
 import { createTimeline } from 'animejs'
 import { el } from '/widgets/lib.js'
 import { fit, noise, timing, tone } from '/widgets/alerts/kit.js'

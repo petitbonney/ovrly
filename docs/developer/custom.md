@@ -57,6 +57,6 @@ Custom code has Node's built-ins (`node:fs`, `node:crypto`…) and `fetch`, but 
   ```bash
   npx esbuild src/my-node.js --bundle --platform=node --format=esm --outfile=data/custom/nodes/my-node.js
   ```
-- **In a page**, map it in the import map: to the `/vendor/` libraries (anime.js, three.js, cannon-es), to a file in the widget's folder (`/widgets/<type>/lib/confetti.js`), or to a CDN with a pinned version (`https://esm.sh/canvas-confetti@1.9.3`). A CDN needs internet when OBS loads the page: prefer a copied file.
+- **In a page**, map it in the import map: to the `/vendor/` libraries (anime.js, three.js without its addons, cannon-es), to a file in the widget's folder (`/widgets/<type>/lib/confetti.js`), or to a CDN with a pinned version (`https://esm.sh/canvas-confetti@1.9.3`). A CDN needs internet when OBS loads the page: prefer a copied file.
 
 Ovrly's own packages are within reach (imports look up to its `node_modules`), but they aren't an API: Ovrly may upgrade or drop them. Use the `ovrly` helpers, `/vendor/` in pages, or a copy of your own. Only a node's file and a widget's `widget.js` reload when changed; the files they import reload on a restart.

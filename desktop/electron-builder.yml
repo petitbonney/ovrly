@@ -14,6 +14,7 @@ files:
   - desktop/main.js
   - desktop/*.png
   - streamdeck/*.streamDeckPlugin
+  - '!node_modules/@tabler/icons/**' # 50 MB of SVGs and fonts: server/icons.js only reads @tabler/icons-react's shapes
 mac:
   identity: '-' # ad hoc: unsigned for Gatekeeper, but Apple Silicon only runs signed code
   hardenedRuntime: false # only notarization needs it, and it would refuse nut.js's native module

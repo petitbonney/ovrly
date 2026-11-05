@@ -5,7 +5,7 @@
 // text, in the dots color on the dice color; the outline is a dark shade of the dice color.
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
+import { RoundedBoxGeometry } from '/widgets/dice/rounded-box-geometry.js'
 import { createTimeline } from 'animejs'
 import 'animejs/adapters/three' // lets anime.js animate three.js objects (x, y, rotateX, scale…)
 import { DICE_MS } from '/widgets/dice/widget.js'

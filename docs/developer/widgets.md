@@ -69,4 +69,4 @@ The node waits until what it started has stopped:
 - Text from chat goes in with `el()` from `lib.js` or `textContent`, **never as HTML**.
 - A text's look (font, color, size, alignment) is `textStyle` from `lib.js`: spread its `state` and `fields` into the type's (as Label and `clock.js` do), and the page calls `styleText(el, state)`.
 - Shared code (e.g. a fade's duration) is imported from `/widgets/<type>/widget.js`.
-- Animate with **anime.js** (v4), the standard across Ovrly. 3D goes through three.js, animated with anime.js's Three.js adapter; physics through cannon-es. Pages load them from `/vendor/` with an import map: see `widgets/dice/index.html`.
+- Animate with **anime.js** (v4), the standard across Ovrly. 3D goes through three.js, animated with anime.js's Three.js adapter; physics through cannon-es. Pages load them from `/vendor/` with an import map: see `widgets/dice/index.html`. three.js addons aren't there in the desktop app: copy the file beside the widget (`widgets/dice/rounded-box-geometry.js`).
